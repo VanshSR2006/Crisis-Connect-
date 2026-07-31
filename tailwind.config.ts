@@ -1,0 +1,110 @@
+import type { Config } from 'tailwindcss';
+
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        // Stitch Brand & Surface Palette Tokens
+        brand: {
+          navy: 'var(--color-navy, #0F172A)',
+          slate: 'var(--color-slate, #475569)',
+          blue: 'var(--color-alert-blue, #2563EB)',
+          red: 'var(--color-critical-red, #DC2626)',
+        },
+        // Role-based Layout Surface Colors
+        surface: {
+          light: 'var(--bg-light-canvas, #F8FAFC)',
+          'light-card': 'var(--bg-light-card, #FFFFFF)',
+          'light-border': 'var(--border-light, #E2E8F0)',
+          dark: 'var(--bg-dark-canvas, #090D16)',
+          'dark-card': 'var(--bg-dark-card, #111827)',
+          'dark-sidebar': 'var(--bg-dark-sidebar, #0F172A)',
+          'dark-border': 'var(--border-dark, #1E293B)',
+        },
+        // Single Source-of-Truth Severity Color Tokens (Requirement 3)
+        severity: {
+          low: {
+            DEFAULT: 'var(--severity-low, #15803d)',
+            bg: 'var(--severity-low-bg, #dcfce7)',
+            border: 'var(--severity-low-border, #86efac)',
+            darkBg: 'var(--severity-low-dark-bg, #052e16)',
+            darkText: 'var(--severity-low-dark-text, #4ade80)',
+            darkBorder: 'var(--severity-low-dark-border, #166534)',
+          },
+          medium: {
+            DEFAULT: 'var(--severity-medium, #a16207)',
+            bg: 'var(--severity-medium-bg, #fef9c3)',
+            border: 'var(--severity-medium-border, #fde047)',
+            darkBg: 'var(--severity-medium-dark-bg, #422006)',
+            darkText: 'var(--severity-medium-dark-text, #facc15)',
+            darkBorder: 'var(--severity-medium-dark-border, #854d0e)',
+          },
+          high: {
+            DEFAULT: 'var(--severity-high, #c2410c)',
+            bg: 'var(--severity-high-bg, #ffedd5)',
+            border: 'var(--severity-high-border, #fdba74)',
+            darkBg: 'var(--severity-high-dark-bg, #431407)',
+            darkText: 'var(--severity-high-dark-text, #fb923c)',
+            darkBorder: 'var(--severity-high-dark-border, #9a3412)',
+          },
+          critical: {
+            DEFAULT: 'var(--severity-critical, #b91c1c)',
+            bg: 'var(--severity-critical-bg, #fee2e2)',
+            border: 'var(--severity-critical-border, #fca5a5)',
+            darkBg: 'var(--severity-critical-dark-bg, #450a0a)',
+            darkText: 'var(--severity-critical-dark-text, #f87171)',
+            darkBorder: 'var(--severity-critical-dark-border, #991b1b)',
+          },
+        },
+        // Stitch Crisis Utility System — Full Token Palette
+        'stitch-primary': '#0f172a',
+        'stitch-on-primary': '#ffffff',
+        'stitch-primary-container': '#131b2e',
+        'stitch-on-primary-container': '#7c839b',
+        'stitch-secondary': '#515f74',
+        'stitch-on-secondary': '#ffffff',
+        'stitch-secondary-container': '#d5e3fc',
+        'stitch-on-secondary-container': '#57657a',
+        'stitch-error': '#ba1a1a',
+        'stitch-on-error': '#ffffff',
+        'stitch-error-container': '#ffdad6',
+        'stitch-background': '#fcf8fa',
+        'stitch-on-background': '#1b1b1d',
+        'stitch-surface': '#fcf8fa',
+        'stitch-on-surface': '#1b1b1d',
+        'stitch-on-surface-variant': '#45464d',
+        'stitch-surface-container': '#f0edef',
+        'stitch-surface-container-low': '#f6f3f5',
+        'stitch-surface-container-high': '#eae7e9',
+        'stitch-surface-container-lowest': '#ffffff',
+        'stitch-surface-container-highest': '#e4e2e4',
+        'stitch-surface-variant': '#e4e2e4',
+        'stitch-outline': '#76777d',
+        'stitch-outline-variant': '#c6c6cd',
+        'stitch-inverse-surface': '#303032',
+        'stitch-inverse-on-surface': '#f3f0f2',
+      },
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
+      borderRadius: {
+        DEFAULT: '0.25rem',
+        sm: '0.125rem',
+        md: '0.375rem',
+        lg: '0.5rem',
+      },
+      fontSize: {
+        'stitch-headline-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.02em', fontWeight: '700' }],
+        'stitch-headline-md': ['18px', { lineHeight: '24px', letterSpacing: '-0.01em', fontWeight: '600' }],
+        'stitch-headline-sm': ['16px', { lineHeight: '20px', fontWeight: '600' }],
+        'stitch-body-md': ['14px', { lineHeight: '20px', fontWeight: '400' }],
+        'stitch-body-sm': ['13px', { lineHeight: '18px', fontWeight: '400' }],
+        'stitch-label-md': ['12px', { lineHeight: '16px', letterSpacing: '0.05em', fontWeight: '600' }],
+        'stitch-label-sm': ['11px', { lineHeight: '14px', fontWeight: '500' }],
+      },
+    },
+  },
+  plugins: [],
+} satisfies Config;

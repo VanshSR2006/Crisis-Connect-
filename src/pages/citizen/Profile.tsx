@@ -1,0 +1,123 @@
+import React from 'react';
+import { useCitizenContext, LanguageCode } from '@/lib/citizenContext';
+import { User, Phone, Mail, MapPin, ShieldCheck, Globe, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+export const Profile: React.FC = () => {
+  const { user, language, setLanguage } = useCitizenContext();
+  const navigate = useNavigate();
+
+  const initials = user.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  const languages: { code: LanguageCode; label: string; native: string }[] = [
+    { code: 'en', label: 'English', native: 'English' },
+    { code: 'hi', label: 'Hindi', native: 'हिंदी' },
+    { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* ── Page Header ──────────────────────────────────── */}
+      <div>
+        <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
+          Citizen Profile & Settings
+        </h1>
+        <p className="text-[13px] text-[#45464d] mt-0.5">
+          Verified emergency contact profile & portal preferences
+        </p>
+      </div>
+
+      {/* ── User Identity Card ─────────────────────────────── */}
+      <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
+        {/* Header Banner */}
+        <div className="bg-[#0f172a] px-4 py-5 flex items-center gap-4">
+          <div className="w-14 h-14 bg-[#2563eb] rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+            <span className="text-xl font-black text-white">{initials}</span>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white">{user.name}</h2>
+            <div className="flex items-center gap-1.5 mt-1">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider">
+                Verified Resident Citizen
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Contact Details List */}
+        <div className="divide-y divide-[#f0edef]">
+          <div className="px-4 py-3 flex items-center gap-3">
+            <Mail className="h-4 w-4 text-[#76777d] flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Email</p>
+              <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5">{user.email}</p>
+            </div>
+          </div>
+
+          <div className="px-4 py-3 flex items-center gap-3">
+            <Phone className="h-4 w-4 text-[#76777d] flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Mobile Phone</p>
+              <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5">{user.phone}</p>
+            </div>
+          </div>
+
+          <div className="px-4 py-3 flex items-center gap-3">
+            <MapPin className="h-4 w-4 text-[#76777d] flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Assigned Disaster Zone</p>
+              <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5 font-mono">{user.zone_id}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Language Preference Selector ───────────────────── */}
+      <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-3 shadow-sm">
+        <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
+          <Globe className="h-4 w-4 text-[#2563eb]" />
+          <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
+            Language Preference / भाषा चुनें
+          </h3>
+        </div>
+
+        <p className="text-xs text-[#45464d]">
+          Select your preferred broadcast alert language. All Emergency Broadcast Bulletins will render in this language across your citizen workspace.
+        </p>
+
+        <div className="grid grid-cols-3 gap-2">
+          {languages.map((lang) => (
+            <button
+              key={lang.code}
+              type="button"
+              onClick={() => setLanguage(lang.code)}
+              className={`p-3 rounded border text-center transition-all ${
+                language === lang.code
+                  ? 'bg-[#d5e3fc] border-[#2563eb] text-[#0f172a] font-bold ring-1 ring-[#2563eb]'
+                  : 'bg-white border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5]'
+              }`}
+            >
+              <span className="block text-xs font-bold">{lang.native}</span>
+              <span className="block text-[10px] text-[#76777d] mt-0.5">{lang.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Role Switcher CTA ──────────────────────────────── */}
+      <button
+        onClick={() => navigate('/login')}
+        className="w-full flex items-center justify-center gap-2 bg-white border border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5] hover:text-[#1b1b1d] rounded py-3 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+      >
+        <LogOut className="h-4 w-4 text-[#76777d]" />
+        <span>Switch Platform Role</span>
+      </button>
+    </div>
+  );
+};

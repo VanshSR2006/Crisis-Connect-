@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Brand Colors - Stitch matched */
+    --color-navy: #0F172A;
+    --color-slate: #475569;
+    --color-alert-blue: #2563EB;
+    --color-critical-red: #DC2626;
+
+    /* Light Theme (Citizen / Volunteer / Public surfaces) */
+    --bg-light-canvas: #F8FAFC;
+    --bg-light-card: #FFFFFF;
+    --border-light: #E2E8F0;
+    --text-light-primary: #0F172A;
+    --text-light-secondary: #475569;
+
+    /* Dark Control Room Theme (Officer Dashboard) */
+    --bg-dark-canvas: #090D16;
+    --bg-dark-card: #111827;
+    --bg-dark-sidebar: #0F172A;
+    --border-dark: #1E293B;
+    --text-dark-primary: #F9FAFB;
+    --text-dark-secondary: #9CA3AF;
+
+    /* Severity System (Single source of truth) */
+    --severity-low: #15803d;
+    --severity-low-bg: #dcfce7;
+    --severity-low-border: #86efac;
+    --severity-low-dark-bg: #052e16;
+    --severity-low-dark-text: #4ade80;
+    --severity-low-dark-border: #166534;
+
+    --severity-medium: #a16207;
+    --severity-medium-bg: #fef9c3;
+    --severity-medium-border: #fde047;
+    --severity-medium-dark-bg: #422006;
+    --severity-medium-dark-text: #facc15;
+    --severity-medium-dark-border: #854d0e;
+
+    --severity-high: #c2410c;
+    --severity-high-bg: #ffedd5;
+    --severity-high-border: #fdba74;
+    --severity-high-dark-bg: #431407;
+    --severity-high-dark-text: #fb923c;
+    --severity-high-dark-border: #9a3412;
+
+    --severity-critical: #b91c1c;
+    --severity-critical-bg: #fee2e2;
+    --severity-critical-border: #fca5a5;
+    --severity-critical-dark-bg: #450a0a;
+    --severity-critical-dark-text: #f87171;
+    --severity-critical-dark-border: #991b1b;
+  }
+
+  html, body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Stitch-matched slim scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #c6c6cd;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #76777d;
+}
+
+@layer components {
+  /* ── Stitch Nav Items ─────────────────────────────────────────── */
+  .stitch-nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded text-[12px] font-semibold tracking-wide transition-all duration-150 cursor-pointer;
+  }
+  .stitch-nav-active {
+    @apply bg-[#d5e3fc] text-[#57657a] font-bold;
+  }
+  .stitch-nav-idle {
+    @apply text-[#45464d] hover:bg-[#eae7e9] hover:text-[#1b1b1d];
+  }
+
+  /* ── Stitch Card ──────────────────────────────────────────────── */
+  .stitch-card {
+    @apply bg-white border border-[#c6c6cd] rounded text-[#1b1b1d];
+  }
+  .stitch-card-header {
+    @apply px-3 py-2 border-b border-[#c6c6cd];
+  }
+  .stitch-card-body {
+    @apply p-3;
+  }
+
+  /* ── Stitch Severity Badges ───────────────────────────────────── */
+  .stitch-severity-critical {
+    @apply bg-[#ba1a1a] text-white px-2 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wider;
+  }
+  .stitch-severity-high {
+    @apply bg-[#c2410c] text-white px-2 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wider;
+  }
+  .stitch-severity-medium {
+    @apply bg-[#515f74] text-white px-2 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wider;
+  }
+  .stitch-severity-low {
+    @apply bg-[#15803d] text-white px-2 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wider;
+  }
+
+  /* ── Zebra-striped list ───────────────────────────────────────── */
+  .zebra-list > *:nth-child(even) {
+    background-color: #f6f3f5;
+  }
+
+  /* ── Stitch top-nav ───────────────────────────────────────────── */
+  .stitch-topbar {
+    @apply h-12 bg-[#fcf8fa] border-b border-[#c6c6cd] px-6 flex items-center justify-between sticky top-0 z-50;
+  }
+
+  /* ── Stitch Section Headers ───────────────────────────────────── */
+  .stitch-headline-lg {
+    @apply text-2xl font-bold tracking-tight text-[#1b1b1d];
+    letter-spacing: -0.02em;
+  }
+  .stitch-headline-md {
+    @apply text-lg font-semibold text-[#1b1b1d];
+    letter-spacing: -0.01em;
+  }
+  .stitch-headline-sm {
+    @apply text-base font-semibold text-[#1b1b1d];
+  }
+  .stitch-label-md {
+    @apply text-[12px] font-semibold uppercase tracking-[0.05em] text-[#45464d];
+  }
+  .stitch-label-sm {
+    @apply text-[11px] font-medium text-[#45464d];
+  }
+  .stitch-body-md {
+    @apply text-[14px] text-[#1b1b1d] leading-5;
+  }
+  .stitch-body-sm {
+    @apply text-[13px] text-[#45464d] leading-[18px];
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
