@@ -1,10 +1,11 @@
 import React from 'react';
 import { useCitizenContext, LanguageCode } from '@/lib/citizenContext';
+import { Select } from '@/components/ui/select';
 import { User, Phone, Mail, MapPin, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Profile: React.FC = () => {
-  const { user, language, setLanguage } = useCitizenContext();
+  const { user, language, setLanguage, setZoneId } = useCitizenContext();
   const navigate = useNavigate();
 
   const initials = user.name
@@ -72,7 +73,17 @@ export const Profile: React.FC = () => {
             <MapPin className="h-4 w-4 text-[#76777d] flex-shrink-0" />
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Assigned Disaster Zone</p>
-              <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5 font-mono">{user.zone_id}</p>
+              <Select
+                label=""
+                value={user.zone_id}
+                onChange={(e) => setZoneId(e.target.value)}
+                options={[
+                  { label: 'North Riverine Flood Basin (NRFB-01)', value: 'zone-north-01' },
+                  { label: 'East Urban Drainage Corridor (EUDC-02)', value: 'zone-east-02' },
+                  { label: 'South Coastal Lowlands (SCL-03)', value: 'zone-south-03' },
+                ]}
+                className="w-full"
+              />
             </div>
           </div>
         </div>

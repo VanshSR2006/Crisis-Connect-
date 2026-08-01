@@ -25,12 +25,13 @@ interface CitizenContextType {
   shelters: Shelter[];
   addIncident: (payload: NewIncidentPayload) => Incident;
   getNearestShelter: (lat?: number, lng?: number) => Shelter;
+  setZoneId: (zoneId: string) => void;
 }
 
 const CitizenContext = createContext<CitizenContextType | undefined>(undefined);
 
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user] = useState<User>(mockUsers.find((u) => u.role === 'citizen') || mockUsers[0]);
+  const [user, setUser] = useState<User>(mockUsers.find((u) => u.role === 'citizen') || mockUsers[0]);
   const [language, setLanguage] = useState<LanguageCode>('en');
   const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
   const [activeIncident, setActiveIncident] = useState<Incident | null>(mockIncidents[0] || null);
@@ -75,7 +76,9 @@ export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ child
         shelters: mockShelters,
         addIncident,
         getNearestShelter,
+        setZoneId: (zoneId: string) => setUser(prev => ({ ...prev, zone_id: zoneId })),
       }}
+
     >
       {children}
     </CitizenContext.Provider>
