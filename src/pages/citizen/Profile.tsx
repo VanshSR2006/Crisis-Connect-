@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCitizenContext, LanguageCode } from '@/lib/citizenContext';
-import { Select } from '@/components/ui/select';
+import { Select } from '@/components/ui/Select';
 import { User, Phone, Mail, MapPin, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
