@@ -78,9 +78,10 @@ export const Profile: React.FC = () => {
                 value={user.zone_id}
                 onChange={(e) => setZoneId(e.target.value)}
                 options={[
-                  { label: 'North Riverine Flood Basin (NRFB-01)', value: 'zone-north-01' },
-                  { label: 'East Urban Drainage Corridor (EUDC-02)', value: 'zone-east-02' },
-                  { label: 'South Coastal Lowlands (SCL-03)', value: 'zone-south-03' },
+                  { label: 'Uttarakhand Himalayan Sector (UK-01)', value: 'zone-north-01' },
+                  { label: 'Assam Brahmaputra Flood Basin (AS-02)', value: 'zone-east-02' },
+                  { label: 'Odisha & Bengal Coastal Belt (OD-03)', value: 'zone-south-03' },
+                  { label: 'Kerala & Konkan Coastal Zone (KL-04)', value: 'zone-central-04' },
                 ]}
                 className="w-full"
               />

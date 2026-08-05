@@ -4,14 +4,14 @@ export const mockAlerts: Alert[] = [
   {
     id: 'alt-301',
     title: 'RED ALERT: Yamuna River Danger Mark Crossed',
-    message: 'Water levels exceeded 205.53m. Immediate evacuation ordered for low-lying areas in North Riverine Basin.',
+    message: 'Water levels exceeded 205.53m. Immediate evacuation ordered for low-lying areas in Uttarakhand Himalayan Sector.',
     title_translated: {
       en: 'RED ALERT: Yamuna River Danger Mark Crossed',
       hi: 'रेड अलर्ट: यमुना नदी का जलस्तर खतरे के निशान के पार',
       ta: 'சிவப்பு எச்சரிக்கை: யமுனை ஆற்றின் ஆபத்து குறியீடு தாண்டியது',
     },
     message_translated: {
-      en: 'Water levels exceeded 205.53m. Immediate evacuation ordered for low-lying areas in North Riverine Basin.',
+      en: 'Water levels exceeded 205.53m. Immediate evacuation ordered for low-lying areas in Uttarakhand Himalayan Sector.',
       hi: 'जलस्तर 205.53 मीटर पार कर गया। उत्तरी नदी बेसिन के निचले इलाकों के लिए तत्काल निकासी के आदेश जारी।',
       ta: 'நீர் மட்டம் 205.53 மீட்டரை தாண்டியது. வடக்கு ஆற்றுப் படுகையின் தாழ்வான பகுதிகளுக்கு உடனடி வெளியேற்றம் உத்தரவிடப்பட்டுள்ளது.',
     },

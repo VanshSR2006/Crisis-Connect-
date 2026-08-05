@@ -44,7 +44,7 @@ export const RiskHeatmap: React.FC = () => {
             Critical Flood Inundation Warning
           </p>
           <p className="text-[12px] text-[#9a3412] mt-0.5">
-            North Riverine Flood Basin score reached <strong className="font-mono">{highestScore}/100</strong> due to sustained 112.5mm precipitation and river elevation crossing 206.1m mark.
+            Uttarakhand Himalayan Sector score reached <strong className="font-mono">{highestScore}/100</strong> due to sustained 112.5mm precipitation and river elevation crossing 206.1m mark.
           </p>
         </div>
       </div>

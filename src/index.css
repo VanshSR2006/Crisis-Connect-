@@ -61,6 +61,27 @@
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+  }
+
+  /* Preserve full typing & text selection inside inputs, textareas, and editable zones */
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  .selectable-text {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+
+  /* Ensure proper interactive pointer cursors */
+  button, a, label, select, [role="button"] {
+    cursor: pointer;
   }
 }
 

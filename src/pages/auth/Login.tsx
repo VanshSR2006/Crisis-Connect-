@@ -1,21 +1,35 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserRole } from '@/types';
-import { ShieldAlert, User, Radio, ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
+import { 
+  ShieldAlert, 
+  User, 
+  Radio, 
+  ArrowRight, 
+  CheckCircle2, 
+  Mail, 
+  MapPin, 
+  ShieldCheck, 
+  Activity,
+  Users,
+  RadioTower,
+  Lock,
+  Globe,
+  Compass,
+  Zap
+} from 'lucide-react';
 
 export const Login: React.FC = () => {
-  const [selectedRole, setSelectedRole] = useState<UserRole>('citizen');
-  const [email, setEmail] = useState<string>('citizen@disasterplatform.gov.in');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('officer');
+  const [email, setEmail] = useState<string>('command.officer@crisisconnect.org');
+  const [zoneId, setZoneId] = useState<string>('zone-north-01');
   const navigate = useNavigate();
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
-    if (role === 'citizen') setEmail('citizen@disasterplatform.gov.in');
-    if (role === 'officer') setEmail('command.officer@ndrf.gov.in');
-    if (role === 'volunteer') setEmail('volunteer.lead@relief.org');
+    if (role === 'citizen') setEmail('citizen@crisisconnect.org');
+    if (role === 'officer') setEmail('command.officer@crisisconnect.org');
+    if (role === 'volunteer') setEmail('volunteer.lead@crisisconnect.org');
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -25,119 +39,297 @@ export const Login: React.FC = () => {
     if (selectedRole === 'volunteer') navigate('/volunteer/tasks');
   };
 
+  const zoneOptions = [
+    { label: 'Uttarakhand Himalayan Sector (UK-01)', value: 'zone-north-01', risk: 'Critical', color: 'text-red-700 bg-red-50 border-red-200' },
+    { label: 'Assam Brahmaputra Flood Basin (AS-02)', value: 'zone-east-02', risk: 'High', color: 'text-amber-700 bg-amber-50 border-amber-200' },
+    { label: 'Odisha & Bengal Coastal Belt (OD-03)', value: 'zone-south-03', risk: 'Medium', color: 'text-yellow-800 bg-yellow-50 border-yellow-200' },
+    { label: 'Kerala & Konkan Coastal Zone (KL-04)', value: 'zone-central-04', risk: 'Low', color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#fcf8fa] flex flex-col justify-center items-center px-4 py-8">
-      <div className="w-full max-w-md space-y-5">
-        {/* Brand Header */}
-        <div className="text-center space-y-1">
-          <div className="w-12 h-12 bg-[#0f172a] rounded-lg mx-auto flex items-center justify-center shadow-sm">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-between px-4 pt-3 pb-6 sm:px-8 sm:pt-4 sm:pb-8 lg:px-10 lg:pt-5 lg:pb-8 relative overflow-hidden text-slate-900 selection:bg-blue-600 selection:text-white">
+      {/* Light Theme Ambient Soft Glow (No Grid Lines) */}
+      <div className="absolute -top-40 -left-40 w-[650px] h-[650px] bg-blue-500/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-[650px] h-[650px] bg-red-500/10 blur-[150px] rounded-full pointer-events-none" />
+
+      {/* Top Desktop Navigation Bar */}
+      <header className="w-full max-w-7xl mx-auto flex items-center justify-between relative z-20 pb-4 border-b border-slate-200">
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="p-2.5 bg-slate-900 rounded-xl shadow-md flex items-center justify-center group-hover:scale-105 transition-transform duration-200">
             <ShieldAlert className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-[#1b1b1d] uppercase mt-3" style={{ letterSpacing: '-0.02em' }}>
-            CrisisConnect
-          </h1>
-          <p className="text-[13px] text-[#45464d]">
-            National Emergency Management & Response Portal
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-900 uppercase font-sans">
+                CRISISCONNECT
+              </h1>
+              <span className="bg-blue-100 text-blue-800 text-[10px] font-mono px-2 py-0.5 rounded border border-blue-200 uppercase font-bold shadow-xs">
+                SIH 2026
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
+              Integrated Emergency Operations & Rapid Disaster Response System
+            </p>
+          </div>
         </div>
 
-        {/* Auth Card */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-5 space-y-4 shadow-sm">
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Select Portal Role
+        <div className="flex items-center gap-4 text-xs">
+          <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-xs hover:border-slate-300 transition-all">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>4 Active Disaster Response Zones</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-600 font-mono text-[11px] bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs hover:border-slate-300 transition-all">
+            <Lock className="h-3.5 w-3.5 text-blue-600" />
+            <span>ENCRYPTED COMMAND CHANNEL</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Desktop 2-Column Content Layout */}
+      <main className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center my-4 lg:my-6 py-2 relative z-20">
+        
+        {/* Left Column: Telemetry & Info (7 Columns) */}
+        <div className="lg:col-span-7 space-y-8 pr-0 lg:pr-4">
+          <div className="space-y-3">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold tracking-wide hover:bg-blue-100/80 transition-colors cursor-default">
+              <Globe className="h-3.5 w-3.5 text-blue-600" />
+              <span>CrisisConnect • Unified Emergency Network</span>
+            </div>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
+              Real-time Emergency Intelligence & Rapid Response
             </h2>
-            <p className="text-[11px] text-[#76777d] mt-0.5">
-              Choose your authorized access level to enter the platform.
+            <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
+              Unified portal for command officers, field emergency teams, and citizens across high-risk flood and landslide zones in India.
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            {/* Role selector cards */}
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleRoleSelect('citizen')}
-                className={`p-2.5 rounded border text-left flex flex-col justify-between transition-all ${
-                  selectedRole === 'citizen'
-                    ? 'bg-[#d5e3fc] border-[#2563eb] text-[#0f172a]'
-                    : 'bg-white border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5]'
-                }`}
-              >
-                <User className={`h-4 w-4 mb-2 ${selectedRole === 'citizen' ? 'text-[#2563eb]' : 'text-[#76777d]'}`} />
-                <div>
-                  <div className="font-bold text-[12px]">Citizen</div>
-                  <div className="text-[10px] text-[#76777d]">Public</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRoleSelect('officer')}
-                className={`p-2.5 rounded border text-left flex flex-col justify-between transition-all ${
-                  selectedRole === 'officer'
-                    ? 'bg-[#d5e3fc] border-[#2563eb] text-[#0f172a]'
-                    : 'bg-white border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5]'
-                }`}
-              >
-                <ShieldAlert className={`h-4 w-4 mb-2 ${selectedRole === 'officer' ? 'text-[#ba1a1a]' : 'text-[#76777d]'}`} />
-                <div>
-                  <div className="font-bold text-[12px]">Officer</div>
-                  <div className="text-[10px] text-[#76777d]">Command</div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRoleSelect('volunteer')}
-                className={`p-2.5 rounded border text-left flex flex-col justify-between transition-all ${
-                  selectedRole === 'volunteer'
-                    ? 'bg-[#d5e3fc] border-[#2563eb] text-[#0f172a]'
-                    : 'bg-white border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5]'
-                }`}
-              >
-                <Radio className={`h-4 w-4 mb-2 ${selectedRole === 'volunteer' ? 'text-emerald-600' : 'text-[#76777d]'}`} />
-                <div>
-                  <div className="font-bold text-[12px]">Volunteer</div>
-                  <div className="text-[10px] text-[#76777d]">Field</div>
-                </div>
-              </button>
+          {/* Quick Metrics Bar - Properly Padded with Hover Scale */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Active Sectors</span>
+                <Compass className="h-4.5 w-4.5 text-blue-600" />
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">04</p>
+              <p className="text-[11px] text-slate-500 font-medium">UK, AS, OD, KL</p>
             </div>
 
-            <Input
-              label="Verified Identity Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Dispatch Target</span>
+                <Zap className="h-4.5 w-4.5 text-amber-500" />
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">&lt; 5 min</p>
+              <p className="text-[11px] text-amber-700 font-medium">SOS report to resource dispatch</p>
+            </div>
 
-            <Select
-              label="Assigned Disaster Zone"
-              value="zone-north-01"
-              onChange={() => {}}
-              options={[
-                { label: 'North Riverine Flood Basin (NRFB-01)', value: 'zone-north-01' },
-                { label: 'East Urban Drainage Corridor (EUDC-02)', value: 'zone-east-02' },
-                { label: 'South Coastal Lowlands (SCL-03)', value: 'zone-south-03' },
-              ]}
-            />
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+              <div className="flex items-center justify-between text-slate-500">
+                <span className="text-[11px] font-bold uppercase tracking-wider">Field Response</span>
+                <RadioTower className="h-4.5 w-4.5 text-red-600" />
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">24 / 7</p>
+              <p className="text-[11px] text-red-700 font-medium">Command node active</p>
+            </div>
+          </div>
 
-            <button
-              type="submit"
-              className="w-full bg-[#0f172a] hover:bg-[#1e293b] text-white font-bold text-xs uppercase tracking-widest py-3 rounded flex items-center justify-center gap-2 transition-colors"
-            >
-              <span>Enter {selectedRole.toUpperCase()} Portal</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </form>
+          {/* Real-time Zone Overview List with Hover Effects */}
+          <div className="bg-white/90 border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-300">
+            <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-3">
+              <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                <Activity className="h-4 w-4 text-blue-600" />
+                Live Indian Disaster Zone Status
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono tracking-wider">REAL-TIME INCIDENT MONITORING</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              {zoneOptions.map((zone) => (
+                <div key={zone.value} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 hover:translate-x-1 transition-all duration-200 cursor-default">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-slate-900">{zone.label}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">Sector ID: {zone.value}</p>
+                  </div>
+                  <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold border font-mono uppercase shadow-xs ${zone.color}`}>
+                    {zone.risk}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-center justify-between text-[11px] text-[#76777d] px-1">
-          <span className="flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-emerald-600" /> System Operational
-          </span>
-          <span>SIH 2026 Emergency System</span>
+        {/* Right Column: Sign-In Command Card (5 Columns) */}
+        <div className="lg:col-span-5 w-full">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl shadow-slate-200/60 relative">
+            <div>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                  <ShieldCheck className="h-4.5 w-4.5 text-blue-600" />
+                  Select Portal Access Level
+                </h2>
+                <span className="text-[10px] font-mono font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                  SECURE ACCESS
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Choose your authorized role to enter the emergency management platform.
+              </p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-5">
+              {/* Role Cards Selector with Subtle Hover & Motion */}
+              <div className="grid grid-cols-3 gap-2.5">
+                {/* Citizen */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleSelect('citizen')}
+                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
+                    selectedRole === 'citizen'
+                      ? 'bg-blue-50/90 border-blue-600 text-slate-900 shadow-md ring-1 ring-blue-600/30'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'citizen' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                      <User className="h-4 w-4" />
+                    </div>
+                    {selectedRole === 'citizen' && <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>}
+                  </div>
+                  <div>
+                    <div className="font-bold text-xs text-slate-900">Citizen</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">Public Relief</div>
+                  </div>
+                </button>
+
+                {/* Officer */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleSelect('officer')}
+                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
+                    selectedRole === 'officer'
+                      ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-md ring-1 ring-red-600/30'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'officer' ? 'bg-red-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                      <ShieldAlert className="h-4 w-4" />
+                    </div>
+                    {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
+                  </div>
+                  <div>
+                    <div className="font-bold text-xs text-slate-900">Officer</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">Command Center</div>
+                  </div>
+                </button>
+
+                {/* Volunteer */}
+                <button
+                  type="button"
+                  onClick={() => handleRoleSelect('volunteer')}
+                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
+                    selectedRole === 'volunteer'
+                      ? 'bg-emerald-50/90 border-emerald-600 text-slate-900 shadow-md ring-1 ring-emerald-600/30'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'volunteer' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                      <Radio className="h-4 w-4" />
+                    </div>
+                    {selectedRole === 'volunteer' && <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>}
+                  </div>
+                  <div>
+                    <div className="font-bold text-xs text-slate-900">Volunteer</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">Field Logistics</div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Email Input */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Verified Identity Email
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all font-mono shadow-xs"
+                    placeholder="name@crisisconnect.org"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Disaster Zone Dropdown */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Assigned Indian Disaster Zone
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <select
+                    value={zoneId}
+                    onChange={(e) => setZoneId(e.target.value)}
+                    className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all appearance-none cursor-pointer shadow-xs"
+                  >
+                    {zoneOptions.map((zone) => (
+                      <option key={zone.value} value={zone.value} className="bg-white text-slate-900 py-1">
+                        {zone.label}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button with Hover Motion */}
+              <button
+                type="submit"
+                className={`w-full py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                  selectedRole === 'officer'
+                    ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-red-200/80'
+                    : selectedRole === 'volunteer'
+                    ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-emerald-200/80'
+                    : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-200/80'
+                }`}
+              >
+                <span>Enter {selectedRole.toUpperCase()} Command Portal</span>
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+
+      </main>
+
+      {/* Desktop Footer */}
+      <footer className="w-full max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-6 border-t border-slate-200 relative z-20 gap-2 sm:gap-0">
+        <div className="flex items-center gap-2 font-medium">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          <span>All 4 Indian Emergency Command Systems Operational</span>
+        </div>
+        <div className="flex items-center gap-4 font-mono text-[11px]">
+          <span>SIH 2026 DISASTER PLATFORM</span>
+          <span>•</span>
+          <span>RAPID RESPONSE PROTOCOL V1.0</span>
+        </div>
+      </footer>
     </div>
   );
 };
