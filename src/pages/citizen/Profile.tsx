@@ -1,11 +1,16 @@
 import React from 'react';
-import { useCitizenContext, LanguageCode } from '@/lib/citizenContext';
+import { useCitizenContext } from '@/lib/citizenContext';
+import { useLanguage } from '@/lib/languageContext';
+import type { LanguageCode } from '@/lib/i18n';
 import { Select } from '@/components/ui/Select';
 import { User, Phone, Mail, MapPin, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { t } from '@/lib/i18n';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 export const Profile: React.FC = () => {
-  const { user, language, setLanguage, setZoneId } = useCitizenContext();
+  const { user, setZoneId } = useCitizenContext();
+  const { language, setLanguage } = useLanguage();
   const navigate = useNavigate();
 
   const initials = user.name
@@ -18,19 +23,22 @@ export const Profile: React.FC = () => {
   const languages: { code: LanguageCode; label: string; native: string }[] = [
     { code: 'en', label: 'English', native: 'English' },
     { code: 'hi', label: 'Hindi', native: 'हिंदी' },
-    { code: 'ta', label: 'Tamil', native: 'தமிழ்' },
+    { code: 'ka', label: 'Kannada', native: 'ಕನ್ನಡ' },
   ];
 
   return (
     <div className="space-y-4">
       {/* ── Page Header ──────────────────────────────────── */}
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-          Citizen Profile & Settings
-        </h1>
-        <p className="text-[13px] text-[#45464d] mt-0.5">
-          Verified emergency contact profile & portal preferences
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
+            {t('citizenProfile.title', language)}
+          </h1>
+          <p className="text-[13px] text-[#45464d] mt-0.5">
+            {t('citizenProfile.subtitle', language)}
+          </p>
+        </div>
+        <LanguageToggle />
       </div>
 
       {/* ── User Identity Card ─────────────────────────────── */}
@@ -45,7 +53,7 @@ export const Profile: React.FC = () => {
             <div className="flex items-center gap-1.5 mt-1">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               <span className="text-[11px] font-semibold text-emerald-300 uppercase tracking-wider">
-                Verified Resident Citizen
+                {t('citizenProfile.verifiedCitizen', language)}
               </span>
             </div>
           </div>
@@ -56,7 +64,7 @@ export const Profile: React.FC = () => {
           <div className="px-4 py-3 flex items-center gap-3">
             <Mail className="h-4 w-4 text-[#76777d] flex-shrink-0" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Email</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">{t('citizenProfile.email', language)}</p>
               <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5">{user.email}</p>
             </div>
           </div>
@@ -64,15 +72,15 @@ export const Profile: React.FC = () => {
           <div className="px-4 py-3 flex items-center gap-3">
             <Phone className="h-4 w-4 text-[#76777d] flex-shrink-0" />
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Mobile Phone</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">{t('citizenProfile.phone', language)}</p>
               <p className="text-[13px] font-medium text-[#1b1b1d] mt-0.5">{user.phone}</p>
             </div>
           </div>
 
           <div className="px-4 py-3 flex items-center gap-3">
             <MapPin className="h-4 w-4 text-[#76777d] flex-shrink-0" />
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">Assigned Disaster Zone</p>
+            <div className="w-full">
+              <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[#76777d]">{t('citizenProfile.zone', language)}</p>
               <Select
                 label=""
                 value={user.zone_id}
@@ -95,12 +103,12 @@ export const Profile: React.FC = () => {
         <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
           <Globe className="h-4 w-4 text-[#2563eb]" />
           <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-            Language Preference / भाषा चुनें
+            {t('citizenProfile.languagePreference', language)}
           </h3>
         </div>
 
         <p className="text-xs text-[#45464d]">
-          Select your preferred broadcast alert language. All Emergency Broadcast Bulletins will render in this language across your citizen workspace.
+          {t('citizenProfile.selectLanguage', language)}
         </p>
 
         <div className="grid grid-cols-3 gap-2">
@@ -128,7 +136,7 @@ export const Profile: React.FC = () => {
         className="w-full flex items-center justify-center gap-2 bg-white border border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5] hover:text-[#1b1b1d] rounded py-3 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
       >
         <LogOut className="h-4 w-4 text-[#76777d]" />
-        <span>Switch Platform Role</span>
+        <span>{t('citizenProfile.logout', language)}</span>
       </button>
     </div>
   );

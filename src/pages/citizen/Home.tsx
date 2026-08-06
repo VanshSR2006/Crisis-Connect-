@@ -1,16 +1,18 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCitizenContext } from '@/lib/citizenContext';
+import { useLanguage } from '@/lib/languageContext';
 import { Button } from '@/components/ui/Button';
 import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
 import { StatusStepper } from '@/components/shared/StatusStepper';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { formatDate } from '@/lib/utils';
 import { mockAlerts } from '@/mocks';
+import { t } from '@/lib/i18n';
 import {
   AlertTriangle,
   MapPin,
-  Shield,
   Bell,
   ArrowRight,
   Phone,
@@ -21,6 +23,7 @@ import {
 export const Home: React.FC = () => {
   const navigate = useNavigate();
   const { incidents, activeIncident, shelters } = useCitizenContext();
+  const { language } = useLanguage();
 
   // Find critical or high alerts
   const criticalAlerts = mockAlerts.filter((a) => a.severity === 'critical' || a.severity === 'high');
@@ -52,12 +55,12 @@ export const Home: React.FC = () => {
           <div className="flex items-center justify-center sm:justify-start gap-2">
             <span className="w-2 h-2 rounded-full bg-red-600 animate-ping inline-block" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#ba1a1a]">
-              Emergency Dispatch Network Active
+              {t('citizenHome.emergencyDispatch', language)}
             </span>
           </div>
-          <h2 className="text-base font-bold text-[#1b1b1d]">Need Emergency Assistance?</h2>
+          <h2 className="text-base font-bold text-[#1b1b1d]">{t('citizenHome.needHelp', language)}</h2>
           <p className="text-[12px] text-[#45464d]">
-            Tap below to send immediate GPS coordinates and request rescue or medical teams.
+            {t('citizenHome.tapBelow', language)}
           </p>
         </div>
 
@@ -68,7 +71,7 @@ export const Home: React.FC = () => {
           onClick={() => navigate('/citizen/sos-report')}
         >
           <Phone className="h-5 w-5" />
-          <span>Report Emergency</span>
+          <span>{t('citizenHome.reportEmergency', language)}</span>
         </Button>
       </div>
 
@@ -79,7 +82,7 @@ export const Home: React.FC = () => {
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-[#2563eb]" />
               <span className="text-[12px] font-semibold text-[#1b1b1d] uppercase tracking-[0.05em]">
-                Your SOS Request Tracker
+                {t('citizenHome.sosTracker', language)}
               </span>
             </div>
             <span className="text-[11px] font-mono text-[#76777d] font-semibold">
@@ -112,10 +115,10 @@ export const Home: React.FC = () => {
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-[#45464d]" />
             <span className="text-[12px] font-semibold text-[#1b1b1d] uppercase tracking-[0.05em]">
-              Your Location & Safety Map
+              {t('citizenHome.yourLocation', language)}
             </span>
           </div>
-          <span className="text-[11px] text-[#45464d] font-medium">GPS Active</span>
+          <span className="text-[11px] text-[#45464d] font-medium">{t('citizenHome.gpsActive', language)}</span>
         </div>
         <MapPlaceholder height="h-48" />
       </div>
@@ -126,14 +129,14 @@ export const Home: React.FC = () => {
           <div className="flex items-center gap-2">
             <ShelterIcon className="h-4 w-4 text-[#45464d]" />
             <span className="text-[12px] font-semibold text-[#1b1b1d] uppercase tracking-[0.05em]">
-              Nearby Evacuation Shelters
+              {t('citizenHome.nearbyShelters', language)}
             </span>
           </div>
           <button
             onClick={() => navigate('/citizen/shelters')}
             className="flex items-center gap-1 text-[11px] font-semibold text-[#2563eb] hover:underline"
           >
-            View All ({shelters.length}) <ArrowRight className="h-3 w-3" />
+            {t('citizenHome.viewAll', language)} ({shelters.length}) <ArrowRight className="h-3 w-3" />
           </button>
         </div>
 
@@ -165,7 +168,9 @@ export const Home: React.FC = () => {
                         : 'bg-[#ffdad6] text-[#93000a] border border-[#fca5a5]'
                     }`}
                   >
-                    {shelter.status === 'open' ? `${availableBeds} Beds Free` : 'Full'}
+                    {shelter.status === 'open'
+                      ? `${availableBeds} ${t('citizenHome.bedsFree', language)}`
+                      : t('citizenHome.full', language)}
                   </span>
                 </div>
               </div>

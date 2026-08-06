@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import { useCitizenContext } from '@/lib/citizenContext';
+import { useLanguage } from '@/lib/languageContext';
 import { Shelter } from '@/types';
 import { MapPin, Phone, Users, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react';
+import { t } from '@/lib/i18n';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 type ShelterFilter = 'all' | 'open' | 'full';
 
 export const Shelters: React.FC = () => {
   const { shelters } = useCitizenContext();
+  const { language } = useLanguage();
   const [filter, setFilter] = useState<ShelterFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -25,19 +29,19 @@ export const Shelters: React.FC = () => {
     switch (status) {
       case 'open':
         return {
-          label: 'Open',
+          label: t('citizenShelters.open', language),
           icon: CheckCircle,
           badgeClasses: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
         };
       case 'full':
         return {
-          label: 'At Capacity',
+          label: t('citizenShelters.atCapacity', language),
           icon: XCircle,
           badgeClasses: 'bg-[#ffdad6] text-[#93000a] border border-[#fca5a5]',
         };
       default:
         return {
-          label: 'Closed',
+          label: t('citizenShelters.closed', language),
           icon: AlertCircle,
           badgeClasses: 'bg-[#eae7e9] text-[#45464d] border border-[#c6c6cd]',
         };
@@ -47,18 +51,22 @@ export const Shelters: React.FC = () => {
   return (
     <div className="space-y-4">
       {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Evacuation Shelters
+            {t('citizenShelters.title', language)}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {totalOpen} open shelters · {totalBedsFree} total beds available
+            {totalOpen} {t('citizenShelters.openShelters', language)} · {totalBedsFree} {t('citizenShelters.bedsAvailable', language)}
           </p>
         </div>
-        <div className="bg-white border border-[#c6c6cd] rounded px-3 py-1.5 text-center shadow-sm">
-          <span className="block text-lg font-bold text-[#0f172a]">{totalBedsFree}</span>
-          <span className="text-[10px] font-semibold text-[#45464d] uppercase tracking-[0.05em]">Beds Free</span>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="bg-white border border-[#c6c6cd] rounded px-3 py-1.5 text-center shadow-sm">
+            <span className="block text-lg font-bold text-[#0f172a]">{totalBedsFree}</span>
+            <span className="text-[10px] font-semibold text-[#45464d] uppercase tracking-[0.05em]">
+              {t('citizenShelters.bedsFree', language)}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -71,7 +79,7 @@ export const Shelters: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search shelters by name or location..."
+            placeholder={t('citizenShelters.searchPlaceholder', language)}
             className="w-full text-xs pl-9 pr-3 py-2 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
           />
         </div>
@@ -88,7 +96,7 @@ export const Shelters: React.FC = () => {
                   : 'text-[#45464d] hover:bg-[#eae7e9]'
               }`}
             >
-              {opt}
+              {t(`citizenShelters.${opt}`, language)}
             </button>
           ))}
         </div>
@@ -98,7 +106,7 @@ export const Shelters: React.FC = () => {
       <div className="space-y-3">
         {filteredShelters.length === 0 ? (
           <div className="bg-white border border-[#c6c6cd] rounded p-8 text-center text-[#76777d]">
-            <p className="text-sm font-medium">No shelters match your filter criteria.</p>
+            <p className="text-sm font-medium">{t('citizenShelters.noShelters', language)}</p>
           </div>
         ) : (
           filteredShelters.map((shelter, idx) => {
@@ -136,7 +144,7 @@ export const Shelters: React.FC = () => {
                     <div className="flex items-center justify-between mb-1 text-xs">
                       <span className="font-semibold text-[#45464d] flex items-center gap-1.5 uppercase tracking-[0.05em] text-[11px]">
                         <Users className="h-3.5 w-3.5 text-[#2563eb]" />
-                        Occupancy
+                        {t('citizenShelters.occupancy', language)}
                       </span>
                       <span className="font-bold text-[#1b1b1d]">
                         {shelter.current_occupancy} / {shelter.capacity}{' '}
@@ -161,10 +169,12 @@ export const Shelters: React.FC = () => {
                   <div className="flex items-center justify-between pt-2 border-t border-[#f0edef] text-xs">
                     <div className="flex items-center gap-1.5 text-[#45464d]">
                       <Phone className="h-3.5 w-3.5 text-[#76777d]" />
-                      <span>Contact: <strong className="text-[#1b1b1d]">{shelter.contact_number}</strong></span>
+                      <span>{t('citizenShelters.contact', language)} <strong className="text-[#1b1b1d]">{shelter.contact_number}</strong></span>
                     </div>
                     <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                      {availableBeds > 0 ? `${availableBeds} beds available` : 'Full'}
+                      {availableBeds > 0
+                        ? `${availableBeds} ${t('citizenShelters.availableBeds', language)}`
+                        : t('citizenShelters.full', language)}
                     </span>
                   </div>
                 </div>

@@ -1,8 +1,11 @@
 import React, { createContext, useContext, useState } from 'react';
 import { User, Incident, Shelter, IncidentCategory, SeverityLevel, IncidentStatus } from '@/types';
 import { mockUsers, mockIncidents, mockShelters } from '@/mocks';
+import { useLanguage } from './languageContext';
+import type { LanguageCode } from './i18n';
 
-export type LanguageCode = 'en' | 'hi' | 'ta';
+// Re-export LanguageCode so existing imports keep working
+export type { LanguageCode };
 
 export interface NewIncidentPayload {
   title: string;
@@ -32,9 +35,11 @@ const CitizenContext = createContext<CitizenContextType | undefined>(undefined);
 
 export const CitizenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User>(mockUsers.find((u) => u.role === 'citizen') || mockUsers[0]);
-  const [language, setLanguage] = useState<LanguageCode>('en');
   const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
   const [activeIncident, setActiveIncident] = useState<Incident | null>(mockIncidents[0] || null);
+
+  // Use the global language context
+  const { language, setLanguage } = useLanguage();
 
   const addIncident = (payload: NewIncidentPayload): Incident => {
     const newId = `inc-${Date.now().toString().slice(-4)}`;

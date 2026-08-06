@@ -18,12 +18,16 @@ import {
   Compass,
   Zap
 } from 'lucide-react';
+import { useLanguage } from '@/lib/languageContext';
+import { t } from '@/lib/i18n';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 export const Login: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('officer');
   const [email, setEmail] = useState<string>('command.officer@crisisconnect.org');
   const [zoneId, setZoneId] = useState<string>('zone-north-01');
   const navigate = useNavigate();
+  const { language } = useLanguage();
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
@@ -73,13 +77,16 @@ export const Login: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-3 text-xs">
+          {/* Language Toggle — prominent on the login page */}
+          <LanguageToggle variant="dark" />
+
           <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-xs hover:border-slate-300 transition-all">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
-            <span>4 Active Disaster Response Zones</span>
+            <span>{t('login.activeDisasterZones', language)}</span>
           </div>
           <div className="flex items-center gap-1.5 text-slate-600 font-mono text-[11px] bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs hover:border-slate-300 transition-all">
             <Lock className="h-3.5 w-3.5 text-blue-600" />
@@ -96,13 +103,13 @@ export const Login: React.FC = () => {
           <div className="space-y-3">
             <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold tracking-wide hover:bg-blue-100/80 transition-colors cursor-default">
               <Globe className="h-3.5 w-3.5 text-blue-600" />
-              <span>CrisisConnect • Unified Emergency Network</span>
+              <span>{t('login.tagline', language)}</span>
             </div>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-              Real-time Emergency Intelligence & Rapid Response
+              {t('login.headline', language)}
             </h2>
             <p className="text-slate-600 text-sm sm:text-base leading-relaxed max-w-2xl font-normal">
-              Unified portal for command officers, field emergency teams, and citizens across high-risk flood and landslide zones in India.
+              {t('login.subheadline', language)}
             </p>
           </div>
 
@@ -110,7 +117,7 @@ export const Login: React.FC = () => {
           <div className="grid grid-cols-3 gap-4">
             <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Active Sectors</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">{t('login.activeSectors', language)}</span>
                 <Compass className="h-4.5 w-4.5 text-blue-600" />
               </div>
               <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">04</p>
@@ -119,20 +126,20 @@ export const Login: React.FC = () => {
 
             <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Dispatch Target</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">{t('login.dispatchTarget', language)}</span>
                 <Zap className="h-4.5 w-4.5 text-amber-500" />
               </div>
               <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">&lt; 5 min</p>
-              <p className="text-[11px] text-amber-700 font-medium">SOS report to resource dispatch</p>
+              <p className="text-[11px] text-amber-700 font-medium">{t('login.sosToDispatch', language)}</p>
             </div>
 
             <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Field Response</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">{t('login.fieldResponse', language)}</span>
                 <RadioTower className="h-4.5 w-4.5 text-red-600" />
               </div>
               <p className="text-2xl sm:text-3xl font-bold text-slate-900 font-mono tracking-tight">24 / 7</p>
-              <p className="text-[11px] text-red-700 font-medium">Command node active</p>
+              <p className="text-[11px] text-red-700 font-medium">{t('login.commandActive', language)}</p>
             </div>
           </div>
 
@@ -141,9 +148,9 @@ export const Login: React.FC = () => {
             <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-3">
               <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                 <Activity className="h-4 w-4 text-blue-600" />
-                Live Indian Disaster Zone Status
+                {t('login.liveZoneStatus', language)}
               </span>
-              <span className="text-[10px] text-slate-400 font-mono tracking-wider">REAL-TIME INCIDENT MONITORING</span>
+              <span className="text-[10px] text-slate-400 font-mono tracking-wider">{t('login.realTimeMonitoring', language)}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -169,14 +176,14 @@ export const Login: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
                   <ShieldCheck className="h-4.5 w-4.5 text-blue-600" />
-                  Select Portal Access Level
+                  {t('login.selectPortal', language)}
                 </h2>
                 <span className="text-[10px] font-mono font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                  SECURE ACCESS
+                  {t('login.secureAccess', language)}
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                Choose your authorized role to enter the emergency management platform.
+                {t('login.chooseRole', language)}
               </p>
             </div>
 
@@ -200,8 +207,8 @@ export const Login: React.FC = () => {
                     {selectedRole === 'citizen' && <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>}
                   </div>
                   <div>
-                    <div className="font-bold text-xs text-slate-900">Citizen</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">Public Relief</div>
+                    <div className="font-bold text-xs text-slate-900">{t('login.citizen', language)}</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('login.publicRelief', language)}</div>
                   </div>
                 </button>
 
@@ -222,8 +229,8 @@ export const Login: React.FC = () => {
                     {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
                   </div>
                   <div>
-                    <div className="font-bold text-xs text-slate-900">Officer</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">Command Center</div>
+                    <div className="font-bold text-xs text-slate-900">{t('login.officer', language)}</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('login.commandCenter', language)}</div>
                   </div>
                 </button>
 
@@ -244,8 +251,8 @@ export const Login: React.FC = () => {
                     {selectedRole === 'volunteer' && <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>}
                   </div>
                   <div>
-                    <div className="font-bold text-xs text-slate-900">Volunteer</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">Field Logistics</div>
+                    <div className="font-bold text-xs text-slate-900">{t('login.volunteer', language)}</div>
+                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('login.fieldLogistics', language)}</div>
                   </div>
                 </button>
               </div>
@@ -253,7 +260,7 @@ export const Login: React.FC = () => {
               {/* Email Input */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  Verified Identity Email
+                  {t('login.emailLabel', language)}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -273,7 +280,7 @@ export const Login: React.FC = () => {
               {/* Disaster Zone Dropdown */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  Assigned Indian Disaster Zone
+                  {t('login.zoneLabel', language)}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -309,7 +316,7 @@ export const Login: React.FC = () => {
                     : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-200/80'
                 }`}
               >
-                <span>Enter {selectedRole.toUpperCase()} Command Portal</span>
+                <span>{t('login.enterPortal', language)} {t(`login.${selectedRole}`, language).toUpperCase()} {t('login.commandPortal', language)}</span>
                 <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </button>
             </form>
@@ -322,7 +329,7 @@ export const Login: React.FC = () => {
       <footer className="w-full max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 pt-6 border-t border-slate-200 relative z-20 gap-2 sm:gap-0">
         <div className="flex items-center gap-2 font-medium">
           <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          <span>All 4 Indian Emergency Command Systems Operational</span>
+          <span>{t('login.systemsOperational', language)}</span>
         </div>
         <div className="flex items-center gap-4 font-mono text-[11px]">
           <span>SIH 2026 DISASTER PLATFORM</span>
