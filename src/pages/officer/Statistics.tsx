@@ -132,7 +132,7 @@ export const Statistics: React.FC = () => {
       {/* ── Interactive Visual Charts Section ───────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Chart 1: Time-series Line Chart (Incidents vs Response Latency Trend) */}
-        <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-3 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-blue-400" />
@@ -178,7 +178,7 @@ export const Statistics: React.FC = () => {
         </div>
 
         {/* Chart 2: Stacked Bar Chart (Resource Allocation & Stock Depletion) */}
-        <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-3 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-400" />

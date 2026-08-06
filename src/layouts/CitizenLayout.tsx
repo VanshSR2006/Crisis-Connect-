@@ -62,12 +62,18 @@ export const CitizenLayoutContent: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-5 pb-24">
+      <main 
+        className="flex-1 max-w-4xl w-full mx-auto px-4 py-5"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)' }}
+      >
         <Outlet />
       </main>
 
       {/* Bottom Navigation — Stitch light style */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#c6c6cd] shadow-sm">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#c6c6cd] shadow-sm"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
         <div className="max-w-4xl mx-auto flex items-center justify-around h-14 px-2">
           {navItems.map((item) => {
             const Icon = item.icon;

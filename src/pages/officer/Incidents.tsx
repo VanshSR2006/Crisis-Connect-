@@ -146,7 +146,14 @@ export const Incidents: React.FC = () => {
                 return (
                   <div
                     key={incident.id}
-                    onClick={() => setSelectedIncidentId(incident.id)}
+                    onClick={() => {
+                      setSelectedIncidentId(incident.id);
+                      if (window.innerWidth < 1024) {
+                        setTimeout(() => {
+                          document.getElementById('incident-detail-panel')?.scrollIntoView({ behavior: 'smooth' });
+                        }, 50);
+                      }
+                    }}
                     className={`px-3.5 py-3 cursor-pointer transition-colors ${
                       isSelected
                         ? 'bg-[#d5e3fc]/70 border-l-4 border-l-[#2563eb]'
@@ -196,7 +203,7 @@ export const Incidents: React.FC = () => {
         </div>
 
         {/* Right Side: Incident Detail Panel */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-4 shadow-sm h-fit">
+        <div id="incident-detail-panel" className="bg-white border border-[#c6c6cd] rounded p-4 space-y-4 shadow-sm h-fit">
           {selectedIncident ? (
             <div className="space-y-4">
               <div className="border-b border-[#f0edef] pb-3">

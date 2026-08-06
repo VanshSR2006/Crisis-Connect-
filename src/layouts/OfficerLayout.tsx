@@ -32,6 +32,15 @@ export const OfficerLayoutContent: React.FC = () => {
 
   return (
     <div className="min-h-screen flex bg-[#fcf8fa] text-[#1b1b1d] font-sans">
+      {/* Mobile Drawer Backdrop */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden transition-opacity duration-300 animate-fadeIn"
+          style={{ animationDuration: '200ms' }}
+        />
+      )}
+
       {/* ── Collapsible Sidebar ─────────────────────────── */}
       <aside
         className={cn(
@@ -83,6 +92,7 @@ export const OfficerLayoutContent: React.FC = () => {
                 key={item.to}
                 to={item.to}
                 title={!sidebarOpen ? item.label : undefined}
+                onClick={() => setSidebarOpen(false)}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-3 px-3 py-2.5 rounded text-[12px] font-semibold transition-all duration-150',
