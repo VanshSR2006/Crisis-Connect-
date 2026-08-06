@@ -3,7 +3,7 @@ import { Resource } from '@/types';
 export const mockResources: Resource[] = [
   {
     id: 'res-501',
-    name: 'Clean Drinking Water Packets (2L)',
+    name: 'water_packets',
     category: 'water',
     quantity: 4500,
     unit: 'pouches',
@@ -12,7 +12,7 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-502',
-    name: 'Emergency Medical First-Aid Kits',
+    name: 'first_aid_kits',
     category: 'medical',
     quantity: 120,
     unit: 'boxes',
@@ -21,7 +21,7 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-503',
-    name: 'Inflatable Motorized Rescue Boats (6-person)',
+    name: 'rescue_boats',
     category: 'vehicle',
     quantity: 8,
     unit: 'units',
@@ -30,7 +30,7 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-504',
-    name: 'Ready-to-Eat Ration Meals (MRE)',
+    name: 'mre_meals',
     category: 'food',
     quantity: 0,
     unit: 'packets',
@@ -39,7 +39,7 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-505',
-    name: 'High-Capacity Submersible De-watering Pumps',
+    name: 'water_pumps',
     category: 'equipment',
     quantity: 15,
     unit: 'pumps',

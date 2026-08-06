@@ -7,7 +7,7 @@ export type UserRole = 'citizen' | 'officer' | 'volunteer';
 
 export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
 
-export type IncidentCategory = 'flood' | 'fire' | 'landslide' | 'medical' | 'rescue';
+export type IncidentCategory = 'flood' | 'fire' | 'landslide' | 'medical' | 'rescue' | 'panic';
 
 export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'resolved';
 
@@ -48,7 +48,7 @@ export interface Incident {
   status: IncidentStatus;
   lat: number;
   lng: number;
-  reported_by_user_id: string;
+  reported_by_user_id: string | null;
   zone_id: string;
   created_at: string;
 }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { IncidentStatus } from '@/types';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Clock, Send, ShieldAlert } from 'lucide-react';
@@ -8,14 +9,15 @@ export interface StatusStepperProps {
   className?: string;
 }
 
-const STEPS: { key: IncidentStatus; label: string; icon: React.ElementType }[] = [
-  { key: 'reported', label: 'Reported', icon: ShieldAlert },
-  { key: 'acknowledged', label: 'Acknowledged', icon: Clock },
-  { key: 'dispatched', label: 'Dispatched', icon: Send },
-  { key: 'resolved', label: 'Resolved', icon: CheckCircle2 },
+const STEPS: { key: IncidentStatus; labelKey: string; icon: React.ElementType }[] = [
+  { key: 'reported', labelKey: 'common.reported', icon: ShieldAlert },
+  { key: 'acknowledged', labelKey: 'common.acknowledged', icon: Clock },
+  { key: 'dispatched', labelKey: 'common.dispatched', icon: Send },
+  { key: 'resolved', labelKey: 'common.resolved', icon: CheckCircle2 },
 ];
 
 export const StatusStepper: React.FC<StatusStepperProps> = ({ currentStatus, className }) => {
+  const { t } = useTranslation();
   const currentIndex = STEPS.findIndex((s) => s.key === currentStatus);
 
   return (
@@ -53,7 +55,7 @@ export const StatusStepper: React.FC<StatusStepperProps> = ({ currentStatus, cla
                   isCurrent ? 'text-blue-600 font-semibold dark:text-blue-400' : 'text-slate-500 dark:text-slate-400'
                 )}
               >
-                {step.label}
+                {t(step.labelKey)}
               </span>
             </div>
           );

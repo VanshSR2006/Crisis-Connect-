@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { mockUsers } from '@/mocks';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +9,7 @@ import { Radio, UserCheck, Clock, CheckCircle, Loader2, Send, Package, Users } f
 import { formatDate } from '@/lib/utils';
 
 export const Dispatch: React.FC = () => {
+  const { t } = useTranslation();
   const { incidents, dispatches, resources, createDispatch, selectedIncidentId, setSelectedIncidentId } =
     useOfficerContext();
 
@@ -54,13 +56,13 @@ export const Dispatch: React.FC = () => {
   const getStatusConfig = (status: string) => {
     if (status === 'completed') {
       return {
-        label: 'Completed',
+        label: t('common.completed'),
         icon: CheckCircle,
         classes: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
       };
     }
     return {
-      label: 'En Route',
+      label: t('officer.dispatch.enRoute'),
       icon: Loader2,
       classes: 'bg-[#d5e3fc] text-[#57657a] border border-[#b9c7df]',
     };
@@ -72,15 +74,15 @@ export const Dispatch: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Resource & Unit Dispatch Center
+            {t('officer.dispatch.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {activeCount} active deployments · {completedCount} completed rescue missions
+            {activeCount} {t('officer.dispatch.activeDeployments')} · {completedCount} {t('officer.dispatch.completedMissions')}
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
           <Radio className="h-3.5 w-3.5 text-[#2563eb] animate-pulse" />
-          <span>Radio Channel Active</span>
+          <span>{t('officer.dispatch.radioChannelActive')}</span>
         </div>
       </div>
 
@@ -99,7 +101,7 @@ export const Dispatch: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
             <Send className="h-4 w-4 text-[#ba1a1a]" />
             <h2 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Issue Emergency Dispatch Command
+              {t('officer.dispatch.issueEmergencyCommand')}
             </h2>
           </div>
 
@@ -107,7 +109,7 @@ export const Dispatch: React.FC = () => {
             {/* Target Incident Selection */}
             <div>
               <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                Target Incident <span className="text-red-600">*</span>
+                {t('officer.dispatch.targetIncident')} <span className="text-red-600">*</span>
               </label>
               <select
                 value={targetIncidentId}
@@ -129,7 +131,7 @@ export const Dispatch: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                  Assign Resource Stock
+                  {t('officer.dispatch.assignResourceStock')}
                 </label>
                 <select
                   value={selectedResourceId}
@@ -138,7 +140,7 @@ export const Dispatch: React.FC = () => {
                 >
                   {resources.map((res) => (
                     <option key={res.id} value={res.id}>
-                      {res.name} ({res.quantity} {res.unit} - {res.status.toUpperCase()})
+                      {t(`resources.names.${res.name}`)} ({res.quantity} {t(`resources.units.${res.unit}`)} - {t(`resources.statuses.${res.status}`).toUpperCase()})
                     </option>
                   ))}
                 </select>
@@ -146,7 +148,7 @@ export const Dispatch: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                  Assigned Team Leader / Unit
+                  {t('officer.dispatch.assignedTeamLeader')}
                 </label>
                 <select
                   value={assignedUserId}
@@ -165,13 +167,13 @@ export const Dispatch: React.FC = () => {
             {/* Dispatch Operational Notes */}
             <div>
               <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                Dispatch Directives & Tactical Notes
+                {t('officer.dispatch.dispatchDirectives')}
               </label>
               <textarea
                 rows={3}
                 value={dispatchNotes}
                 onChange={(e) => setDispatchNotes(e.target.value)}
-                placeholder="Enter deployment instructions (e.g. Deploy 2 inflatable rafts, approach via Ring Road detour)..."
+                placeholder={t('officer.dispatch.enterInstructions')}
                 className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
               />
             </div>
@@ -184,7 +186,7 @@ export const Dispatch: React.FC = () => {
               className="bg-[#ba1a1a] hover:bg-[#991b1b] text-white font-black text-xs uppercase tracking-widest py-3 rounded shadow-sm flex items-center justify-center gap-2"
             >
               <Radio className="h-4 w-4" />
-              <span>Confirm & Dispatch Rescue Team Now</span>
+              <span>{t('officer.dispatch.confirmDispatch')}</span>
             </Button>
           </form>
         </div>
@@ -194,7 +196,7 @@ export const Dispatch: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
             <Package className="h-4 w-4 text-[#2563eb]" />
             <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Available Stock & Personnel
+              {t('officer.dispatch.availableStockPersonnel')}
             </h3>
           </div>
 
@@ -205,11 +207,11 @@ export const Dispatch: React.FC = () => {
                 className="p-2.5 rounded bg-[#f6f3f5] border border-[#c6c6cd] flex items-center justify-between text-xs"
               >
                 <div>
-                  <span className="font-bold text-[#1b1b1d] block">{res.name}</span>
-                  <span className="text-[10px] text-[#76777d] uppercase">{res.category}</span>
+                  <span className="font-bold text-[#1b1b1d] block">{t(`resources.names.${res.name}`)}</span>
+                  <span className="text-[10px] text-[#76777d] uppercase">{t(`resources.categories.${res.category}`)}</span>
                 </div>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {res.quantity} {res.unit}
+                  {res.quantity} {t(`resources.units.${res.unit}`)}
                 </span>
               </div>
             ))}
@@ -223,10 +225,10 @@ export const Dispatch: React.FC = () => {
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4 text-[#0f172a]" />
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Live Dispatch Queue ({dispatches.length})
+              {t('officer.dispatch.liveDispatchQueue')} ({dispatches.length})
             </span>
           </div>
-          <span className="text-[11px] text-[#76777d] font-mono">Real-time Sync</span>
+          <span className="text-[11px] text-[#76777d] font-mono">{t('officer.dispatch.realtimeSync')}</span>
         </div>
 
         <div className="divide-y divide-[#f0edef]">
@@ -265,11 +267,11 @@ export const Dispatch: React.FC = () => {
                 <div className="flex items-center gap-4 text-[11px] text-[#76777d] border-t border-[#f0edef] pt-2">
                   <div className="flex items-center gap-1">
                     <UserCheck className="h-3 w-3" />
-                    <span>Assigned Lead: {dispatch.assigned_user_id}</span>
+                    <span>{t('officer.dispatch.assignedLead')}: {dispatch.assigned_user_id}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    <span>Dispatched: {formatDate(dispatch.dispatched_at)}</span>
+                    <span>{t('officer.liveMap.dispatched')}: {formatDate(dispatch.dispatched_at)}</span>
                   </div>
                 </div>
               </div>

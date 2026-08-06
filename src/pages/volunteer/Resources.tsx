@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { mockResources } from '@/mocks';
 import { PackageCheck, Layers, CheckCircle, AlertCircle, XCircle } from 'lucide-react';
+import { ResourceInventoryTable } from '@/components/shared/ResourceInventoryTable';
 
 export const Resources: React.FC = () => {
+  const { t } = useTranslation();
   const [filter, setFilter] = useState<'all' | 'available' | 'reserved' | 'depleted'>('all');
 
   const filtered = filter === 'all'
@@ -13,19 +16,28 @@ export const Resources: React.FC = () => {
     switch (status) {
       case 'available':
         return {
-          label: 'Available',
+          label: t('common.available'),
           classes: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
         };
       case 'reserved':
         return {
-          label: 'Reserved',
+          label: t('common.reserved'),
           classes: 'bg-amber-100 text-amber-800 border border-amber-300',
         };
       default:
         return {
-          label: 'Depleted',
+          label: t('volunteer.resources.depleted'),
           classes: 'bg-[#ffdad6] text-[#93000a] border border-[#fca5a5]',
         };
+    }
+  };
+
+  const getFilterLabel = (s: 'all' | 'available' | 'reserved' | 'depleted') => {
+    switch (s) {
+      case 'all': return t('common.all');
+      case 'available': return t('resources.statuses.available');
+      case 'reserved': return t('resources.statuses.reserved');
+      case 'depleted': return t('resources.statuses.depleted');
     }
   };
 
@@ -35,10 +47,10 @@ export const Resources: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Resource Stock Inventory
+            {t('volunteer.resources.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {mockResources.length} tracked supply categories across active shelters
+            {mockResources.length} {t('volunteer.resources.trackedSupplyCategories')}
           </p>
         </div>
       </div>
@@ -55,49 +67,13 @@ export const Resources: React.FC = () => {
                 : 'text-[#45464d] hover:bg-[#eae7e9]'
             }`}
           >
-            {s}
+            {getFilterLabel(s)}
           </button>
         ))}
       </div>
 
       {/* ── Resource Cards List ───────────────────────────── */}
-      <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden">
-        <div className="divide-y divide-[#f0edef]">
-          {filtered.map((res, idx) => {
-            const statusConfig = getStatusBadge(res.status);
-
-            return (
-              <div
-                key={res.id}
-                className={`px-3 py-3 hover:bg-[#f6f3f5] transition-colors ${
-                  idx % 2 === 1 ? 'bg-[#f6f3f5]' : 'bg-white'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-1.5">
-                  <div>
-                    <span className="text-[14px] font-bold text-[#1b1b1d]">{res.name}</span>
-                    <span className="ml-2 text-[11px] text-[#76777d] uppercase tracking-wide font-medium">
-                      {res.category}
-                    </span>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-sm text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 ${statusConfig.classes}`}
-                  >
-                    {statusConfig.label}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#f0edef] text-[12px]">
-                  <span className="text-[#45464d]">Stock Quantity:</span>
-                  <span className="font-bold text-[#1b1b1d]">
-                    {res.quantity} <span className="text-[11px] font-normal text-[#76777d]">{res.unit}</span>
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <ResourceInventoryTable resources={filtered} />
     </div>
   );
 };

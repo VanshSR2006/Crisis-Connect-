@@ -1,5 +1,7 @@
-import React, { createContext, useContext, useState } from 'react';
-import type { LanguageCode } from './i18n';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import i18n from '@/i18n';
+
+export type LanguageCode = 'en' | 'hi' | 'ka';
 
 interface LanguageContextType {
   language: LanguageCode;
@@ -9,7 +11,26 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<LanguageCode>('en');
+  const [language, setLanguageState] = useState<LanguageCode>(
+    (i18n.language as LanguageCode) || 'en'
+  );
+
+  const setLanguage = (lang: LanguageCode) => {
+    setLanguageState(lang);
+    i18n.changeLanguage(lang);
+  };
+
+  useEffect(() => {
+    const handleLanguageChange = (lng: string) => {
+      if (lng === 'en' || lng === 'hi' || lng === 'ka') {
+        setLanguageState(lng as LanguageCode);
+      }
+    };
+    i18n.on('languageChanged', handleLanguageChange);
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, []);
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage }}>
@@ -25,3 +46,4 @@ export const useLanguage = (): LanguageContextType => {
   }
   return context;
 };
+

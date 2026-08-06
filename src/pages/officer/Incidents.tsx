@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { IncidentStatus, SeverityLevel } from '@/types';
@@ -21,6 +22,7 @@ type SeverityFilter = 'all' | SeverityLevel;
 
 export const Incidents: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { incidents, selectedIncidentId, setSelectedIncidentId, updateIncidentStatus } = useOfficerContext();
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -41,19 +43,19 @@ export const Incidents: React.FC = () => {
   const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) || filteredIncidents[0] || null;
 
   const statusOptions: { label: string; value: StatusFilter }[] = [
-    { label: 'All Statuses', value: 'all' },
-    { label: 'Reported', value: 'reported' },
-    { label: 'Acknowledged', value: 'acknowledged' },
-    { label: 'Dispatched', value: 'dispatched' },
-    { label: 'Resolved', value: 'resolved' },
+    { label: t('officer.incidents.allStatuses'), value: 'all' },
+    { label: t('common.reported'), value: 'reported' },
+    { label: t('common.acknowledged'), value: 'acknowledged' },
+    { label: t('officer.liveMap.dispatched'), value: 'dispatched' },
+    { label: t('common.resolved'), value: 'resolved' },
   ];
 
   const severityOptions: { label: string; value: SeverityFilter }[] = [
-    { label: 'All Severity', value: 'all' },
-    { label: 'Critical', value: 'critical' },
-    { label: 'High', value: 'high' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'Low', value: 'low' },
+    { label: t('officer.incidents.allSeverity'), value: 'all' },
+    { label: t('common.critical'), value: 'critical' },
+    { label: t('common.high'), value: 'high' },
+    { label: t('common.medium'), value: 'medium' },
+    { label: t('common.low'), value: 'low' },
   ];
 
   const getStatusBadgeClass = (status: IncidentStatus) => {
@@ -77,10 +79,10 @@ export const Incidents: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Incident Command Queue
+            {t('officer.incidents.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {incidents.length} total reports · {incidents.filter((i) => i.status !== 'resolved').length} active
+            {incidents.length} {t('officer.incidents.totalReports')} · {incidents.filter((i) => i.status !== 'resolved').length} {t('officer.incidents.active')}
           </p>
         </div>
       </div>
@@ -94,7 +96,7 @@ export const Incidents: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by ID, title, description, or zone..."
+            placeholder={t('officer.incidents.searchIncidents')}
             className="w-full text-xs pl-9 pr-3 py-2 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
           />
         </div>
@@ -136,7 +138,7 @@ export const Incidents: React.FC = () => {
         <div className="lg:col-span-2 bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
           {filteredIncidents.length === 0 ? (
             <div className="p-8 text-center text-[#76777d] text-xs font-medium">
-              No incidents match the active filters.
+              {t('officer.incidents.noIncidentsMatch')}
             </div>
           ) : (
             <div className="divide-y divide-[#f0edef]">
@@ -218,7 +220,7 @@ export const Incidents: React.FC = () => {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-[#76777d] block">
-                  Report Overview
+                  {t('officer.incidents.reportOverview')}
                 </label>
                 <p className="text-xs text-[#45464d] bg-[#f6f3f5] p-3 rounded border border-[#c6c6cd] leading-relaxed">
                   {selectedIncident.description}
@@ -228,7 +230,7 @@ export const Incidents: React.FC = () => {
               {/* Status Update Quick Actions */}
               <div className="space-y-2 border-t border-[#f0edef] pt-3">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-[#76777d] block">
-                  Update Status Protocol
+                  {t('officer.incidents.updateStatusProtocol')}
                 </label>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -239,7 +241,7 @@ export const Incidents: React.FC = () => {
                     onClick={() => updateIncidentStatus(selectedIncident.id, 'acknowledged')}
                   >
                     <Clock className="h-3.5 w-3.5 mr-1" />
-                    <span>Acknowledge</span>
+                    <span>{t('officer.incidents.acknowledge')}</span>
                   </Button>
 
                   <Button
@@ -249,7 +251,7 @@ export const Incidents: React.FC = () => {
                     onClick={() => updateIncidentStatus(selectedIncident.id, 'resolved')}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-                    <span>Mark Resolved</span>
+                    <span>{t('officer.incidents.markResolved')}</span>
                   </Button>
                 </div>
 
@@ -260,30 +262,30 @@ export const Incidents: React.FC = () => {
                   onClick={() => navigate('/officer/dispatch')}
                 >
                   <Radio className="h-4 w-4" />
-                  <span>Open Dispatch Panel</span>
+                  <span>{t('officer.incidents.openDispatchPanel')}</span>
                 </Button>
               </div>
 
               <div className="border-t border-[#f0edef] pt-3 text-[11px] text-[#76777d] space-y-1">
                 <div className="flex justify-between">
-                  <span>Assigned Zone:</span>
+                  <span>{t('citizen.profile.zone')}:</span>
                   <strong className="font-mono text-[#1b1b1d]">{selectedIncident.zone_id}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>GPS Lat/Lng:</span>
+                  <span>{t('officer.incidents.gpsLatLng')}:</span>
                   <strong className="font-mono text-[#1b1b1d]">
                     {selectedIncident.lat.toFixed(4)}, {selectedIncident.lng.toFixed(4)}
                   </strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Logged Timestamp:</span>
+                  <span>{t('officer.incidents.loggedTimestamp')}:</span>
                   <span>{formatDate(selectedIncident.created_at)}</span>
                 </div>
               </div>
             </div>
           ) : (
             <div className="text-center py-12 text-[#76777d] text-xs">
-              Select an incident from the list to view details.
+              {t('officer.incidents.selectFromList')}
             </div>
           )}
         </div>

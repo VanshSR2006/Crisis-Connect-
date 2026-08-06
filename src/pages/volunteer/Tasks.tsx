@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { mockDispatches } from '@/mocks';
 import { Dispatch, DispatchStatus } from '@/types';
 import { ClipboardList, CheckCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export const Tasks: React.FC = () => {
+  const { t } = useTranslation();
   const [tasks, setTasks] = useState<Dispatch[]>(mockDispatches);
 
   const toggleTaskStatus = (id: string) => {
@@ -28,18 +30,18 @@ export const Tasks: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Volunteer Field Tasks
+            {t('volunteer.tasks.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {pendingCount} pending field tasks · {completedCount} completed
+            {pendingCount} {t('volunteer.tasks.pendingFieldTasks')} · {completedCount} {t('volunteer.tasks.completed')}
           </p>
         </div>
         <div className="bg-white border border-[#c6c6cd] rounded px-3 py-1.5 text-center">
           <span className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#45464d] block">
-            Progress
+            {t('volunteer.tasks.progress')}
           </span>
           <span className="text-sm font-bold text-emerald-600">
-            {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}% Done
+            {tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0}% {t('volunteer.tasks.done')}
           </span>
         </div>
       </div>
@@ -60,10 +62,10 @@ export const Tasks: React.FC = () => {
                 <div className="flex items-start justify-between gap-3 mb-1.5">
                   <div>
                     <span className="text-[14px] font-bold text-[#1b1b1d]">
-                      Field Order #{task.id}
+                      {t('volunteer.tasks.fieldOrder')} #{task.id}
                     </span>
                     <span className="ml-2 text-[11px] text-[#76777d] font-mono">
-                      Ref: Incident #{task.incident_id}
+                      {t('volunteer.tasks.ref')}: Incident #{task.incident_id}
                     </span>
                   </div>
                   <span
@@ -82,7 +84,7 @@ export const Tasks: React.FC = () => {
                 <div className="flex items-center justify-between pt-2 border-t border-[#f0edef]">
                   <div className="flex items-center gap-1 text-[11px] text-[#76777d]">
                     <Clock className="h-3 w-3" />
-                    <span>Assigned to Unit {task.assigned_user_id}</span>
+                    <span>{t('volunteer.tasks.assignedToUnit')} {task.assigned_user_id}</span>
                   </div>
                   <Button
                     variant={isCompleted ? 'outline' : 'primary'}
@@ -91,7 +93,7 @@ export const Tasks: React.FC = () => {
                     onClick={() => toggleTaskStatus(task.id)}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                    <span>{isCompleted ? 'Reopen Task' : 'Mark Complete'}</span>
+                    <span>{isCompleted ? t('volunteer.tasks.reopenTask') : t('volunteer.tasks.markComplete')}</span>
                   </Button>
                 </div>
               </div>
