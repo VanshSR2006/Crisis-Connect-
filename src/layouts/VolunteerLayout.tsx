@@ -1,14 +1,17 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ClipboardList, PackageCheck, ShieldAlert, ArrowLeftRight, UserCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 export const VolunteerLayout: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = [
-    { to: '/volunteer/tasks', label: 'Field Tasks', icon: ClipboardList },
-    { to: '/volunteer/resources', label: 'Resource Stock', icon: PackageCheck },
+    { to: '/volunteer/tasks', label: t('nav.tasks'), icon: ClipboardList },
+    { to: '/volunteer/resources', label: t('nav.resources'), icon: PackageCheck },
   ];
 
   return (
@@ -25,23 +28,24 @@ export const VolunteerLayout: React.FC = () => {
                 CrisisConnect
               </span>
               <span className="text-[10px] font-semibold bg-emerald-900/80 text-emerald-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                Volunteer Field
+                {t('common.volunteerField')}
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
+            <LanguageToggle variant="light" />
             <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-medium text-emerald-300">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              Field Radio Active
+              {t('common.fieldRadioActive')}
             </div>
             <button
               onClick={() => navigate('/login')}
-              title="Switch Platform Role"
+              title={t('common.switchRole')}
               className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded transition-colors"
             >
               <ArrowLeftRight className="h-3 w-3" />
-              <span className="hidden sm:inline">Switch Role</span>
+              <span className="hidden sm:inline">{t('common.switchRole')}</span>
             </button>
           </div>
         </div>

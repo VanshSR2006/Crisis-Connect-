@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   Map,
@@ -16,18 +17,20 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { OfficerProvider } from '@/lib/officerContext';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 export const OfficerLayoutContent: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = [
-    { to: '/officer/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/officer/live-map', label: 'Live GIS Map', icon: Map },
-    { to: '/officer/incidents', label: 'Incident Reports', icon: AlertTriangle },
-    { to: '/officer/dispatch', label: 'Dispatch Center', icon: Radio },
-    { to: '/officer/risk-heatmap', label: 'Risk Heatmap', icon: Activity },
-    { to: '/officer/statistics', label: 'Analytics', icon: BarChart3 },
+    { to: '/officer/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
+    { to: '/officer/live-map', label: t('nav.liveMap'), icon: Map },
+    { to: '/officer/incidents', label: t('nav.incidents'), icon: AlertTriangle },
+    { to: '/officer/dispatch', label: t('nav.dispatch'), icon: Radio },
+    { to: '/officer/risk-heatmap', label: t('nav.riskHeatmap'), icon: Activity },
+    { to: '/officer/statistics', label: t('nav.analytics'), icon: BarChart3 },
   ];
 
   return (
@@ -64,7 +67,7 @@ export const OfficerLayoutContent: React.FC = () => {
                   CrisisConnect
                 </span>
                 <span className="text-[10px] font-semibold text-[#76777d] uppercase tracking-wider">
-                  Command Room
+                  {t('common.commandRoom')}
                 </span>
               </div>
             </div>
@@ -114,7 +117,7 @@ export const OfficerLayoutContent: React.FC = () => {
           <div className="p-3 border-t border-[#c6c6cd]">
             <div className="flex items-center gap-2 text-[11px] text-[#45464d] font-medium bg-[#f0edef] rounded px-2.5 py-2 border border-[#c6c6cd]">
               <RadioTower className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0" />
-              <span className="truncate">SIH 2026 · PS#3 Active</span>
+              <span className="truncate">{t('common.sihActive')}</span>
               <span className="ml-auto w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
             </div>
           </div>
@@ -136,15 +139,16 @@ export const OfficerLayoutContent: React.FC = () => {
             {/* Emergency Status Banner */}
             <div className="flex items-center gap-2 bg-red-950/70 border border-red-800/60 text-red-300 px-3 py-1 rounded text-[11px] font-semibold uppercase tracking-wider">
               <BellRing className="h-3 w-3 text-red-400 animate-pulse" />
-              <span>Critical Alert Active</span>
+              <span>{t('common.criticalAlertActive')}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-4">
+            <LanguageToggle variant="light" />
             {/* Zone stream indicator */}
             <div className="hidden sm:flex items-center gap-2 text-[11px] text-slate-400">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              <span className="font-medium">Zone Stream: Delhi NCR</span>
+              <span className="font-medium">{t('common.zoneStream', { zone: 'Delhi NCR' })}</span>
             </div>
             {/* Switch role */}
             <button
@@ -152,7 +156,7 @@ export const OfficerLayoutContent: React.FC = () => {
               className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded transition-colors"
             >
               <ArrowLeftRight className="h-3 w-3" />
-              <span>Switch Role</span>
+              <span>{t('common.switchRole')}</span>
             </button>
           </div>
         </header>

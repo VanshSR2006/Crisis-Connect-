@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { SeverityLevel } from '@/types';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, AlertCircle, ShieldCheck, Info } from 'lucide-react';
@@ -14,24 +15,26 @@ export const SeverityBadge: React.FC<SeverityBadgeProps> = ({
   className,
   showIcon = true,
 }) => {
+  const { t } = useTranslation();
+
   const config = {
     low: {
-      label: 'LOW',
+      label: t('common.low'),
       styles: 'bg-[#15803d] text-white',
       icon: ShieldCheck,
     },
     medium: {
-      label: 'ADVISORY',
+      label: t('common.medium'),
       styles: 'bg-amber-400 text-amber-950 border border-amber-500 font-bold',
       icon: Info,
     },
     high: {
-      label: 'HIGH',
+      label: t('common.high'),
       styles: 'bg-[#c2410c] text-white',
       icon: AlertCircle,
     },
     critical: {
-      label: 'CRITICAL',
+      label: t('common.critical'),
       styles: 'bg-[#ba1a1a] text-white animate-pulse',
       icon: AlertTriangle,
     },

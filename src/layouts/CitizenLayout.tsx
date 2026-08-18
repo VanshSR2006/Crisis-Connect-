@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Home,
   AlertCircle,
@@ -11,16 +12,18 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CitizenProvider } from '@/lib/citizenContext';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
 
 export const CitizenLayoutContent: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   const navItems = [
-    { to: '/citizen/home', label: 'Home', icon: Home },
-    { to: '/citizen/sos-report', label: 'SOS', icon: AlertCircle },
-    { to: '/citizen/shelters', label: 'Shelters', icon: ShelterIcon },
-    { to: '/citizen/alerts', label: 'Alerts', icon: Bell },
-    { to: '/citizen/profile', label: 'Profile', icon: User },
+    { to: '/citizen/home', label: t('nav.home'), icon: Home },
+    { to: '/citizen/sos-report', label: t('nav.sos'), icon: AlertCircle },
+    { to: '/citizen/shelters', label: t('nav.shelters'), icon: ShelterIcon },
+    { to: '/citizen/alerts', label: t('nav.alerts'), icon: Bell },
+    { to: '/citizen/profile', label: t('nav.profile'), icon: User },
   ];
 
   return (
@@ -38,24 +41,25 @@ export const CitizenLayoutContent: React.FC = () => {
                 CrisisConnect
               </span>
               <span className="text-[10px] font-semibold bg-[#1e3a8a]/70 text-blue-200 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                Citizen
+                {t('common.citizen')}
               </span>
             </div>
           </div>
 
-          {/* Status + Switch */}
+          {/* Status + Language Toggle + Switch */}
           <div className="flex items-center gap-3">
+            <LanguageToggle variant="light" />
             <div className="hidden sm:flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              <span className="text-[11px] font-medium text-slate-300">System Operational</span>
+              <span className="text-[11px] font-medium text-slate-300">{t('common.systemOperational')}</span>
             </div>
             <button
               onClick={() => navigate('/login')}
-              title="Switch Platform Role"
+              title={t('common.switchRole')}
               className="flex items-center gap-1.5 text-[11px] font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded transition-colors"
             >
               <ArrowLeftRight className="h-3 w-3" />
-              <span className="hidden sm:inline">Switch Role</span>
+              <span className="hidden sm:inline">{t('common.switchRole')}</span>
             </button>
           </div>
         </div>

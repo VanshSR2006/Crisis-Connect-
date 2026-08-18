@@ -1,7 +1,6 @@
 import React from 'react';
 import { Globe } from 'lucide-react';
-import { useLanguage } from '@/lib/languageContext';
-import type { LanguageCode } from '@/lib/i18n';
+import { useLanguage, LanguageCode } from '@/lib/languageContext';
 
 interface LanguageToggleProps {
   /** Optional extra CSS classes for the wrapper */

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { Activity, Droplets, Waves, TrendingUp, AlertTriangle, ShieldAlert, Layers, MousePointerClick } from 'lucide-react';
 
 export const RiskHeatmap: React.FC = () => {
+  const { t } = useTranslation();
   const { riskScores } = useOfficerContext();
   // Default to null on page load — user must click a card to select it
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
@@ -24,15 +26,15 @@ export const RiskHeatmap: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            AI Risk Heatmap & Flood Prediction
+            {t('officer.riskHeatmap.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            Real-time hydrometeorological risk matrix · {riskScores.length} zones monitored
+            {t('officer.riskHeatmap.subtitle')} · {riskScores.length} {t('officer.riskHeatmap.zonesMonitored')}
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
           <Activity className="h-3.5 w-3.5 text-[#c2410c] animate-pulse" />
-          <span>AI Predictive Model v2.4 Active</span>
+          <span>{t('officer.riskHeatmap.aiModelActive')}</span>
         </div>
       </div>
 
@@ -41,7 +43,7 @@ export const RiskHeatmap: React.FC = () => {
         <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-xs font-bold uppercase tracking-wide">
-            Critical Flood Inundation Warning
+            {t('officer.riskHeatmap.criticalFloodWarning')}
           </p>
           <p className="text-[12px] text-[#9a3412] mt-0.5">
             Uttarakhand Himalayan Sector score reached <strong className="font-mono">{highestScore}/100</strong> due to sustained 112.5mm precipitation and river elevation crossing 206.1m mark.
@@ -55,7 +57,7 @@ export const RiskHeatmap: React.FC = () => {
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-blue-400" />
             <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              Spatial Vulnerability Heat Matrix (Delhi NCR Sector Grids)
+              {t('officer.riskHeatmap.spatialVulnerabilityMatrix')}
             </h2>
           </div>
 
@@ -111,7 +113,7 @@ export const RiskHeatmap: React.FC = () => {
             <div className="flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-[#2563eb]" />
               <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-                Detailed Analysis — Zone: <span className="font-mono text-[#0f172a]">{activeZone.zone_id}</span>
+                {t('officer.riskHeatmap.detailedAnalysis')} — {t('officer.dashboard.zone')}: <span className="font-mono text-[#0f172a]">{activeZone.zone_id}</span>
               </h3>
             </div>
             <SeverityBadge severity={activeZone.level} />
@@ -120,21 +122,21 @@ export const RiskHeatmap: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
               <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block">
-                Composite Risk Score
+                {t('officer.riskHeatmap.compositeRiskScore')}
               </span>
               <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.score} / 100</span>
             </div>
 
             <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
               <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <Droplets className="h-3.5 w-3.5 text-[#2563eb]" /> Precipitation Gauge
+                <Droplets className="h-3.5 w-3.5 text-[#2563eb]" /> {t('officer.riskHeatmap.precipitationGauge')}
               </span>
               <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.rainfall_mm} mm</span>
             </div>
 
             <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
               <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <Waves className="h-3.5 w-3.5 text-[#2563eb]" /> Yamuna River Water Level
+                <Waves className="h-3.5 w-3.5 text-[#2563eb]" /> {t('officer.riskHeatmap.riverWaterLevel')}
               </span>
               <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.river_level_m} meters</span>
             </div>
@@ -144,10 +146,10 @@ export const RiskHeatmap: React.FC = () => {
         <div className="bg-white border border-[#c6c6cd] border-dashed rounded p-6 text-center text-[#76777d] flex flex-col items-center justify-center gap-2">
           <MousePointerClick className="h-6 w-6 text-[#2563eb]" />
           <p className="text-xs font-semibold text-[#1b1b1d]">
-            No Zone Selected
+            {t('officer.riskHeatmap.noZoneSelected')}
           </p>
           <p className="text-[11px] text-[#76777d]">
-            Click any sector zone card in the Spatial Vulnerability Matrix above to inspect detailed parameters.
+            {t('officer.riskHeatmap.clickToInspect')}
           </p>
         </div>
       )}

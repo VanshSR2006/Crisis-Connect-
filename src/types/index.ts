@@ -7,7 +7,17 @@ export type UserRole = 'citizen' | 'officer' | 'volunteer';
 
 export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
 
-export type IncidentCategory = 'rescue' | 'medical' | 'food' | 'shelter' | 'water' | 'other';
+export type IncidentCategory =
+  | 'rescue'
+  | 'medical'
+  | 'food'
+  | 'shelter'
+  | 'water'
+  | 'flood'
+  | 'fire'
+  | 'landslide'
+  | 'panic'
+  | 'other';
 
 export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'resolved';
 
@@ -15,7 +25,16 @@ export type ReviewState = 'unverified' | 'flagged' | 'verified';
 
 export type ShelterStatus = 'open' | 'full' | 'closed';
 
-export type ResourceCategory = 'boat' | 'medical_kit' | 'food_packet' | 'vehicle' | 'personnel';
+export type ResourceCategory =
+  | 'boat'
+  | 'medical_kit'
+  | 'food_packet'
+  | 'vehicle'
+  | 'personnel'
+  | 'water'
+  | 'medical'
+  | 'food'
+  | 'equipment';
 
 export type ResourceStatus = 'available' | 'reserved' | 'dispatched' | 'depleted';
 
@@ -54,7 +73,7 @@ export interface Incident {
   priority_score?: number;
   lat: number;
   lng: number;
-  reported_by_user_id?: string;
+  reported_by_user_id?: string | null;
   zone_id: string;
   created_at: string;
 }
@@ -159,4 +178,3 @@ export interface RiskScore {
   river_level_m: number;
   computed_at: string;
 }
-

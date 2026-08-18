@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +22,7 @@ import { formatDate } from '@/lib/utils';
 
 export const LiveMap: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { incidents, selectedIncidentId, setSelectedIncidentId, riskScores, dispatches } = useOfficerContext();
 
   const [showRiskOverlay, setShowRiskOverlay] = useState<boolean>(true);
@@ -55,15 +57,15 @@ export const LiveMap: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Live GIS Tactical Map
+            {t('officer.liveMap.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            Geospatial incident positioning & river basin vulnerability layers
+            {t('officer.liveMap.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2 text-[11px] font-semibold text-[#45464d]">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping" />
-          GIS Vector Telemetry Live
+          {t('officer.liveMap.gisTelemetryLive')}
         </div>
       </div>
 
@@ -74,7 +76,7 @@ export const LiveMap: React.FC = () => {
           <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
             <SlidersHorizontal className="h-4 w-4 text-[#0f172a]" />
             <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Map Layer Controls
+              {t('officer.liveMap.mapLayerControls')}
             </h3>
           </div>
 
@@ -82,7 +84,7 @@ export const LiveMap: React.FC = () => {
             <label className="flex items-center justify-between p-2 rounded bg-[#f6f3f5] border border-[#c6c6cd] cursor-pointer">
               <span className="font-semibold text-[#1b1b1d] flex items-center gap-1.5">
                 <Layers className="h-3.5 w-3.5 text-[#2563eb]" />
-                Flood Risk Heatmap
+                {t('officer.liveMap.floodRiskHeatmap')}
               </span>
               <input
                 type="checkbox"
@@ -95,7 +97,7 @@ export const LiveMap: React.FC = () => {
             <label className="flex items-center justify-between p-2 rounded bg-[#f6f3f5] border border-[#c6c6cd] cursor-pointer">
               <span className="font-semibold text-[#1b1b1d] flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 text-emerald-600" />
-                Evacuation Shelters
+                {t('officer.liveMap.evacuationShelters')}
               </span>
               <input
                 type="checkbox"
@@ -109,7 +111,7 @@ export const LiveMap: React.FC = () => {
           {/* Quick Zone Vulnerability Summary */}
           <div className="border-t border-[#f0edef] pt-3 space-y-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#76777d]">
-              Evaluated Zone Risk
+              {t('officer.liveMap.evaluatedZoneRisk')}
             </span>
             {riskScores.map((score) => (
               <div key={score.id} className="flex items-center justify-between text-[11px]">
@@ -184,16 +186,16 @@ export const LiveMap: React.FC = () => {
           <div className="z-10 bg-slate-900/90 border border-slate-700/80 px-3 py-1.5 rounded text-white text-[10px] flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#ba1a1a]" /> Critical
+                <span className="w-2 h-2 rounded-full bg-[#ba1a1a]" /> {t('common.critical')}
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#c2410c]" /> High
+                <span className="w-2 h-2 rounded-full bg-[#c2410c]" /> {t('common.high')}
               </span>
               <span className="flex items-center gap-1">
-                <span className="w-2 h-2 rounded-full bg-[#2563eb]" /> Dispatched
+                <span className="w-2 h-2 rounded-full bg-[#2563eb]" /> {t('officer.liveMap.dispatched')}
               </span>
             </div>
-            <span className="text-slate-400">Click pin to view detail</span>
+            <span className="text-slate-400">{t('officer.liveMap.clickPinToView')}</span>
           </div>
         </div>
 
@@ -217,19 +219,19 @@ export const LiveMap: React.FC = () => {
 
               <div className="space-y-1.5 text-xs bg-[#f6f3f5] p-2.5 rounded border border-[#c6c6cd]">
                 <div className="flex items-center justify-between text-[#45464d]">
-                  <span>Status:</span>
+                  <span>{t('common.status')}:</span>
                   <strong className="uppercase text-[#0f172a]">{selectedIncident.status}</strong>
                 </div>
                 <div className="flex items-center justify-between text-[#45464d]">
-                  <span>Category:</span>
+                  <span>{t('officer.liveMap.category')}:</span>
                   <strong className="capitalize text-[#0f172a]">{selectedIncident.category}</strong>
                 </div>
                 <div className="flex items-center justify-between text-[#45464d]">
-                  <span>Zone:</span>
+                  <span>{t('officer.dashboard.zone')}:</span>
                   <strong className="font-mono text-[#0f172a]">{selectedIncident.zone_id}</strong>
                 </div>
                 <div className="flex items-center justify-between text-[#45464d]">
-                  <span>Reported:</span>
+                  <span>{t('officer.liveMap.reported')}:</span>
                   <span>{formatDate(selectedIncident.created_at)}</span>
                 </div>
               </div>
@@ -242,13 +244,13 @@ export const LiveMap: React.FC = () => {
                   onClick={() => navigate('/officer/dispatch')}
                 >
                   <Radio className="h-4 w-4" />
-                  <span>Dispatch Rescue Unit</span>
+                  <span>{t('officer.liveMap.dispatchRescueUnit')}</span>
                 </Button>
               </div>
             </div>
           ) : (
             <div className="text-center py-10 text-[#76777d] text-xs">
-              Select an incident pin on the map to view details.
+              {t('officer.liveMap.selectIncident')}
             </div>
           )}
         </div>

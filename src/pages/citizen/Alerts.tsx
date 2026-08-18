@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCitizenContext } from '@/lib/citizenContext';
 import { useLanguage } from '@/lib/languageContext';
 import { mockAlerts } from '@/mocks';
@@ -7,10 +8,10 @@ import { SeverityLevel } from '@/types';
 import { Bell, Clock } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
-import { t } from '@/lib/i18n';
 
 export const Alerts: React.FC = () => {
-  const { language } = useCitizenContext();
+  const { language } = useLanguage();
+  const { t } = useTranslation();
   const [severityFilter, setSeverityFilter] = useState<'all' | SeverityLevel>('all');
 
   const filteredAlerts = severityFilter === 'all'
@@ -18,11 +19,11 @@ export const Alerts: React.FC = () => {
     : mockAlerts.filter((a) => a.severity === severityFilter);
 
   const severityOptions: { labelKey: string; value: 'all' | SeverityLevel }[] = [
-    { labelKey: 'citizenAlerts.all', value: 'all' },
-    { labelKey: 'citizenAlerts.critical', value: 'critical' },
-    { labelKey: 'citizenAlerts.high', value: 'high' },
-    { labelKey: 'citizenAlerts.medium', value: 'medium' },
-    { labelKey: 'citizenAlerts.low', value: 'low' },
+    { labelKey: 'common.all', value: 'all' },
+    { labelKey: 'common.critical', value: 'critical' },
+    { labelKey: 'common.high', value: 'high' },
+    { labelKey: 'common.medium', value: 'medium' },
+    { labelKey: 'common.low', value: 'low' },
   ];
 
   return (
@@ -31,10 +32,10 @@ export const Alerts: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#c6c6cd] rounded p-3 shadow-sm">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('citizenAlerts.title', language)}
+            {t('citizen.alerts.title')}
           </h1>
           <p className="text-[12px] text-[#45464d] mt-0.5">
-            {t('citizenAlerts.subtitle', language)}
+            {t('citizen.alerts.subtitle')}
           </p>
         </div>
 
@@ -54,7 +55,7 @@ export const Alerts: React.FC = () => {
                 : 'text-[#45464d] hover:bg-[#eae7e9]'
             }`}
           >
-            {t(opt.labelKey, language)}
+            {t(opt.labelKey)}
           </button>
         ))}
       </div>
@@ -64,7 +65,7 @@ export const Alerts: React.FC = () => {
         {filteredAlerts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-[#76777d]">
             <Bell className="h-8 w-8 mb-2 opacity-40" />
-            <p className="text-sm font-medium">{t('citizenAlerts.noAlerts', language)}</p>
+            <p className="text-sm font-medium">{t('citizen.alerts.noAlerts')}</p>
           </div>
         ) : (
           <div className="divide-y divide-[#f0edef]">
@@ -98,10 +99,10 @@ export const Alerts: React.FC = () => {
                   <div className="flex items-center gap-3 text-[11px] text-[#76777d] border-t border-[#f0edef] pt-2 mt-1">
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      <span>{t('citizenAlerts.issued', language)} {formatDate(alert.issued_at)}</span>
+                      <span>{t('citizen.alerts.issued')} {formatDate(alert.issued_at)}</span>
                     </div>
                     <span>·</span>
-                    <span>{t('citizenAlerts.zone', language)} <strong className="font-mono text-[#1b1b1d]">{alert.target_zone_id}</strong></span>
+                    <span>{t('citizen.alerts.zone')} <strong className="font-mono text-[#1b1b1d]">{alert.target_zone_id}</strong></span>
                   </div>
                 </div>
               );

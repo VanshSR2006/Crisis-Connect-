@@ -1,10 +1,10 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { mockShelters } from '@/mocks';
 import {
   BarChart3,
   ShieldCheck,
-  Users,
   Clock,
   Activity,
   PackageCheck,
@@ -22,18 +22,15 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  AreaChart,
-  Area,
 } from 'recharts';
 
 export const Statistics: React.FC = () => {
-  const { incidents, dispatches, resources, riskScores } = useOfficerContext();
+  const { t } = useTranslation();
+  const { incidents, resources, riskScores } = useOfficerContext();
 
   const totalOccupancy = mockShelters.reduce((acc, s) => acc + s.current_occupancy, 0);
   const totalCapacity = mockShelters.reduce((acc, s) => acc + s.capacity, 0);
-  const overallOccupancyPct = Math.round((totalOccupancy / totalCapacity) * 100);
 
-  const activeIncidentsCount = incidents.filter((i) => i.status !== 'resolved').length;
   const resolvedIncidentsCount = incidents.filter((i) => i.status === 'resolved').length;
   const resolutionRatePct = incidents.length > 0 ? Math.round((resolvedIncidentsCount / incidents.length) * 100) : 0;
 
@@ -54,13 +51,22 @@ export const Statistics: React.FC = () => {
   const resourceChartData = resources.map((r) => {
     const allocated = Math.round(r.quantity * 0.4);
     const remaining = r.quantity - allocated;
+    const displayName = t(`resources.names.${r.name}`, { defaultValue: r.name });
     return {
-      name: r.name.length > 18 ? `${r.name.slice(0, 18)}...` : r.name,
+      name: displayName.length > 18 ? `${displayName.slice(0, 18)}...` : displayName,
       available: remaining,
       reserved: allocated,
       total: r.quantity,
     };
   });
+
+  const rescueCount = incidents.filter((i) => i.category === 'rescue' || i.category === 'water' || i.category === 'flood').length;
+  const medicalCount = incidents.filter((i) => i.category === 'medical').length;
+  const otherCount = incidents.filter((i) => i.category === 'other' || i.category === 'fire' || i.category === 'landslide' || i.category === 'panic').length;
+
+  const rescuePct = incidents.length > 0 ? Math.round((rescueCount / incidents.length) * 100) : 0;
+  const medicalPct = incidents.length > 0 ? Math.round((medicalCount / incidents.length) * 100) : 0;
+  const otherPct = incidents.length > 0 ? Math.round((otherCount / incidents.length) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -68,15 +74,15 @@ export const Statistics: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            Command Analytics & Incident Trends
+            {t('officer.statistics.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            Operational response metrics, SLA latency trends & resource allocation analytics
+            {t('officer.statistics.subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
           <BarChart3 className="h-3.5 w-3.5 text-[#2563eb]" />
-          <span>Real-time Telemetry Analytics</span>
+          <span>{t('officer.statistics.realtimeTelemetry')}</span>
         </div>
       </div>
 
@@ -85,47 +91,47 @@ export const Statistics: React.FC = () => {
         <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-3.5 shadow-md">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Avg SOS → Dispatch
+              {t('officer.statistics.avgSosDispatch')}
             </span>
             <Clock className="h-4 w-4 text-blue-400" />
           </div>
-          <div className="text-2xl font-black text-white">12.4 min</div>
+          <div className="text-2xl font-black text-white">{t('officer.statistics.avgResponseTimeVal')}</div>
           <p className="text-[11px] text-emerald-400 font-medium mt-1 flex items-center gap-1">
-            <TrendingDown className="h-3 w-3" /> ↓ 2.1 min under target SLA
+            <TrendingDown className="h-3 w-3" /> {t('officer.statistics.underTargetSla')}
           </p>
         </div>
 
         <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-3.5 shadow-md">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Resource Stock Units
+              {t('officer.dispatch.availableStockPersonnel')}
             </span>
             <PackageCheck className="h-4 w-4 text-blue-400" />
           </div>
           <div className="text-2xl font-black text-white">{totalResourcesQty}</div>
-          <p className="text-[11px] text-slate-400 mt-1">{resources.length} categories active</p>
+          <p className="text-[11px] text-slate-400 mt-1">{resources.length} {t('officer.statistics.categoriesActive')}</p>
         </div>
 
         <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-3.5 shadow-md">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Resolution Rate
+              {t('officer.statistics.resolutionRate')}
             </span>
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-black text-emerald-400">{resolutionRatePct}%</div>
-          <p className="text-[11px] text-slate-400 mt-1">{resolvedIncidentsCount} of {incidents.length} resolved</p>
+          <p className="text-[11px] text-slate-400 mt-1">{resolvedIncidentsCount} {t('officer.statistics.resolvedOfTotal')} {incidents.length}</p>
         </div>
 
         <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-3.5 shadow-md">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Peak Zone Risk
+              {t('officer.riskHeatmap.compositeRiskScore')}
             </span>
             <Activity className="h-4 w-4 text-orange-400" />
           </div>
           <div className="text-2xl font-black text-orange-400">{highestRiskZone.score}/100</div>
-          <p className="text-[11px] text-slate-400 mt-1">Zone: {highestRiskZone.zone_id}</p>
+          <p className="text-[11px] text-slate-400 mt-1">{t('officer.dashboard.zone')}: {highestRiskZone.zone_id}</p>
         </div>
       </div>
 
@@ -137,10 +143,10 @@ export const Statistics: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-blue-400" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Incidents vs Response Latency Trend (24h)
+                {t('officer.statistics.incidentsVsLatency')}
               </h2>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">Live SLA Monitor</span>
+            <span className="text-[10px] font-mono text-slate-400">{t('officer.statistics.liveSlaMonitor')}</span>
           </div>
 
           <div className="h-64 w-full">
@@ -158,7 +164,7 @@ export const Statistics: React.FC = () => {
                   yAxisId="left"
                   type="monotone"
                   dataKey="incidents"
-                  name="Incidents Reported"
+                  name={t('officer.statistics.incidentsReported')}
                   stroke="#38bdf8"
                   strokeWidth={2.5}
                   dot={{ r: 4, fill: '#38bdf8' }}
@@ -167,7 +173,7 @@ export const Statistics: React.FC = () => {
                   yAxisId="right"
                   type="monotone"
                   dataKey="responseTimeMin"
-                  name="Response Latency (min)"
+                  name={t('officer.statistics.responseLatencyMin')}
                   stroke="#f43f5e"
                   strokeWidth={2.5}
                   dot={{ r: 4, fill: '#f43f5e' }}
@@ -183,10 +189,10 @@ export const Statistics: React.FC = () => {
             <div className="flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-400" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Resource Allocation & Stock Depletion Matrix
+                {t('officer.statistics.resourceAllocationMatrix')}
               </h2>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">Inventory Status</span>
+            <span className="text-[10px] font-mono text-slate-400">{t('officer.statistics.inventoryStatus')}</span>
           </div>
 
           <div className="h-64 w-full">
@@ -199,8 +205,8 @@ export const Statistics: React.FC = () => {
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '4px', fontSize: '12px', color: '#fff' }}
                 />
                 <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="available" name="Available Stock" fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="reserved" name="Reserved / Allocated" fill="#f59e0b" stackId="a" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="available" name={t('officer.statistics.availableStock')} fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="reserved" name={t('officer.statistics.reservedAllocated')} fill="#f59e0b" stackId="a" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -213,73 +219,60 @@ export const Statistics: React.FC = () => {
         <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-3 shadow-sm">
           <div className="border-b border-[#c6c6cd] pb-2 flex items-center justify-between">
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Active Incidents Category Breakdown
+              {t('officer.statistics.activeIncidentsBreakdown')}
             </span>
-            <span className="text-[11px] text-[#76777d] font-mono">{incidents.length} Total</span>
+            <span className="text-[11px] text-[#76777d] font-mono">{incidents.length} {t('officer.statistics.total')}</span>
           </div>
 
           <div className="space-y-3 text-[12px]">
             <div>
               <div className="flex justify-between mb-1 text-[#1b1b1d] font-medium">
-                <span>Flood & Water Rescue ({incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length})</span>
-                <strong className="font-mono">
-                  {Math.round((incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length / incidents.length) * 100)}%
-                </strong>
+                <span>{t('officer.statistics.floodWaterlogRescue')} ({rescueCount})</span>
+                <strong className="font-mono">{rescuePct}%</strong>
               </div>
               <div className="h-2.5 bg-[#eae7e9] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#2563eb] rounded-full"
-                  style={{
-                    width: `${Math.round((incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length / incidents.length) * 100)}%`,
-                  }}
+                  style={{ width: `${rescuePct}%` }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-1 text-[#1b1b1d] font-medium">
-                <span>Medical Emergency ({incidents.filter((i) => i.category === 'medical').length})</span>
-                <strong className="font-mono">
-                  {Math.round((incidents.filter((i) => i.category === 'medical').length / incidents.length) * 100)}%
-                </strong>
+                <span>{t('officer.statistics.medicalEmergency')} ({medicalCount})</span>
+                <strong className="font-mono">{medicalPct}%</strong>
               </div>
               <div className="h-2.5 bg-[#eae7e9] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#ba1a1a] rounded-full"
-                  style={{
-                    width: `${Math.round((incidents.filter((i) => i.category === 'medical').length / incidents.length) * 100)}%`,
-                  }}
+                  style={{ width: `${medicalPct}%` }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between mb-1 text-[#1b1b1d] font-medium">
-                <span>Other Emergency ({incidents.filter((i) => i.category === 'other').length})</span>
-                <strong className="font-mono">
-                  {Math.round((incidents.filter((i) => i.category === 'other').length / incidents.length) * 100)}%
-                </strong>
+                <span>{t('officer.statistics.fireElectrical')} ({otherCount})</span>
+                <strong className="font-mono">{otherPct}%</strong>
               </div>
               <div className="h-2.5 bg-[#eae7e9] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#c2410c] rounded-full"
-                  style={{
-                    width: `${Math.round((incidents.filter((i) => i.category === 'other').length / incidents.length) * 100)}%`,
-                  }}
+                  style={{ width: `${otherPct}%` }}
                 />
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Shelter Capacity Distribution */}
         <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-3 shadow-sm">
           <div className="border-b border-[#c6c6cd] pb-2 flex items-center justify-between">
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              Evacuation Camp Bed Capacity
+              {t('officer.statistics.evacuationCampCapacity')}
             </span>
-            <span className="text-[11px] text-[#76777d] font-mono">{mockShelters.length} Camps</span>
+            <span className="text-[11px] text-[#76777d] font-mono">{mockShelters.length} {t('officer.statistics.camps')}</span>
           </div>
 
           <div className="space-y-3 text-[12px]">

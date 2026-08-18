@@ -3,8 +3,8 @@ import { Resource } from '@/types';
 export const mockResources: Resource[] = [
   {
     id: 'res-501',
-    name: 'Clean Drinking Water Packets (2L)',
-    category: 'food_packet',
+    name: 'water_packets',
+    category: 'water',
     quantity: 4500,
     unit: 'pouches',
     shelter_id: 'shl-01',
@@ -12,8 +12,8 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-502',
-    name: 'Emergency Medical First-Aid Kits',
-    category: 'medical_kit',
+    name: 'first_aid_kits',
+    category: 'medical',
     quantity: 120,
     unit: 'boxes',
     shelter_id: 'shl-01',
@@ -21,7 +21,7 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-503',
-    name: 'Inflatable Motorized Rescue Boats (6-person)',
+    name: 'rescue_boats',
     category: 'boat',
     quantity: 8,
     unit: 'units',
@@ -30,8 +30,8 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-504',
-    name: 'Ready-to-Eat Ration Meals (MRE)',
-    category: 'food_packet',
+    name: 'mre_meals',
+    category: 'food',
     quantity: 0,
     unit: 'packets',
     shelter_id: 'shl-02',
@@ -39,8 +39,8 @@ export const mockResources: Resource[] = [
   },
   {
     id: 'res-505',
-    name: 'High-Capacity Submersible De-watering Pumps',
-    category: 'vehicle',
+    name: 'water_pumps',
+    category: 'equipment',
     quantity: 15,
     unit: 'pumps',
     shelter_id: 'shl-03',
