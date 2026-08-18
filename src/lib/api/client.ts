@@ -8,7 +8,7 @@ export interface ApiError extends Error {
   status?: number;
 }
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
 function getAuthToken(): string | null {
   return localStorage.getItem('token');

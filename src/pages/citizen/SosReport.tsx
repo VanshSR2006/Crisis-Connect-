@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCitizenContext } from '@/lib/citizenContext';
 import { IncidentCategory, SeverityLevel } from '@/types';
+import { enqueueSosReport } from '@/lib/offlineQueue';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -37,9 +38,11 @@ export const SosReport: React.FC = () => {
   const categories: { key: IncidentCategory; label: string; icon: React.ElementType; color: string }[] = [
     { key: 'rescue', label: 'Flood / Rescue', icon: LifeBuoy, color: 'text-blue-600' },
     { key: 'medical', label: 'Medical Emergency', icon: Stethoscope, color: 'text-red-600' },
-    { key: 'landslide', label: 'Food & Supplies', icon: Utensils, color: 'text-amber-600' },
-    { key: 'fire', label: 'Shelter Relief', icon: ShelterIcon, color: 'text-[#0f172a]' },
+    { key: 'food', label: 'Food & Rations', icon: Utensils, color: 'text-amber-600' },
+    { key: 'shelter', label: 'Shelter Relief', icon: ShelterIcon, color: 'text-purple-600' },
+    { key: 'water', label: 'Drinking Water', icon: LifeBuoy, color: 'text-cyan-600' },
   ];
+
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -51,8 +54,23 @@ export const SosReport: React.FC = () => {
     setHasVoiceNote((prev) => !prev);
   };
 
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!navigator.onLine) {
+      const offlineItem = enqueueSosReport({
+        category,
+        severity: 'critical',
+        description: description || `Emergency request for ${category} assistance at ${locationName}.`,
+        lat: 24.8200,
+        lng: 92.7900,
+        zone_id: 'z-silchar',
+      });
+      setSubmittedIncidentId(offlineItem.id);
+      return;
+    }
+
     const incident = addIncident({
       title: `Emergency ${category.toUpperCase()} Request`,
       description: description || `Emergency request for ${category} assistance at ${locationName}.`,
@@ -65,6 +83,7 @@ export const SosReport: React.FC = () => {
 
     setSubmittedIncidentId(incident.id);
   };
+
 
   // If submitted, show confirmation view with StatusStepper + Nearest Shelter
   if (submittedIncidentId) {

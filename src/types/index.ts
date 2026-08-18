@@ -7,15 +7,17 @@ export type UserRole = 'citizen' | 'officer' | 'volunteer';
 
 export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
 
-export type IncidentCategory = 'flood' | 'fire' | 'landslide' | 'medical' | 'rescue';
+export type IncidentCategory = 'rescue' | 'medical' | 'food' | 'shelter' | 'water' | 'other';
 
 export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'resolved';
 
+export type ReviewState = 'unverified' | 'flagged' | 'verified';
+
 export type ShelterStatus = 'open' | 'full' | 'closed';
 
-export type ResourceCategory = 'food' | 'medical' | 'vehicle' | 'water' | 'equipment';
+export type ResourceCategory = 'boat' | 'medical_kit' | 'food_packet' | 'vehicle' | 'personnel';
 
-export type ResourceStatus = 'available' | 'reserved' | 'depleted';
+export type ResourceStatus = 'available' | 'reserved' | 'dispatched' | 'depleted';
 
 export type DispatchStatus = 'pending' | 'en_route' | 'on_site' | 'completed';
 
@@ -33,6 +35,7 @@ export interface Zone {
   id: string;
   name: string;
   code: string;
+  district?: string;
   risk_level: SeverityLevel;
   boundary_geojson: string; // GeoJSON string representation
   population: number;
@@ -46,9 +49,12 @@ export interface Incident {
   category: IncidentCategory;
   severity: SeverityLevel;
   status: IncidentStatus;
+  credibility_score?: number;
+  review_state?: ReviewState;
+  priority_score?: number;
   lat: number;
   lng: number;
-  reported_by_user_id: string;
+  reported_by_user_id?: string;
   zone_id: string;
   created_at: string;
 }
@@ -66,13 +72,57 @@ export interface Shelter {
   zone_id: string;
 }
 
+export interface RescueSite {
+  id: string;
+  name: string;
+  building_id?: string;
+  shelter_id?: string;
+  lat: number;
+  lng: number;
+  elevation_m: number;
+  predicted_flood_margin_m: number;
+  capacity: number;
+  current_occupancy: number;
+  access_status: 'accessible' | 'limited' | 'blocked';
+  suitability_score?: number;
+  zone_id: string;
+}
+
+export interface PopulationProfile {
+  id: string;
+  zone_id: string;
+  population_est: number;
+  households_est: number;
+  vulnerability_index: number; // 0.0 - 1.0
+  updated_at: string;
+}
+
+export interface DemandForecast {
+  id: string;
+  zone_id: string;
+  resource_type: 'food' | 'water' | 'medical_kit' | 'sanitation_kit' | 'shelter' | 'other';
+  quantity_needed: number;
+  confidence: number;
+  computed_at: string;
+}
+
+export interface SiteRecommendation {
+  id: string;
+  incident_id: string;
+  rescue_site_id: string;
+  suitability_score: number;
+  reason_breakdown: Record<string, string | number>;
+  computed_at: string;
+}
+
 export interface Resource {
   id: string;
   name: string;
   category: ResourceCategory;
   quantity: number;
   unit: string;
-  shelter_id: string;
+  shelter_id?: string;
+  zone_id?: string;
   status: ResourceStatus;
 }
 
@@ -80,9 +130,11 @@ export interface Dispatch {
   id: string;
   incident_id: string;
   assigned_user_id: string;
+  resource_id?: string;
   status: DispatchStatus;
   dispatched_at: string;
-  notes: string;
+  eta_minutes?: number;
+  notes?: string;
 }
 
 export interface Alert {
@@ -107,3 +159,4 @@ export interface RiskScore {
   river_level_m: number;
   computed_at: string;
 }
+

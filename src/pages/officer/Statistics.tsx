@@ -221,16 +221,16 @@ export const Statistics: React.FC = () => {
           <div className="space-y-3 text-[12px]">
             <div>
               <div className="flex justify-between mb-1 text-[#1b1b1d] font-medium">
-                <span>Flood / Waterlog Rescue ({incidents.filter((i) => i.category === 'flood' || i.category === 'rescue').length})</span>
+                <span>Flood & Water Rescue ({incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length})</span>
                 <strong className="font-mono">
-                  {Math.round((incidents.filter((i) => i.category === 'flood' || i.category === 'rescue').length / incidents.length) * 100)}%
+                  {Math.round((incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length / incidents.length) * 100)}%
                 </strong>
               </div>
               <div className="h-2.5 bg-[#eae7e9] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#2563eb] rounded-full"
                   style={{
-                    width: `${Math.round((incidents.filter((i) => i.category === 'flood' || i.category === 'rescue').length / incidents.length) * 100)}%`,
+                    width: `${Math.round((incidents.filter((i) => i.category === 'rescue' || i.category === 'water').length / incidents.length) * 100)}%`,
                   }}
                 />
               </div>
@@ -255,21 +255,22 @@ export const Statistics: React.FC = () => {
 
             <div>
               <div className="flex justify-between mb-1 text-[#1b1b1d] font-medium">
-                <span>Fire & Electrical ({incidents.filter((i) => i.category === 'fire').length})</span>
+                <span>Other Emergency ({incidents.filter((i) => i.category === 'other').length})</span>
                 <strong className="font-mono">
-                  {Math.round((incidents.filter((i) => i.category === 'fire').length / incidents.length) * 100)}%
+                  {Math.round((incidents.filter((i) => i.category === 'other').length / incidents.length) * 100)}%
                 </strong>
               </div>
               <div className="h-2.5 bg-[#eae7e9] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-[#c2410c] rounded-full"
                   style={{
-                    width: `${Math.round((incidents.filter((i) => i.category === 'fire').length / incidents.length) * 100)}%`,
+                    width: `${Math.round((incidents.filter((i) => i.category === 'other').length / incidents.length) * 100)}%`,
                   }}
                 />
               </div>
             </div>
           </div>
+
         </div>
 
         {/* Shelter Capacity Distribution */}
