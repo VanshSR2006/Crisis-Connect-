@@ -1,0 +1,121 @@
+# CODEOWNERS — Crisis Connect
+#
+# This file automatically requests review from the designated owner
+# when a PR touches files in these paths.
+#
+# GitHub automatically assigns reviewers based on these rules.
+# The LAST matching rule in this file takes precedence.
+#
+# ============================================================
+# REPLACE THESE PLACEHOLDERS WITH ACTUAL GITHUB USERNAMES
+# MEMBER1_GITHUB  — Citizen PWA + Volunteer Workflow
+# MEMBER2_GITHUB  — Officer Dashboard + GIS
+# MEMBER3_GITHUB  — Backend + Database + Security + Realtime
+# MEMBER4_GITHUB  — AI / Data / Intelligence
+# MEMBER5_GITHUB  — Optimization + Response Plan + Demo
+# ============================================================
+
+# ============================================================
+# GLOBAL FALLBACK
+# If no other rule matches, Member 3 is the default reviewer.
+# ============================================================
+* @MEMBER3_GITHUB
+
+# ============================================================
+# MEMBER 1 — Citizen PWA + Volunteer Workflow
+# ============================================================
+
+/src/pages/citizen/                        @MEMBER1_GITHUB
+/src/pages/volunteer/                      @MEMBER1_GITHUB
+/src/layouts/CitizenLayout.tsx             @MEMBER1_GITHUB
+/src/layouts/VolunteerLayout.tsx           @MEMBER1_GITHUB
+/src/lib/citizenContext.tsx                @MEMBER1_GITHUB
+/src/lib/volunteerContext.tsx              @MEMBER1_GITHUB
+/src/lib/offlineQueue.ts                   @MEMBER1_GITHUB
+/src/lib/languageContext.tsx               @MEMBER1_GITHUB
+/src/lib/i18n.ts                           @MEMBER1_GITHUB
+/src/components/shared/EmergencySOSButton.tsx  @MEMBER1_GITHUB
+/src/components/shared/StatusStepper.tsx       @MEMBER1_GITHUB
+/src/components/shared/LanguageToggle.tsx      @MEMBER1_GITHUB
+/src/i18n/                                 @MEMBER1_GITHUB
+/src/mocks/volunteerTasks.ts               @MEMBER1_GITHUB
+
+# ============================================================
+# MEMBER 2 — Officer Dashboard + GIS
+# ============================================================
+
+/src/pages/officer/                        @MEMBER2_GITHUB
+/src/layouts/OfficerLayout.tsx             @MEMBER2_GITHUB
+/src/app/                                  @MEMBER2_GITHUB
+/src/main.tsx                              @MEMBER2_GITHUB
+/src/index.css                             @MEMBER2_GITHUB
+/src/theme/                                @MEMBER2_GITHUB
+/src/lib/officerContext.tsx                @MEMBER2_GITHUB
+/src/components/shared/MapPlaceholder.tsx          @MEMBER2_GITHUB
+/src/components/shared/ResourceInventoryTable.tsx  @MEMBER2_GITHUB
+/src/components/shared/SeverityBadge.tsx           @MEMBER2_GITHUB
+/src/components/ui/                        @MEMBER2_GITHUB
+/package.json                              @MEMBER2_GITHUB
+/vite.config.ts                            @MEMBER2_GITHUB
+/tailwind.config.ts                        @MEMBER2_GITHUB
+/tsconfig.app.json                         @MEMBER2_GITHUB
+/tsconfig.json                             @MEMBER2_GITHUB
+/tsconfig.node.json                        @MEMBER2_GITHUB
+/postcss.config.js                         @MEMBER2_GITHUB
+/index.html                                @MEMBER2_GITHUB
+/vercel.json                               @MEMBER2_GITHUB
+
+# ============================================================
+# MEMBER 3 — Backend + Database + Security + Realtime
+# ============================================================
+
+/backend/app/main.py                       @MEMBER3_GITHUB
+/backend/app/database.py                   @MEMBER3_GITHUB
+/backend/app/models.py                     @MEMBER3_GITHUB
+/backend/app/__init__.py                   @MEMBER3_GITHUB
+/backend/app/routers/__init__.py           @MEMBER3_GITHUB
+/backend/app/services/__init__.py          @MEMBER3_GITHUB
+/backend/requirements.txt                  @MEMBER3_GITHUB
+/src/pages/auth/                           @MEMBER3_GITHUB
+/src/layouts/AuthLayout.tsx                @MEMBER3_GITHUB
+/src/types/                                @MEMBER3_GITHUB
+/src/lib/api/                              @MEMBER3_GITHUB
+/src/lib/guards.ts                         @MEMBER3_GITHUB
+/src/lib/constants.ts                      @MEMBER3_GITHUB
+/src/lib/generateReferenceId.ts            @MEMBER3_GITHUB
+/src/lib/utils.ts                          @MEMBER3_GITHUB
+/src/mocks/index.ts                        @MEMBER3_GITHUB
+/src/mocks/incidents.ts                    @MEMBER3_GITHUB
+/src/mocks/alerts.ts                       @MEMBER3_GITHUB
+/src/mocks/users.ts                        @MEMBER3_GITHUB
+/src/mocks/dispatches.ts                   @MEMBER3_GITHUB
+/docs/                                     @MEMBER3_GITHUB
+/README.md                                 @MEMBER3_GITHUB
+/doc/                                      @MEMBER3_GITHUB
+/.gitignore                                @MEMBER3_GITHUB
+
+# ============================================================
+# MEMBER 4 — AI / Data / Intelligence
+# ============================================================
+
+/backend/app/services/risk_service.py      @MEMBER4_GITHUB
+/backend/app/services/demand_service.py    @MEMBER4_GITHUB
+/backend/app/services/priority_service.py  @MEMBER4_GITHUB
+/src/mocks/zones.ts                        @MEMBER4_GITHUB
+/src/mocks/riskScores.ts                   @MEMBER4_GITHUB
+
+# ============================================================
+# MEMBER 5 — Optimization + Response Plan + Demo Integration
+# ============================================================
+
+/backend/app/services/site_ranking_service.py  @MEMBER5_GITHUB
+/backend/app/routers/demo.py                   @MEMBER5_GITHUB
+/src/mocks/resources.ts                        @MEMBER5_GITHUB
+/src/mocks/shelters.ts                         @MEMBER5_GITHUB
+
+# ============================================================
+# SHARED FILE OVERRIDE — Member 3 reviews ALL backend changes
+# (even if another rule matched first for backend files)
+# ============================================================
+
+/backend/                                  @MEMBER3_GITHUB

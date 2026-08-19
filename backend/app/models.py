@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 3 — BACKEND + DATABASE + SECURITY + REALTIME
+# All SQLAlchemy ORM models live here. Coordinate before adding or altering any model.
+# Model field changes affect the database schema and all API responses.
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, JSON

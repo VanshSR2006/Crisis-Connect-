@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 4 — AI / DATA / INTELLIGENCE
+# Flood risk ML model (scikit-learn logistic regression) and training data.
+# Coordinate before modifying outside this workstream.
 # pyrefly: ignore [missing-import]
 import numpy as np
 from sklearn.linear_model import LogisticRegression

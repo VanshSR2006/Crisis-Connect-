@@ -1,3 +1,7 @@
+# TEAM OWNERSHIP: MEMBER 3 — BACKEND + DATABASE + SECURITY + REALTIME
+# This file is the primary FastAPI application entry point.
+# Coordinate before modifying outside this workstream.
+# API contract changes must be announced to all affected members (see docs/API_CONTRACTS.md).
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional

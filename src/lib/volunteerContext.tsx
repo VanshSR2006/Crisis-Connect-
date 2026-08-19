@@ -1,3 +1,6 @@
+// TEAM OWNERSHIP: MEMBER 1 — CITIZEN PWA + VOLUNTEER WORKFLOW
+// Volunteer global state: tasks, navigation, arrived/resolved actions.
+// Coordinate before modifying outside this workstream.
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import { Dispatch, Incident, DispatchStatus } from '@/types';
 import { mockDispatches, mockIncidents } from '@/mocks';

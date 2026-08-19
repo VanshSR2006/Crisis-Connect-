@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 4 — AI / DATA / INTELLIGENCE
+# Response priority scoring formula combining risk, severity, credibility, and vulnerability.
+# Coordinate before modifying outside this workstream.
 def calculate_response_priority(
     risk_score: float,          # 0.0 to 1.0
     severity: str,               # low, medium, high, critical

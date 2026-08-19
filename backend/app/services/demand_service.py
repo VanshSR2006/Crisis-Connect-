@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 4 — AI / DATA / INTELLIGENCE
+# Demographic demand calculator for relief supplies.
+# Coordinate before modifying outside this workstream.
 import math
 
 def calculate_demographic_demand(population: int, households: int, vulnerability_index: float):

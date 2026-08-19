@@ -1,3 +1,7 @@
+// TEAM OWNERSHIP: MEMBER 1 — CITIZEN PWA + VOLUNTEER WORKFLOW
+// Offline SOS queue: localStorage management, enqueueing, flushing on reconnect.
+// Coordinate before modifying outside this workstream.
+
 /**
  * Low-Bandwidth & Offline SOS Queue Management (Feature F02)
  * Manages local storage of emergency reports when connectivity is lost,

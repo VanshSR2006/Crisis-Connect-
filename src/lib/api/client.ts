@@ -1,3 +1,7 @@
+// TEAM OWNERSHIP: MEMBER 3 — BACKEND + DATABASE + SECURITY + REALTIME
+// Base API client. All frontend API calls must go through apiFetch().
+// Coordinate before modifying outside this workstream.
+
 /**
  * src/lib/api/client.ts
  * Thin wrapper around fetch that adds base URL, auth header, and JSON handling.

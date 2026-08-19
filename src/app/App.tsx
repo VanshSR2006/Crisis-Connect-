@@ -1,3 +1,6 @@
+// TEAM OWNERSHIP: MEMBER 2 — OFFICER DASHBOARD + GIS
+// Root application component and global provider tree.
+// Coordinate before modifying outside this workstream.
 import React from 'react';
 import { RouterProvider } from 'react-router-dom';
 import { router } from './router';

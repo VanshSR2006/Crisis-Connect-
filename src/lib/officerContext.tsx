@@ -1,3 +1,6 @@
+// TEAM OWNERSHIP: MEMBER 2 — OFFICER DASHBOARD + GIS
+// Officer global state: incidents, dispatches, resources, risk scores.
+// Coordinate before modifying outside this workstream.
 import React, { createContext, useContext, useState } from 'react';
 import { Incident, Dispatch, Resource, RiskScore, IncidentStatus, DispatchStatus } from '@/types';
 import { mockIncidents, mockDispatches, mockResources, mockRiskScores } from '@/mocks';

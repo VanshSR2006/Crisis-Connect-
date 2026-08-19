@@ -1,3 +1,6 @@
+// TEAM OWNERSHIP: MEMBER 1 — CITIZEN PWA + VOLUNTEER WORKFLOW
+// Citizen global state: user, incidents, shelters, offline SOS.
+// Coordinate before modifying outside this workstream.
 import React, { createContext, useContext, useState } from 'react';
 import { User, Incident, Shelter, IncidentCategory, SeverityLevel, IncidentStatus } from '@/types';
 import { mockUsers, mockIncidents, mockShelters } from '@/mocks';

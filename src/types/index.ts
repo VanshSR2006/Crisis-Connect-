@@ -1,3 +1,6 @@
+// TEAM OWNERSHIP: MEMBER 3 — BACKEND + DATABASE + SECURITY + REALTIME
+// Shared TypeScript entity types — mirrors the SQLAlchemy DB models.
+// Coordinate before modifying. Frontend members consume; request changes via PR.
 /**
  * Schema-Mirrored TypeScript Definitions for CrisisConnect
  * Strictly aligns with TRD Postgres database entity field names.

@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 5 — OPTIMIZATION + RESPONSE PLAN + DEMO
+# Demo scenario orchestration: seeds the Assam Cachar flood crisis for judging.
+# Coordinate before modifying outside this workstream.
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..database import get_db

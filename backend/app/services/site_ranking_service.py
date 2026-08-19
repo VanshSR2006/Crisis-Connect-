@@ -1,3 +1,6 @@
+# TEAM OWNERSHIP: MEMBER 5 — OPTIMIZATION + RESPONSE PLAN + DEMO
+# Multi-factor rescue site ranking algorithm (Haversine distance, suitability formula).
+# Coordinate before modifying outside this workstream.
 import math
 
 def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
