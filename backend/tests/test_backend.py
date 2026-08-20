@@ -13,12 +13,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # ---------------------------------------------------------------------------
-# Test database — isolated SQLite in-memory
+# Test database — in-memory SQLite (no file-lock issues on Windows)
 # ---------------------------------------------------------------------------
-TEST_DB_URL = "sqlite:///./test_crisis_connect.db"
-test_engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+TEST_DB_URL = "sqlite://"
+test_engine = create_engine(
+    TEST_DB_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,  # all connections share the same in-memory DB
+)
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
@@ -34,10 +39,7 @@ def setup_test_database():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
-    # Clean up test db file
-    import os
-    if os.path.exists("./test_crisis_connect.db"):
-        os.remove("./test_crisis_connect.db")
+    test_engine.dispose()
 
 
 @pytest.fixture(scope="function")

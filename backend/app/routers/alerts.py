@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from ..database import get_db
 from ..models import Alert, User
 from ..core.security import require_officer
@@ -24,8 +24,7 @@ class AlertResponse(BaseModel):
     severity: str
     issued_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.post("", response_model=AlertResponse)
 async def create_alert(

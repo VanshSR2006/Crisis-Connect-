@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from ..database import get_db
 from ..models import Resource
 
@@ -16,8 +16,7 @@ class ResourceResponse(BaseModel):
     zone_id: str | None
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("", response_model=List[ResourceResponse])
 def list_resources(db: Session = Depends(get_db)):

@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,10 +18,22 @@ if settings.DATABASE_URL.startswith("sqlite"):
     from .database import Base, engine
     Base.metadata.create_all(bind=engine)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup and shutdown events using the modern lifespan pattern."""
+    # --- Startup ---
+    settings.validate()
+    redis_client.connect()
+    yield
+    # --- Shutdown (add cleanup here if needed) ---
+
+
 app = FastAPI(
     title="Crisis Connect Backend API",
     description="Disaster Response Intelligence Platform API Server",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS configuration
@@ -32,14 +45,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Startup events
-@app.on_event("startup")
-def startup_event():
-    # Enforce environment-specific configurations
-    settings.validate()
-    # Connect to Redis
-    redis_client.connect()
 
 # Include routers
 app.include_router(auth.router)

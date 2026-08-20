@@ -31,7 +31,7 @@ class ConnectionManager:
         message = {
             "type": event_type,
             "payload": payload,
-            "timestamp": datetime.datetime.utcnow().isoformat() + "Z"
+            "timestamp": datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
         }
         for connection in self.active_connections:
             try:
