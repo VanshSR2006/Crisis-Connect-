@@ -16,7 +16,8 @@ class Settings:
     JWT_EXPIRATION_MINUTES: int = int(os.getenv("JWT_EXPIRATION_MINUTES", "1440")) # default 24 hours
     
     # CORS
-    FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "*")
+    FRONTEND_ORIGINS: str = os.getenv("FRONTEND_ORIGINS", "")
+    FRONTEND_ORIGIN: str = os.getenv("FRONTEND_ORIGIN", "")
     
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "")
