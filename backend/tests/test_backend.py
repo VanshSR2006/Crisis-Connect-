@@ -467,3 +467,59 @@ class TestWebSocketEvents:
         assert msg["payload"]["id"] == "abc"
         assert "timestamp" in msg
         assert msg["timestamp"].endswith("Z")
+
+
+# ===========================================================================
+# 9. Spatial Columns Mapping (PostGIS Foundation)
+# ===========================================================================
+class TestSpatialColumns:
+    def test_spatial_columns_mapping_in_db(self, db):
+        """
+        Verify that Zone, Incident, and RescueSite hold the added geom column
+        and can be written to and queried.
+        """
+        from app.models import Zone, Incident, RescueSite
+
+        # 1. Create a zone with polygon spatial string (mocked on SQLite)
+        zone = Zone(
+            id="z-spatial-test",
+            name="Spatial Zone",
+            district="Cachar",
+            population_est=1000,
+            geom="POLYGON((92.7 24.8, 92.8 24.8, 92.8 24.9, 92.7 24.9, 92.7 24.8))"
+        )
+        db.add(zone)
+
+        # 2. Create an incident with point spatial string
+        inc = Incident(
+            id="inc-spatial-test",
+            category="rescue",
+            severity="high",
+            description="flood",
+            lat=24.85,
+            lng=92.75,
+            geom="POINT(92.75 24.85)"
+        )
+        db.add(inc)
+
+        # 3. Create a rescue site with point spatial string
+        site = RescueSite(
+            id="site-spatial-test",
+            name="Spatial School",
+            lat=24.86,
+            lng=92.76,
+            geom="POINT(92.76 24.86)"
+        )
+        db.add(site)
+
+        db.commit()
+
+        # 4. Query back and verify geom values are successfully mapped
+        q_zone = db.query(Zone).filter(Zone.id == "z-spatial-test").first()
+        assert q_zone.geom == "POLYGON((92.7 24.8, 92.8 24.8, 92.8 24.9, 92.7 24.9, 92.7 24.8))"
+
+        q_inc = db.query(Incident).filter(Incident.id == "inc-spatial-test").first()
+        assert q_inc.geom == "POINT(92.75 24.85)"
+
+        q_site = db.query(RescueSite).filter(RescueSite.id == "site-spatial-test").first()
+        assert q_site.geom == "POINT(92.76 24.86)"
