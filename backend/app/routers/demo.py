@@ -32,11 +32,14 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     db.query(User).delete()
     db.commit()
 
-    # 2. Seed Users
-    officer = User(id="usr-officer-1", name="Officer R. Sharma", phone="9876543210", role="officer")
-    volunteer = User(id="usr-volunteer-1", name="Volunteer Team Alpha", phone="9876543211", role="volunteer")
-    citizen = User(id="usr-citizen-1", name="Anita Das", phone="9876543212", role="citizen")
-    db.add_all([officer, volunteer, citizen])
+    # 2. Seed Users (Pre-authorized privileged roles for both standard test/demo phone sets)
+    officer1 = User(id="usr-officer-1", name="Officer R. Sharma", phone="1111111110", role="officer")
+    officer2 = User(id="usr-officer-2", name="Command Officer", phone="9876543210", role="officer")
+    volunteer1 = User(id="usr-volunteer-1", name="Volunteer Team Alpha", phone="1111111111", role="volunteer")
+    volunteer2 = User(id="usr-volunteer-2", name="Volunteer Priya Patel", phone="9876543211", role="volunteer")
+    citizen1 = User(id="usr-citizen-1", name="Anita Das", phone="1111111112", role="citizen")
+    citizen2 = User(id="usr-citizen-2", name="Ramesh Kumar", phone="9876543212", role="citizen")
+    db.add_all([officer1, officer2, volunteer1, volunteer2, citizen1, citizen2])
     db.commit()
 
     # 3. Seed Zones (Cachar District, Assam)
@@ -97,7 +100,7 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     p_score_1 = calculate_response_priority(0.88, "critical", 0.95, 0.85)
     inc1 = Incident(
         id="inc-101",
-        reporter_id=citizen.id,
+        reporter_id=citizen1.id,
         zone_id=z1.id,
         title="Flash Flood Evacuation Required",
         description="Water level entering ground floor of 15 households. Elderly people stuck.",
@@ -113,7 +116,7 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     p_score_2 = calculate_response_priority(0.68, "high", 0.90, 0.60)
     inc2 = Incident(
         id="inc-102",
-        reporter_id=citizen.id,
+        reporter_id=citizen1.id,
         zone_id=z2.id,
         title="Urgent Medical Supplies Needed",
         description="Sub-center flooded. Insulin and basic wound dressing supplies needed.",

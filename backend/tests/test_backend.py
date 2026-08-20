@@ -366,6 +366,46 @@ class TestDemoReset:
         assert r2.status_code == 200
         assert r2.json()["zones_seeded"] == 3  # Same count every time
 
+    def test_demo_reset_seeds_authorized_roles_and_allows_login(self, client, db):
+        """
+        Verifies that /demo/reset-scenario seeds pre-authorized officer, volunteer, and citizen accounts,
+        that login for those numbers returns their proper pre-authorized roles, and that unknown numbers
+        default to citizen auto-registration.
+        """
+        # 1. Reset scenario
+        r_reset = client.post("/demo/reset-scenario")
+        assert r_reset.status_code == 200
+
+        # 2. Officer login (both standard demo numbers return 'officer')
+        r_officer1 = client.post("/auth/login", json={"phone": "1111111110"})
+        assert r_officer1.status_code == 200
+        assert r_officer1.json()["user"]["role"] == "officer"
+
+        r_officer2 = client.post("/auth/login", json={"phone": "9876543210"})
+        assert r_officer2.status_code == 200
+        assert r_officer2.json()["user"]["role"] == "officer"
+
+        # 3. Volunteer login
+        r_vol1 = client.post("/auth/login", json={"phone": "1111111111"})
+        assert r_vol1.status_code == 200
+        assert r_vol1.json()["user"]["role"] == "volunteer"
+
+        r_vol2 = client.post("/auth/login", json={"phone": "9876543211"})
+        assert r_vol2.status_code == 200
+        assert r_vol2.json()["user"]["role"] == "volunteer"
+
+        # 4. Unknown phone auto-registers as citizen
+        r_unk = client.post("/auth/login", json={"phone": "5555555555"})
+        assert r_unk.status_code == 200
+        assert r_unk.json()["user"]["role"] == "citizen"
+
+        # 5. Second reset remains idempotent
+        r_reset2 = client.post("/demo/reset-scenario")
+        assert r_reset2.status_code == 200
+        r_officer_again = client.post("/auth/login", json={"phone": "1111111110"})
+        assert r_officer_again.status_code == 200
+        assert r_officer_again.json()["user"]["role"] == "officer"
+
 
 # ===========================================================================
 # 8. WebSocket Event Serialization
