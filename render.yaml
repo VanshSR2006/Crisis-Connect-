@@ -1,0 +1,33 @@
+services:
+  # 1. FastAPI Web Service
+  - type: web
+    name: crisis-connect-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false # User to populate in Render Dashboard (Supabase PostgreSQL URL)
+      - key: JWT_SECRET_KEY
+        sync: false # User to generate in Render Dashboard
+      - key: REDIS_URL
+        sync: false # User to populate (Render Redis URL)
+      - key: FRONTEND_ORIGIN
+        value: "*" # User can lock this to their Vite deployment URL
+
+  # 2. Scheduled Intelligence Cron Job
+  - type: cron
+    name: crisis-connect-intelligence-refresh
+    env: python
+    schedule: "*/30 * * * *" # Run every 30 minutes
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python -m scripts.refresh_intelligence
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false

@@ -17,34 +17,38 @@
 | **Purpose** | Authenticate a user and return a JWT access token |
 | **Method** | POST |
 | **Auth** | None (public endpoint) |
-| **Status** | NOT IMPLEMENTED (endpoint stub is absent from current `main.py`) |
+| **Status** | **IMPLEMENTED** (`backend/app/routers/auth.py`) |
 | **Frontend Consumers** | `src/pages/auth/Login.tsx` |
 | **Backend Owner** | Member 3 |
 
-**Intended Request Shape:**
+**Request Shape:**
 ```json
 {
-  "phone": "string",
-  "role": "citizen | officer | volunteer"
+  "phone": "string"
 }
 ```
 
-**Intended Response Shape:**
+> [!IMPORTANT]  
+> **Security rule: role is NEVER accepted from the client.**  
+> The role is always resolved from the server-side user record in the database.  
+> - New unknown phone numbers → auto-registered as `citizen`.  
+> - Officer / Volunteer / Admin roles MUST be pre-seeded (e.g. via `/demo/reset-scenario` or direct DB seeding).  
+> - A client cannot escalate their own privileges by sending `role=officer`.
+
+**Response Shape:**
 ```json
 {
-  "access_token": "string",
+  "access_token": "string (JWT Bearer)",
   "token_type": "bearer",
   "user": {
     "id": "string",
     "name": "string",
-    "role": "citizen | officer | volunteer",
+    "role": "citizen | officer | volunteer | admin",
     "phone": "string",
     "language_pref": "en | hi | ka"
   }
 }
 ```
-
-> **Note:** The current Login page uses mock role selection without a real JWT flow. Member 3 must implement this endpoint before auth integration.
 
 ---
 
@@ -529,11 +533,24 @@ predicted_flood_m: float (optional, default: 2.0)
 | **Frontend Consumers** | `src/pages/officer/Dashboard.tsx`, `src/layouts/OfficerLayout.tsx` |
 | **Backend Owner** | Member 3 |
 
-**Outbound Event Formats (server → client):**
+**Outbound Event Formats (server → client) — Structured JSON:**
+```json
+{
+  "type": "incident.created | incident.updated | incident.verified | dispatch.authorized | dispatch.status_changed | resource.updated | alert.created",
+  "payload": { ... },
+  "timestamp": "ISO-8601Z"
+}
 ```
-NEW_INCIDENT:{id}:{category}:{severity}
-DISPATCH_AUTHORIZED:{dispatch_id}:{incident_id}
-```
+
+**Supported event types:**
+
+| Event type | Trigger |
+|---|---|
+| `incident.created` | POST /incidents |
+| `incident.verified` | POST /incidents/{id}/verify |
+| `dispatch.authorized` | POST /dispatches |
+| `resource.updated` | POST /dispatches (resource quantity changed) |
+| `alert.created` | POST /alerts |
 
 **Inbound Event Format (client → server):**
 ```
@@ -675,25 +692,31 @@ Any text string → server responds with ACK:{text}
 
 ## API Status Summary
 
-| Endpoint | Method | Status |
-|----------|--------|--------|
-| `/auth/login` | POST | NOT IMPLEMENTED |
-| `/incidents` | POST | IMPLEMENTED |
-| `/incidents` | GET | IMPLEMENTED |
-| `/incidents/{id}/verify` | POST | NOT IMPLEMENTED |
-| `/zones` | GET | IMPLEMENTED |
-| `/risk/zones` | GET | IMPLEMENTED |
-| `/risk/calculate` | POST | IMPLEMENTED |
-| `/zones/{id}/population` | GET | NOT IMPLEMENTED |
-| `/zones/{id}/demand` | GET | IMPLEMENTED |
-| `/rescue-sites/rank` | POST | IMPLEMENTED |
-| `/optimize/rescue-plan` | POST | NOT IMPLEMENTED |
-| `/resources` | GET | IMPLEMENTED |
-| `/resource-forecasts` | GET | NOT IMPLEMENTED |
-| `/dispatches` | GET | IMPLEMENTED |
-| `/dispatches` | POST | IMPLEMENTED |
-| `/alerts` | POST | NOT IMPLEMENTED |
-| `/ws/dashboard` | WS | IMPLEMENTED |
-| `/simulate` | POST | NOT IMPLEMENTED |
-| `/recommendations/{id}/explanation` | GET | NOT IMPLEMENTED |
-| `/demo/reset-scenario` | POST | IMPLEMENTED |
+> Last updated: 2026-08-20 by Member 3 (Backend Foundation Phase)
+
+| Endpoint | Method | Status | Auth Required |
+|----------|--------|--------|---------------|
+| `/auth/login` | POST | ✅ IMPLEMENTED | None |
+| `/incidents` | POST | ✅ IMPLEMENTED | None (public SOS) |
+| `/incidents` | GET | ✅ IMPLEMENTED | None |
+| `/incidents/{id}/verify` | POST | ✅ IMPLEMENTED | Officer |
+| `/zones` | GET | ✅ IMPLEMENTED | None |
+| `/zones/{id}/population` | GET | ✅ IMPLEMENTED | None |
+| `/zones/{id}/demand` | GET | ✅ IMPLEMENTED | None |
+| `/risk/zones` | GET | ✅ IMPLEMENTED | None |
+| `/risk/calculate` | POST | ✅ IMPLEMENTED | None |
+| `/rescue-sites/rank` | POST | ✅ IMPLEMENTED | None |
+| `/resources` | GET | ✅ IMPLEMENTED | None |
+| `/dispatches` | GET | ✅ IMPLEMENTED | None |
+| `/dispatches` | POST | ✅ IMPLEMENTED | Officer |
+| `/alerts` | POST | ✅ IMPLEMENTED | Officer |
+| `/ws/dashboard` | WS | ✅ IMPLEMENTED | None |
+| `/health` | GET | ✅ IMPLEMENTED | None |
+| `/ready` | GET | ✅ IMPLEMENTED | None |
+| `/demo/reset-scenario` | POST | ✅ IMPLEMENTED | None (demo only) |
+| `/optimize/rescue-plan` | POST | ❌ NOT IMPLEMENTED | Officer (Member 5) |
+| `/resource-forecasts` | GET | ❌ NOT IMPLEMENTED | Officer (Member 4) |
+| `/simulate` | POST | ❌ NOT IMPLEMENTED | Officer (Member 5) |
+| `/recommendations/{id}/explanation` | GET | ❌ NOT IMPLEMENTED | Officer (Member 5) |
+
+> **Dispatch safety note:** `POST /dispatches` uses database row-locking (`with_for_update()`) on both the Incident and Resource rows to prevent duplicate allocation under concurrent officer requests.

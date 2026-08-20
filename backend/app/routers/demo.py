@@ -4,7 +4,10 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..database import get_db
-from ..models import Zone, Incident, RescueSite, Resource, User, RiskScore
+from ..models import (
+    Zone, Incident, RescueSite, Resource, User, RiskScore, 
+    WeatherReading, Dispatch, Alert, PopulationProfile, DemandForecast
+)
 from ..services.priority_service import calculate_response_priority
 
 router = APIRouter(prefix="/demo", tags=["Demo Scenario"])
@@ -13,14 +16,20 @@ router = APIRouter(prefix="/demo", tags=["Demo Scenario"])
 def reset_demo_scenario(db: Session = Depends(get_db)):
     """
     Resets & seeds the controlled Assam Cachar Flood crisis scenario for live judging demos.
+    Fixes the schema discrepancies of the RiskScore model.
     """
-    # 1. Clear existing dynamic tables
+    # 1. Clear existing dynamic tables to prevent database constraints crashes
+    db.query(Dispatch).delete()
+    db.query(Alert).delete()
     db.query(Incident).delete()
     db.query(Resource).delete()
     db.query(RescueSite).delete()
+    db.query(RiskScore).delete()
+    db.query(WeatherReading).delete()
+    db.query(PopulationProfile).delete()
+    db.query(DemandForecast).delete()
     db.query(Zone).delete()
     db.query(User).delete()
-    db.query(RiskScore).delete()
     db.commit()
 
     # 2. Seed Users
@@ -37,14 +46,21 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     db.add_all([z1, z2, z3])
     db.commit()
 
-    # 4. Seed Risk Scores
-    r1 = RiskScore(zone_id=z1.id, risk_level="critical", score=0.88, rainfall_mm=140.0, river_level_m=4.8)
-    r2 = RiskScore(zone_id=z2.id, risk_level="high", score=0.68, rainfall_mm=95.0, river_level_m=3.2)
-    r3 = RiskScore(zone_id=z3.id, risk_level="medium", score=0.42, rainfall_mm=45.0, river_level_m=2.1)
+    # 4. Seed Weather Readings
+    w1 = WeatherReading(zone_id=z1.id, rainfall_mm=140.0, river_level_m=4.8)
+    w2 = WeatherReading(zone_id=z2.id, rainfall_mm=95.0, river_level_m=3.2)
+    w3 = WeatherReading(zone_id=z3.id, rainfall_mm=45.0, river_level_m=2.1)
+    db.add_all([w1, w2, w3])
+    db.commit()
+
+    # 5. Seed Risk Scores (Fixed: removed non-existent columns)
+    r1 = RiskScore(zone_id=z1.id, risk_level="critical", score=0.88)
+    r2 = RiskScore(zone_id=z2.id, risk_level="high", score=0.68)
+    r3 = RiskScore(zone_id=z3.id, risk_level="medium", score=0.42)
     db.add_all([r1, r2, r3])
     db.commit()
 
-    # 5. Seed Candidate Rescue Sites
+    # 6. Seed Candidate Rescue Sites
     site1 = RescueSite(
         id="site-1",
         name="Government HS School Silchar",
@@ -70,14 +86,14 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     db.add_all([site1, site2])
     db.commit()
 
-    # 6. Seed Resources
+    # 7. Seed Resources
     res1 = Resource(id="res-boat-1", name="NDRF Rescue Boat Alpha", type="boat", quantity_available=2, zone_id=z1.id, status="available")
     res2 = Resource(id="res-med-1", name="Emergency Medical Kit Pack", type="medical_kit", quantity_available=50, zone_id=z1.id, status="available")
     res3 = Resource(id="res-food-1", name="Dry Ration Food Packets", type="food_packet", quantity_available=300, zone_id=z1.id, status="available")
     db.add_all([res1, res2, res3])
     db.commit()
 
-    # 7. Seed Incidents
+    # 8. Seed Incidents
     p_score_1 = calculate_response_priority(0.88, "critical", 0.95, 0.85)
     inc1 = Incident(
         id="inc-101",
