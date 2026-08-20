@@ -5,7 +5,30 @@ import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
-from .database import Base
+from .database.base import Base
+
+from sqlalchemy.types import UserDefinedType
+from sqlalchemy.ext.compiler import compiles
+
+class Geometry(UserDefinedType):
+    def __init__(self, geometry_type='POINT', srid=4326):
+        self.geometry_type = geometry_type.upper()
+        self.srid = srid
+
+    def get_col_spec(self, **kw):
+        return f"geometry({self.geometry_type},{self.srid})"
+
+@compiles(Geometry, 'postgresql')
+def compile_geometry_postgres(type_, compiler, **kw):
+    return f"geometry({type_.geometry_type},{type_.srid})"
+
+@compiles(Geometry, 'sqlite')
+def compile_geometry_sqlite(type_, compiler, **kw):
+    return "TEXT"
+
+@compiles(Geometry)
+def compile_geometry_default(type_, compiler, **kw):
+    return "TEXT"
 
 def generate_uuid():
     return str(uuid.uuid4())
@@ -28,6 +51,7 @@ class Zone(Base):
     district = Column(String, nullable=True)
     boundary_json = Column(Text, nullable=True) # GeoJSON polygon string
     population_est = Column(Integer, default=0)
+    geom = Column(Geometry('POLYGON', 4326), nullable=True)
 
 class WeatherReading(Base):
     __tablename__ = "weather_readings"
@@ -60,6 +84,7 @@ class Incident(Base):
     status = Column(String, default="reported") # reported | acknowledged | dispatched | resolved
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
+    geom = Column(Geometry('POINT', 4326), nullable=True)
     credibility_score = Column(Float, default=1.0)
     review_state = Column(String, default="unverified") # unverified | flagged | verified
     priority_score = Column(Float, default=50.0)
@@ -84,6 +109,7 @@ class RescueSite(Base):
     shelter_id = Column(String, ForeignKey("shelters.id"), nullable=True)
     lat = Column(Float, nullable=False)
     lng = Column(Float, nullable=False)
+    geom = Column(Geometry('POINT', 4326), nullable=True)
     elevation_m = Column(Float, default=10.0)
     predicted_flood_margin_m = Column(Float, default=2.0)
     capacity = Column(Integer, default=500)

@@ -1,0 +1,1 @@
+# Crisis Connect — core package
