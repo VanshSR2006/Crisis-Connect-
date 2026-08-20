@@ -400,11 +400,41 @@ class TestDemoReset:
         assert r_unk.json()["user"]["role"] == "citizen"
 
         # 5. Second reset remains idempotent
-        r_reset2 = client.post("/demo/reset-scenario")
-        assert r_reset2.status_code == 200
         r_officer_again = client.post("/auth/login", json={"phone": "1111111110"})
         assert r_officer_again.status_code == 200
         assert r_officer_again.json()["user"]["role"] == "officer"
+
+    def test_demo_reset_reconciles_existing_user_wrong_role_and_preserves_non_demo_users(self, client, db):
+        """
+        Tests the specific DEV scenario where a canonical demo phone (e.g. 1111111110) was registered
+        earlier as a 'citizen' before scenario reset, and reset reconciles it to 'officer'.
+        Also verifies non-demo user accounts are preserved across resets.
+        """
+        # 1. Login with canonical officer phone BEFORE reset -> creates user as citizen
+        r_pre = client.post("/auth/login", json={"phone": "1111111110"})
+        assert r_pre.status_code == 200
+        assert r_pre.json()["user"]["role"] == "citizen"
+
+        # 2. Login with a non-demo user
+        r_non_demo = client.post("/auth/login", json={"phone": "7777777777"})
+        assert r_non_demo.status_code == 200
+        non_demo_id = r_non_demo.json()["user"]["id"]
+
+        # 3. Perform demo reset
+        r_reset = client.post("/demo/reset-scenario")
+        assert r_reset.status_code == 200
+
+        # 4. Canonical phone 1111111110 is reconciled to officer role
+        r_post = client.post("/auth/login", json={"phone": "1111111110"})
+        assert r_post.status_code == 200
+        assert r_post.json()["user"]["role"] == "officer"
+        assert r_post.json()["user"]["id"] == "usr-officer-1"
+
+        # 5. Non-demo user still exists
+        r_non_demo_post = client.post("/auth/login", json={"phone": "7777777777"})
+        assert r_non_demo_post.status_code == 200
+        assert r_non_demo_post.json()["user"]["id"] == non_demo_id
+        assert r_non_demo_post.json()["user"]["role"] == "citizen"
 
 
 # ===========================================================================

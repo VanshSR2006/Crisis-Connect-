@@ -29,17 +29,46 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     db.query(PopulationProfile).delete()
     db.query(DemandForecast).delete()
     db.query(Zone).delete()
-    db.query(User).delete()
+    # Note: Do NOT delete all users so non-demo users persist.
     db.commit()
 
-    # 2. Seed Users (Pre-authorized privileged roles for both standard test/demo phone sets)
-    officer1 = User(id="usr-officer-1", name="Officer R. Sharma", phone="1111111110", role="officer")
-    officer2 = User(id="usr-officer-2", name="Command Officer", phone="9876543210", role="officer")
-    volunteer1 = User(id="usr-volunteer-1", name="Volunteer Team Alpha", phone="1111111111", role="volunteer")
-    volunteer2 = User(id="usr-volunteer-2", name="Volunteer Priya Patel", phone="9876543211", role="volunteer")
-    citizen1 = User(id="usr-citizen-1", name="Anita Das", phone="1111111112", role="citizen")
-    citizen2 = User(id="usr-citizen-2", name="Ramesh Kumar", phone="9876543212", role="citizen")
-    db.add_all([officer1, officer2, volunteer1, volunteer2, citizen1, citizen2])
+    # 2. Upsert Canonical Demo Users by phone
+    canonical_users = [
+        {"id": "usr-officer-1", "name": "Officer R. Sharma", "phone": "1111111110", "role": "officer", "language_pref": "en"},
+        {"id": "usr-officer-2", "name": "Command Officer", "phone": "9876543210", "role": "officer", "language_pref": "en"},
+        {"id": "usr-volunteer-1", "name": "Volunteer Team Alpha", "phone": "1111111111", "role": "volunteer", "language_pref": "en"},
+        {"id": "usr-volunteer-2", "name": "Volunteer Priya Patel", "phone": "9876543211", "role": "volunteer", "language_pref": "en"},
+        {"id": "usr-citizen-1", "name": "Anita Das", "phone": "1111111112", "role": "citizen", "language_pref": "en"},
+        {"id": "usr-citizen-2", "name": "Ramesh Kumar", "phone": "9876543212", "role": "citizen", "language_pref": "en"},
+    ]
+
+    for cdata in canonical_users:
+        user_by_phone = db.query(User).filter(User.phone == cdata["phone"]).first()
+        user_by_id = db.query(User).filter(User.id == cdata["id"]).first()
+
+        if user_by_phone:
+            if user_by_id and user_by_id.id != user_by_phone.id:
+                db.delete(user_by_id)
+                db.flush()
+            user_by_phone.id = cdata["id"]
+            user_by_phone.name = cdata["name"]
+            user_by_phone.role = cdata["role"]
+            user_by_phone.language_pref = cdata["language_pref"]
+        elif user_by_id:
+            user_by_id.name = cdata["name"]
+            user_by_id.phone = cdata["phone"]
+            user_by_id.role = cdata["role"]
+            user_by_id.language_pref = cdata["language_pref"]
+        else:
+            new_user = User(
+                id=cdata["id"],
+                name=cdata["name"],
+                phone=cdata["phone"],
+                role=cdata["role"],
+                language_pref=cdata["language_pref"]
+            )
+            db.add(new_user)
+
     db.commit()
 
     # 3. Seed Zones (Cachar District, Assam)
@@ -100,7 +129,7 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     p_score_1 = calculate_response_priority(0.88, "critical", 0.95, 0.85)
     inc1 = Incident(
         id="inc-101",
-        reporter_id=citizen1.id,
+        reporter_id="usr-citizen-1",
         zone_id=z1.id,
         title="Flash Flood Evacuation Required",
         description="Water level entering ground floor of 15 households. Elderly people stuck.",
@@ -116,7 +145,7 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     p_score_2 = calculate_response_priority(0.68, "high", 0.90, 0.60)
     inc2 = Incident(
         id="inc-102",
-        reporter_id=citizen1.id,
+        reporter_id="usr-citizen-1",
         zone_id=z2.id,
         title="Urgent Medical Supplies Needed",
         description="Sub-center flooded. Insulin and basic wound dressing supplies needed.",
