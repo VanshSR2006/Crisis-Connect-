@@ -15,7 +15,7 @@ services:
       - key: REDIS_URL
         sync: false # User to populate (Render Redis URL)
       - key: FRONTEND_ORIGIN
-        value: "*" # User can lock this to their Vite deployment URL
+        sync: false # Set to your Vite deployment URL in Render Dashboard (e.g. https://crisis-connect.onrender.com)
 
   # 2. Scheduled Intelligence Cron Job
   - type: cron
