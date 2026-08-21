@@ -3,15 +3,26 @@
 // Coordinate before modifying outside this workstream.
 import React from 'react';
 import { RouterProvider } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router } from './router';
 import { LanguageProvider } from '@/lib/languageContext';
 import '@/i18n';
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 export const App: React.FC = () => {
   return (
-    <LanguageProvider>
-      <RouterProvider router={router} />
-    </LanguageProvider>
+    <QueryClientProvider client={queryClient}>
+      <LanguageProvider>
+        <RouterProvider router={router} />
+      </LanguageProvider>
+    </QueryClientProvider>
   );
 };
 

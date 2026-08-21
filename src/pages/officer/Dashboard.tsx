@@ -21,13 +21,13 @@ import {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { incidents, dispatches, riskScores, setSelectedIncidentId } = useOfficerContext();
+  const { incidents, dispatches, riskZones, setSelectedIncidentId } = useOfficerContext();
 
-  const criticalCount = incidents.filter((i) => i.severity === 'critical').length;
-  const highCount = incidents.filter((i) => i.severity === 'high').length;
-  const activeDispatchesCount = dispatches.filter((d) => d.status !== 'completed').length;
-  const highestRisk = Math.max(...riskScores.map((r) => r.score));
-  const highestRiskZone = riskScores.find((r) => r.score === highestRisk);
+  const criticalCount = incidents.filter(i => i.severity === 'critical').length;
+  const highCount = incidents.filter(i => i.severity === 'high').length;
+  const activeDispatchesCount = dispatches.filter(d => d.status !== 'completed').length;
+  const highestRisk = riskZones.length > 0 ? Math.max(...riskZones.map(r => r.score)) : 0;
+  const highestRiskZone = riskZones.find(r => r.score === highestRisk);
 
   const recentIncidents = incidents.slice(0, 5);
 
@@ -53,7 +53,7 @@ export const Dashboard: React.FC = () => {
     {
       label: t('officer.dashboard.highestRiskScore'),
       value: `${highestRisk} / 100`,
-      sub: highestRiskZone ? `${t('officer.dashboard.zone')} ${highestRiskZone.zone_id}` : 'Delhi NCR Basin',
+      sub: highestRiskZone ? `${t('officer.dashboard.zone')} ${highestRiskZone.name}` : '—',
       icon: Activity,
       valueColor: 'text-[#c2410c]',
       iconColor: 'text-[#c2410c]',

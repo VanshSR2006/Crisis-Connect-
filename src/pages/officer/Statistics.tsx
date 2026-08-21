@@ -26,16 +26,15 @@ import {
 
 export const Statistics: React.FC = () => {
   const { t } = useTranslation();
-  const { incidents, resources, riskScores } = useOfficerContext();
-
-  const totalOccupancy = mockShelters.reduce((acc, s) => acc + s.current_occupancy, 0);
-  const totalCapacity = mockShelters.reduce((acc, s) => acc + s.capacity, 0);
+  const { incidents, resources, riskZones, isLoadingResources } = useOfficerContext();
+  const highestRiskZone = riskZones.length > 0
+    ? riskZones.reduce((prev, current) => (prev.score > current.score ? prev : current))
+    : null;
 
   const resolvedIncidentsCount = incidents.filter((i) => i.status === 'resolved').length;
   const resolutionRatePct = incidents.length > 0 ? Math.round((resolvedIncidentsCount / incidents.length) * 100) : 0;
 
-  const totalResourcesQty = resources.reduce((acc, r) => acc + r.quantity, 0);
-  const highestRiskZone = riskScores.reduce((prev, current) => (prev.score > current.score ? prev : current));
+  const totalResourcesQty = resources.reduce((acc, r) => acc + (r.quantity ?? 0), 0);
 
   // Time-series data for Incidents vs Response Latency Trend (Over 24h timeline)
   const timeSeriesData = [
@@ -47,15 +46,13 @@ export const Statistics: React.FC = () => {
     { time: '22:00', incidents: 5, responseTimeMin: 11.5, dispatchedUnits: 4 },
   ];
 
-  // Resource Allocation & Stock Depletion data
-  const resourceChartData = resources.map((r) => {
-    const allocated = Math.round(r.quantity * 0.4);
-    const remaining = r.quantity - allocated;
+  // Resource Allocation chart — use actual quantity from live data
+  const resourceChartData = resources.map(r => {
+    // We display full quantity_available; reserved/committed is not provided by the backend.
     const displayName = t(`resources.names.${r.name}`, { defaultValue: r.name });
     return {
       name: displayName.length > 18 ? `${displayName.slice(0, 18)}...` : displayName,
-      available: remaining,
-      reserved: allocated,
+      available: r.quantity,
       total: r.quantity,
     };
   });
@@ -130,8 +127,12 @@ export const Statistics: React.FC = () => {
             </span>
             <Activity className="h-4 w-4 text-orange-400" />
           </div>
-          <div className="text-2xl font-black text-orange-400">{highestRiskZone.score}/100</div>
-          <p className="text-[11px] text-slate-400 mt-1">{t('officer.dashboard.zone')}: {highestRiskZone.zone_id}</p>
+          <div className="text-2xl font-black text-orange-400">
+            {highestRiskZone ? `${highestRiskZone.score}/100` : '—'}
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1">
+            {t('officer.dashboard.zone')}: {highestRiskZone ? highestRiskZone.name : '—'}
+          </p>
         </div>
       </div>
 
@@ -183,7 +184,7 @@ export const Statistics: React.FC = () => {
           </div>
         </div>
 
-        {/* Chart 2: Stacked Bar Chart (Resource Allocation & Stock Depletion) */}
+        {/* Stacked Bar Chart - Resource Stock */}
         <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-3 flex flex-col justify-between min-w-0">
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <div className="flex items-center gap-2">
@@ -194,22 +195,24 @@ export const Statistics: React.FC = () => {
             </div>
             <span className="text-[10px] font-mono text-slate-400">{t('officer.statistics.inventoryStatus')}</span>
           </div>
-
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={resourceChartData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
-                <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '4px', fontSize: '12px', color: '#fff' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Bar dataKey="available" name={t('officer.statistics.availableStock')} fill="#10b981" stackId="a" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="reserved" name={t('officer.statistics.reservedAllocated')} fill="#f59e0b" stackId="a" radius={[2, 2, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {isLoadingResources ? (
+            <div className="h-64 flex items-center justify-center text-slate-400 text-xs">Loading resources...</div>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={resourceChartData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                  <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '4px', fontSize: '12px', color: '#fff' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                  <Bar dataKey="available" name={t('officer.statistics.availableStock')} fill="#10b981" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       </div>
 
@@ -266,7 +269,7 @@ export const Statistics: React.FC = () => {
           </div>
         </div>
 
-        {/* Shelter Capacity Distribution */}
+        {/* Shelter Capacity Distribution - keeps mockShelters (not in Phase 4 scope) */}
         <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-3 shadow-sm">
           <div className="border-b border-[#c6c6cd] pb-2 flex items-center justify-between">
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
