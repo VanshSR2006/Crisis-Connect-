@@ -21,9 +21,15 @@ export interface QueuedSosReport {
   zone_id: string;
   queued_at: string;
   photo_base64?: string;
+  title?: string;
+  client_id?: string;
 }
 
 const QUEUE_STORAGE_KEY = 'crisis_connect_offline_sos_queue';
+
+let isFlushingQueue = false;
+
+export const isQueueFlushing = (): boolean => isFlushingQueue;
 
 export const getOfflineQueue = (): QueuedSosReport[] => {
   try {
@@ -35,10 +41,14 @@ export const getOfflineQueue = (): QueuedSosReport[] => {
   }
 };
 
-export const enqueueSosReport = (report: Omit<QueuedSosReport, 'id' | 'queued_at'>): QueuedSosReport => {
+export const enqueueSosReport = (
+  report: Omit<QueuedSosReport, 'queued_at'> & { id?: string }
+): QueuedSosReport => {
+  const queuedId = report.id || `offline-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   const queuedItem: QueuedSosReport = {
     ...report,
-    id: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    id: queuedId,
+    client_id: report.client_id || queuedId,
     queued_at: new Date().toISOString(),
   };
 
@@ -67,26 +77,36 @@ export const clearOfflineQueue = (): void => {
 export const flushOfflineQueue = async (
   sendReportFn: (report: QueuedSosReport) => Promise<boolean>
 ): Promise<{ synced: number; failed: number }> => {
-  const queue = getOfflineQueue();
-  if (queue.length === 0) return { synced: 0, failed: 0 };
-
-  let synced = 0;
-  let failed = 0;
-
-  for (const report of queue) {
-    try {
-      const success = await sendReportFn(report);
-      if (success) {
-        removeFromOfflineQueue(report.id);
-        synced++;
-      } else {
-        failed++;
-      }
-    } catch (error) {
-      console.error(`Failed to flush queued SOS report ${report.id}:`, error);
-      failed++;
-    }
+  if (isFlushingQueue) {
+    console.log('[OfflineQueue] Flush already in progress, skipping duplicate call.');
+    return { synced: 0, failed: 0 };
   }
 
-  return { synced, failed };
+  isFlushingQueue = true;
+  try {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) return { synced: 0, failed: 0 };
+
+    let synced = 0;
+    let failed = 0;
+
+    for (const report of queue) {
+      try {
+        const success = await sendReportFn(report);
+        if (success) {
+          removeFromOfflineQueue(report.id);
+          synced++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Failed to flush queued SOS report ${report.id}:`, error);
+        failed++;
+      }
+    }
+
+    return { synced, failed };
+  } finally {
+    isFlushingQueue = false;
+  }
 };

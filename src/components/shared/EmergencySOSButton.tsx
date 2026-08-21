@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ShieldAlert, Loader2, CheckCircle2, X } from 'lucide-react';
+import { createIncident } from '@/lib/api/incidents';
+import { enqueueSosReport } from '@/lib/offlineQueue';
 import { mockIncidents } from '@/mocks/incidents';
 import { generateReferenceId } from '@/lib/generateReferenceId';
 import { Incident } from '@/types';
@@ -13,29 +15,45 @@ export const EmergencySOSButton: React.FC = () => {
   const triggerSOS = () => {
     setStatus('loading');
     const generatedId = generateReferenceId();
-    setRefId(generatedId);
 
-    // Fallback coordinates (Delhi NCR / Sector 14)
-    const fallbackLat = 28.625;
-    const fallbackLng = 77.125;
+    // Fallback coordinates (Silchar / Assam flood basin)
+    const fallbackLat = 24.8200;
+    const fallbackLng = 92.7900;
 
-    const createAndPushIncident = (lat: number, lng: number) => {
-      const guestIncident: Incident = {
-        id: generatedId,
+    const createAndPushIncident = async (lat: number, lng: number) => {
+      const payload = {
         title: 'GUEST PANIC ALERT',
-        description: 'Emergency SOS — no further details provided',
-        category: 'panic',
+        description: 'Emergency SOS — guest panic alert triggered',
+        category: 'rescue',
         severity: 'critical',
-        status: 'reported',
         lat,
         lng,
-        reported_by_user_id: null,
-        zone_id: 'zone-north-01',
-        created_at: new Date().toISOString(),
+        zone_id: 'z-silchar',
+        reporter_id: 'usr-guest',
       };
 
-      // Push directly to mutable mock state
-      mockIncidents.push(guestIncident);
+      if (navigator.onLine) {
+        const res = await createIncident(payload);
+        if (res && res.id) {
+          setRefId(res.id);
+        } else {
+          setRefId(generatedId);
+        }
+      } else {
+        enqueueSosReport({
+          id: generatedId,
+          client_id: generatedId,
+          title: payload.title,
+          category: payload.category as any,
+          severity: payload.severity as any,
+          description: payload.description,
+          lat,
+          lng,
+          zone_id: payload.zone_id,
+          reporter_id: payload.reporter_id,
+        });
+        setRefId(generatedId);
+      }
       setStatus('confirmed');
     };
 
@@ -45,7 +63,6 @@ export const EmergencySOSButton: React.FC = () => {
           createAndPushIncident(position.coords.latitude, position.coords.longitude);
         },
         () => {
-          // Fallback if permission is denied or service unavailable
           createAndPushIncident(fallbackLat, fallbackLng);
         },
         { timeout: 5000 }

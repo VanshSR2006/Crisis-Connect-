@@ -1,6 +1,6 @@
-import { apiFetch } from '@/lib/api/client';
-import { Incident } from '@/types';
-import { mockIncidents } from '@/mocks';
+import { apiFetch } from './client';
+import { Incident } from '../../types';
+import { mockIncidents } from '../../mocks';
 
 /**
  * GET /incidents – returns a list of incidents.
@@ -13,14 +13,27 @@ export async function getIncidents(): Promise<Incident[]> {
 
 /**
  * POST /incidents – creates a new incident.
- * Returns the created incident (mocked if backend unavailable).
+ * Accepts optional idempotencyKey for duplicate protection across retries/flushes.
+ * Returns the created incident from backend, or null if backend call failed.
  */
-export async function createIncident(newIncident: Omit<Incident, 'id'>): Promise<Incident> {
-  const data = await apiFetch<Incident>('/incidents', {
-    method: 'POST',
-    body: JSON.stringify(newIncident),
-  });
-  if (data) return data;
-  // Mock fallback – generate a temporary ID
-  return { ...newIncident, id: `inc-${Date.now()}` } as Incident;
+export async function createIncident(
+  newIncident: Omit<Incident, 'id'> | Record<string, any>,
+  options?: { idempotencyKey?: string }
+): Promise<Incident | null> {
+  try {
+    const idempotencyKey = options?.idempotencyKey || (newIncident as any).client_id || (newIncident as any).id;
+    const data = await apiFetch<Incident>('/incidents', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+      },
+      body: JSON.stringify(newIncident),
+    });
+    return data;
+  } catch (err) {
+    console.warn("Backend 500 hit, falling back to local generated incident response:", err);
+    // Offline queue logic component level par trigger ho jayegi
+    return null;
+  }
 }

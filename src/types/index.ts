@@ -22,7 +22,7 @@ export type IncidentCategory =
   | 'panic'
   | 'other';
 
-export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'resolved';
+export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'arrived' | 'resolved';
 
 export type ReviewState = 'unverified' | 'flagged' | 'verified';
 
@@ -77,6 +77,7 @@ export interface Incident {
   lat: number;
   lng: number;
   reported_by_user_id?: string | null;
+  reporter_id?: string | null;
   zone_id: string;
   created_at: string;
 }
