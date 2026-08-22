@@ -163,15 +163,17 @@ export interface Dispatch {
 
 export interface Alert {
   id: string;
-  title: string;
-  message: string;
+  zone_id?: string | null;
+  target_zone_id?: string;
+  message_en?: string;
+  title?: string;
+  message?: string;
   severity: SeverityLevel;
-  target_zone_id: string;
   issued_at: string;
-  expires_at: string;
-  issued_by_user_id: string;
+  expires_at?: string;
+  issued_by_user_id?: string;
   title_translated?: Record<string, string>;
-  message_translated?: Record<string, string>;
+  message_translated?: Record<string, string> | null;
 }
 
 export interface RiskScore {

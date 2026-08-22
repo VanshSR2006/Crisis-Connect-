@@ -138,11 +138,11 @@ export const Alerts: React.FC = () => {
 
               const message =
                 alert.message_translated?.[language] ||
-                (alert as any).message_en ||
+                alert.message_en ||
                 alert.message ||
                 'Emergency notification issued for your zone. Follow safety guidelines.';
 
-              const zone = alert.target_zone_id || (alert as any).zone_id || 'All Zones';
+              const zone = alert.zone_id || alert.target_zone_id || 'All Zones';
 
               return (
                 <div

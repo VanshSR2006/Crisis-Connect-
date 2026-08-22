@@ -27,6 +27,7 @@ class AlertResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 @router.get("", response_model=List[AlertResponse])
+@router.get("/", response_model=List[AlertResponse], include_in_schema=False)
 def list_alerts(db: Session = Depends(get_db)):
     """
     Returns all broadcast emergency alerts ordered by issued date.
