@@ -6,12 +6,13 @@ import { IncidentCategory } from '@/types';
 import { createIncident } from '@/lib/api/incidents';
 import { enqueueSosReport, getOfflineQueue } from '@/lib/offlineQueue';
 import { compressImage } from '@/lib/imageCompressor';
+import { getStoredUser } from '@/lib/auth';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { StatusStepper } from '@/components/shared/StatusStepper';
-import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
+
 import {
   LifeBuoy,
   Stethoscope,
@@ -33,12 +34,18 @@ import {
   Clock,
 } from 'lucide-react';
 
+import { useOfflineSync } from '@/lib/useOfflineSync';
+
 type GeoStatus = 'idle' | 'detecting' | 'acquired' | 'denied' | 'unavailable' | 'timeout';
 
 export const SosReport: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, getNearestShelter } = useCitizenContext();
+  const { user, getNearestShelter, refreshIncidents, lat: contextLat, lng: contextLng, geoStatus, detectLocation } = useCitizenContext();
+  const { refreshPendingCount } = useOfflineSync();
+
+  const lat = contextLat ?? 24.8200;
+  const lng = contextLng ?? 92.7900;
 
   const [category, setCategory] = useState<IncidentCategory>('rescue');
   const [description, setDescription] = useState<string>('');
@@ -48,16 +55,30 @@ export const SosReport: React.FC = () => {
   const [submittedIncidentId, setSubmittedIncidentId] = useState<string | null>(null);
   const [isQueuedOffline, setIsQueuedOffline] = useState<boolean>(false);
 
-  // Geolocation state (default fallback coordinates)
-  const [lat, setLat] = useState<number>(24.8200);
-  const [lng, setLng] = useState<number>(92.7900);
-  const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle');
-
   // Form submission, media processing & error states
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isCompressingMedia, setIsCompressingMedia] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [pendingQueueCount, setPendingQueueCount] = useState<number>(() => getOfflineQueue().length);
+
+  // Listen for background sync completion to update queued SOS view to live incident
+  useEffect(() => {
+    const handleReportSynced = (e: Event) => {
+      const customEvent = e as CustomEvent<{ clientId: string; backendIncident: any }>;
+      if (customEvent.detail && submittedIncidentId) {
+        const { clientId, backendIncident } = customEvent.detail;
+        if (clientId === submittedIncidentId || submittedIncidentId.startsWith('offline-')) {
+          setSubmittedIncidentId(backendIncident.id || (backendIncident as any)._id || clientId);
+          setIsQueuedOffline(false);
+          refreshIncidents();
+        }
+      }
+    };
+
+    window.addEventListener('sos-report-synced', handleReportSynced);
+    return () => {
+      window.removeEventListener('sos-report-synced', handleReportSynced);
+    };
+  }, [submittedIncidentId, refreshIncidents]);
 
   const categories: { key: IncidentCategory; labelKey: string; icon: React.ElementType; color: string }[] = [
     { key: 'rescue', labelKey: 'citizen.sosReport.floodRescue', icon: LifeBuoy, color: 'text-blue-600' },
@@ -67,35 +88,7 @@ export const SosReport: React.FC = () => {
     { key: 'water', labelKey: 'citizen.sosReport.drinkingWater', icon: LifeBuoy, color: 'text-cyan-600' },
   ];
 
-  // Browser Geolocation Detector
-  const detectLocation = () => {
-    if (!('geolocation' in navigator)) {
-      setGeoStatus('unavailable');
-      return;
-    }
-    setGeoStatus('detecting');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLat(position.coords.latitude);
-        setLng(position.coords.longitude);
-        setGeoStatus('acquired');
-      },
-      (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          setGeoStatus('denied');
-        } else if (error.code === error.TIMEOUT) {
-          setGeoStatus('timeout');
-        } else {
-          setGeoStatus('unavailable');
-        }
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-  };
 
-  useEffect(() => {
-    detectLocation();
-  }, []);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -117,8 +110,12 @@ export const SosReport: React.FC = () => {
 
     const sosDescription = description || `Emergency request for ${category} assistance at ${locationName}.`;
     const zoneId = user?.zone_id || 'z-silchar';
-    const rawReporterId = user?.id;
+
+    // Authenticated citizen real backend ID from context or localStorage session
+    const realReporterId = user?.id || getStoredUser()?.id || undefined;
+
     const clientId = `sos-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
 
     // Optional image compression prior to SOS submission
     let photoBase64: string | undefined = undefined;
@@ -151,13 +148,13 @@ export const SosReport: React.FC = () => {
         lat,
         lng,
         zone_id: zoneId,
-        reporter_id: rawReporterId || 'usr-citizen-1',
+        reporter_id: realReporterId,
         photo_base64: photoBase64,
         title: `Emergency ${category.toUpperCase()} Request`,
       });
       setSubmittedIncidentId(offlineItem.id);
       setIsQueuedOffline(true);
-      setPendingQueueCount(getOfflineQueue().length);
+      refreshPendingCount();
       setIsSubmitting(false);
       return;
     }
@@ -168,6 +165,7 @@ export const SosReport: React.FC = () => {
       category,
       severity: 'critical',
       description: sosDescription,
+      reporter_id: realReporterId,
 
       // Both Flat and Nested Location formats included for schema safety
       lat,
@@ -185,17 +183,15 @@ export const SosReport: React.FC = () => {
       client_id: clientId,
     };
 
-    // Include reporter_id only if it's a valid ID (prevents hardcoded string 500 error)
-    if (rawReporterId && !rawReporterId.startsWith('usr-citizen')) {
-      payload.reporter_id = rawReporterId;
-    }
 
     try {
       const result = await createIncident(payload, { idempotencyKey: clientId });
       if (result && (result.id || (result as any)._id)) {
         setSubmittedIncidentId(result.id || (result as any)._id);
         setIsQueuedOffline(false);
+        refreshIncidents();
       } else {
+
         // Fallback to offline queue on API null/failure response
         const offlineItem = enqueueSosReport({
           id: clientId,
@@ -206,13 +202,14 @@ export const SosReport: React.FC = () => {
           lat,
           lng,
           zone_id: zoneId,
-          reporter_id: rawReporterId || 'usr-citizen-1',
+          reporter_id: realReporterId,
           photo_base64: photoBase64,
           title: payload.title,
         });
         setSubmittedIncidentId(offlineItem.id);
         setIsQueuedOffline(true);
-        setPendingQueueCount(getOfflineQueue().length);
+        refreshPendingCount();
+
       }
     } catch (err: any) {
       console.error('SOS submission error:', err);
@@ -226,13 +223,16 @@ export const SosReport: React.FC = () => {
         lat,
         lng,
         zone_id: zoneId,
-        reporter_id: rawReporterId || 'usr-citizen-1',
+        reporter_id: realReporterId,
         photo_base64: photoBase64,
         title: payload.title,
       });
       setSubmittedIncidentId(offlineItem.id);
       setIsQueuedOffline(true);
-      setPendingQueueCount(getOfflineQueue().length);
+      refreshPendingCount();
+
+
+
     } finally {
       setIsSubmitting(false);
     }
@@ -408,8 +408,8 @@ export const SosReport: React.FC = () => {
                   key={cat.key}
                   onClick={() => !isSubmitting && setCategory(cat.key)}
                   className={`cursor-pointer transition-all border p-3 flex flex-col justify-between h-24 ${isSelected
-                      ? 'border-[#2563eb] bg-[#d5e3fc]/60 ring-2 ring-[#2563eb]'
-                      : 'border-[#c6c6cd] bg-white hover:bg-[#f6f3f5]'
+                    ? 'border-[#2563eb] bg-[#d5e3fc]/60 ring-2 ring-[#2563eb]'
+                    : 'border-[#c6c6cd] bg-white hover:bg-[#f6f3f5]'
                     } ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}
                 >
                   <CardContent className="p-0 flex flex-col justify-between h-full">
@@ -507,8 +507,8 @@ export const SosReport: React.FC = () => {
               onClick={toggleVoiceNote}
               disabled={isSubmitting}
               className={`border border-dashed rounded p-3 text-center flex flex-col items-center justify-center gap-1.5 transition-colors ${hasVoiceNote
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                  : 'border-[#c6c6cd] hover:border-[#2563eb] bg-[#f6f3f5] text-[#1b1b1d]'
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                : 'border-[#c6c6cd] hover:border-[#2563eb] bg-[#f6f3f5] text-[#1b1b1d]'
                 } ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <Mic className={`h-5 w-5 ${hasVoiceNote ? 'text-emerald-600' : 'text-[#45464d]'}`} />
@@ -519,20 +519,8 @@ export const SosReport: React.FC = () => {
           </div>
         </div>
 
-        {/* Map Preview */}
-        <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
-          <div className="px-3 py-2 border-b border-[#c6c6cd] flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#45464d]">
-              {t('citizen.sosReport.targetPinPreview')}
-            </span>
-            <span className="text-[10px] font-mono font-bold text-[#2563eb]">
-              LAT: {lat.toFixed(4)} · LNG: {lng.toFixed(4)}
-            </span>
-          </div>
-          <MapPlaceholder height="h-32" />
-        </div>
-
         {/* Submit Button */}
+
         <Button
           type="submit"
           variant="danger"

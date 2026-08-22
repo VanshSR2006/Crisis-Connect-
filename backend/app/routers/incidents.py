@@ -53,6 +53,24 @@ async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
     """
     Submits a new incident SOS report and broadcasts a structured JSON event to the WebSocket.
     """
+    # Normalize reporter_id for guest/placeholder values
+    reporter_id = inc.reporter_id
+    if reporter_id is not None:
+        reporter_id_clean = reporter_id.strip()
+        if reporter_id_clean.lower() in ("usr-guest", "guest", ""):
+            reporter_id = None
+        else:
+            reporter_id = reporter_id_clean
+
+    # Validate real reporter_id before INSERT if non-null
+    if reporter_id is not None:
+        user = db.query(User).filter(User.id == reporter_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid reporter_id"
+            )
+
     # Dynamic priority score calculation based on default factors
     priority = calculate_response_priority(
         risk_score=0.8,
@@ -68,7 +86,7 @@ async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
         lat=inc.lat,
         lng=inc.lng,
         zone_id=inc.zone_id,
-        reporter_id=inc.reporter_id,
+        reporter_id=reporter_id,
         status="reported",
         review_state="unverified",
         credibility_score=1.0,

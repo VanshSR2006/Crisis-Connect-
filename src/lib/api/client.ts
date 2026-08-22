@@ -6,7 +6,10 @@
  * src/lib/api/client.ts
  * Thin wrapper around fetch that adds base URL, auth header, and JSON handling.
  * Returns typed data or null on network error/fallback.
+ * On 401/403 the stored auth is cleared and the user is redirected to /login.
  */
+
+import { clearAuth } from '@/lib/auth';
 
 export interface ApiError extends Error {
   status?: number;
@@ -46,6 +49,16 @@ export async function apiFetch<T>(
     const data = (await response.json()) as T;
     return data;
   } catch (e) {
+    const apiErr = e as ApiError;
+    // Auth errors: clear stored credentials and force re-login
+    if (apiErr.status === 401 || apiErr.status === 403) {
+      console.warn(`[apiFetch] Auth error ${apiErr.status} on ${endpoint} — clearing session.`);
+      clearAuth();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      }
+      return null;
+    }
     // Network error or backend unreachable – return null so caller handles error
     console.warn(`API fetch failed [${url}]:`, e);
     return null;

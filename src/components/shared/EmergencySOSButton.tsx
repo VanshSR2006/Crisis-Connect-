@@ -5,7 +5,19 @@ import { createIncident } from '@/lib/api/incidents';
 import { enqueueSosReport } from '@/lib/offlineQueue';
 import { mockIncidents } from '@/mocks/incidents';
 import { generateReferenceId } from '@/lib/generateReferenceId';
-import { Incident } from '@/types';
+import { Incident, User } from '@/types';
+
+const getStoredUser = (): Partial<User> | null => {
+  try {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      return JSON.parse(storedUser);
+    }
+  } catch {
+    // Ignore JSON parse errors
+  }
+  return null;
+};
 
 export const EmergencySOSButton: React.FC = () => {
   const { t } = useTranslation();
@@ -20,17 +32,25 @@ export const EmergencySOSButton: React.FC = () => {
     const fallbackLat = 24.8200;
     const fallbackLng = 92.7900;
 
+    const user = getStoredUser();
+    const realUserId = user?.id || undefined;
+
     const createAndPushIncident = async (lat: number, lng: number) => {
-      const payload = {
-        title: 'GUEST PANIC ALERT',
-        description: 'Emergency SOS — guest panic alert triggered',
+      const payload: Record<string, any> = {
+        title: 'EMERGENCY PANIC ALERT',
+        description: 'Emergency SOS — panic alert triggered',
         category: 'rescue',
         severity: 'critical',
         lat,
         lng,
-        zone_id: 'z-silchar',
-        reporter_id: 'usr-guest',
+        zone_id: user?.zone_id || 'z-silchar',
       };
+
+      if (realUserId) {
+        payload.reporter_id = realUserId;
+      }
+
+
 
       if (navigator.onLine) {
         const res = await createIncident(payload);
@@ -50,7 +70,7 @@ export const EmergencySOSButton: React.FC = () => {
           lat,
           lng,
           zone_id: payload.zone_id,
-          reporter_id: payload.reporter_id,
+          reporter_id: realUserId,
         });
         setRefId(generatedId);
       }

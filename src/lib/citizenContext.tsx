@@ -5,8 +5,35 @@ import { useLanguage } from './languageContext';
 import type { LanguageCode } from './i18n';
 import { getIncidents } from './api/incidents';
 import { realtimeClient } from './api/websocket';
+import { getStoredUser } from './auth';
 
 export type { LanguageCode };
+
+export type GeoStatus = 'idle' | 'detecting' | 'acquired' | 'denied' | 'unavailable' | 'timeout';
+
+function getAuthenticatedCitizenUser(): User {
+  const stored = getStoredUser();
+  if (stored && stored.id) {
+    return {
+      id: stored.id,
+      name: stored.name || 'Citizen',
+      email: stored.phone ? `${stored.phone}@crisisconnect.org` : '',
+      role: stored.role || 'citizen',
+      phone: stored.phone || '',
+      zone_id: 'z-silchar',
+      created_at: new Date().toISOString(),
+    };
+  }
+  return {
+    id: '',
+    name: 'Guest Citizen',
+    email: '',
+    role: 'citizen',
+    phone: '',
+    zone_id: 'z-silchar',
+    created_at: new Date().toISOString(),
+  };
+}
 
 export interface NewIncidentPayload {
   title: string;
@@ -27,6 +54,10 @@ interface CitizenContextType {
   incidents: Incident[];
   activeIncident: Incident | null;
   shelters: Shelter[];
+  lat: number | null;
+  lng: number | null;
+  geoStatus: GeoStatus;
+  detectLocation: () => void;
   addIncident: (payload: NewIncidentPayload) => Incident;
   updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
   getNearestShelter: (lat?: number, lng?: number) => Shelter;
@@ -34,31 +65,89 @@ interface CitizenContextType {
   refreshIncidents: () => Promise<void>;
 }
 
+
 const CitizenContext = createContext<CitizenContextType | undefined>(undefined);
 
 export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User>(mockUsers.find((u) => u.role === 'citizen') || mockUsers[0]);
-  const [incidents, setIncidents] = useState<Incident[]>(mockIncidents);
-  const [activeIncident, setActiveIncident] = useState<Incident | null>(mockIncidents[0] || null);
+  const [user, setUser] = useState<User>(getAuthenticatedCitizenUser);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
+
+  // Shared browser geolocation state
+  const [lat, setLat] = useState<number | null>(null);
+  const [lng, setLng] = useState<number | null>(null);
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>('idle');
+
+  const detectLocation = useCallback(() => {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      setGeoStatus('unavailable');
+      return;
+    }
+    setGeoStatus('detecting');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLat(position.coords.latitude);
+        setLng(position.coords.longitude);
+        setGeoStatus('acquired');
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          setGeoStatus('denied');
+        } else if (error.code === error.TIMEOUT) {
+          setGeoStatus('timeout');
+        } else {
+          setGeoStatus('unavailable');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+  }, []);
+
+  useEffect(() => {
+    detectLocation();
+  }, [detectLocation]);
 
   const { language, setLanguage } = useLanguage();
+
+  useEffect(() => {
+    const authUser = getAuthenticatedCitizenUser();
+    if (authUser.id !== user.id) {
+      setUser(authUser);
+    }
+  }, [user.id]);
+
+
 
   const refreshIncidents = useCallback(async () => {
     try {
       const backendList = await getIncidents();
-      if (backendList && backendList.length > 0) {
+      if (backendList && Array.isArray(backendList)) {
         setIncidents(backendList);
-        // Maintain active incident reference or pick the latest reported
-        setActiveIncident((prev) => {
-          if (!prev) return backendList[0];
-          const updatedActive = backendList.find((i) => i.id === prev.id);
-          return updatedActive || prev;
-        });
+
+        const storedUser = getStoredUser();
+        const currentUserId = user?.id || storedUser?.id;
+
+        const userIncidents = currentUserId
+          ? backendList.filter(
+              (i) => i.reporter_id === currentUserId || i.reported_by_user_id === currentUserId
+            )
+          : [];
+
+        if (userIncidents.length > 0) {
+          const sorted = [...userIncidents].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setActiveIncident(sorted[0]);
+        } else {
+          setActiveIncident(null);
+        }
       }
     } catch (err) {
       console.warn('[CitizenContext] Error fetching live incidents:', err);
     }
-  }, []);
+  }, [user?.id]);
+
+
 
   useEffect(() => {
     refreshIncidents();
@@ -156,6 +245,10 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
         incidents,
         activeIncident,
         shelters: mockShelters,
+        lat,
+        lng,
+        geoStatus,
+        detectLocation,
         addIncident,
         updateIncidentStatus,
         getNearestShelter,
@@ -163,6 +256,7 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
         refreshIncidents,
       }}
     >
+
       {children}
     </CitizenContext.Provider>
   );

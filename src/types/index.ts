@@ -50,6 +50,7 @@ export interface User {
   role: UserRole;
   phone: string;
   zone_id: string;
+  language_pref?: string;
   created_at: string;
 }
 

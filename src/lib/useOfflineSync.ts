@@ -7,6 +7,8 @@ import {
 } from '@/lib/offlineQueue';
 import { createIncident } from '@/lib/api/incidents';
 
+import { getStoredUser } from '@/lib/auth';
+
 export interface SyncResult {
   synced: number;
   failed: number;
@@ -17,19 +19,27 @@ export function useOfflineSync() {
   const [isOnline, setIsOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true
   );
-  const [pendingCount, setPendingCount] = useState<number>(() => getOfflineQueue().length);
+
+  const currentUserId = getStoredUser()?.id;
+  const [pendingCount, setPendingCount] = useState<number>(() => getOfflineQueue(getStoredUser()?.id).length);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncResult, setLastSyncResult] = useState<SyncResult | null>(null);
 
   const refreshPendingCount = useCallback(() => {
-    setPendingCount(getOfflineQueue().length);
+    const userId = getStoredUser()?.id;
+    setPendingCount(getOfflineQueue(userId).length);
   }, []);
+
+  useEffect(() => {
+    refreshPendingCount();
+  }, [currentUserId, refreshPendingCount]);
 
   const triggerSync = useCallback(async (): Promise<SyncResult> => {
     if (isQueueFlushing()) {
       return { synced: 0, failed: 0, timestamp: new Date().toISOString() };
     }
 
+    const userId = getStoredUser()?.id;
     setIsSyncing(true);
     try {
       const result = await flushOfflineQueue(async (report: QueuedSosReport) => {
@@ -41,7 +51,7 @@ export function useOfflineSync() {
           lat: report.lat,
           lng: report.lng,
           zone_id: report.zone_id,
-          reporter_id: report.reporter_id,
+          reporter_id: report.reporter_id || userId,
           photo_base64: report.photo_base64,
           client_id: report.client_id || report.id,
         };
@@ -51,8 +61,21 @@ export function useOfflineSync() {
         });
 
         // Backend returns created incident object or non-null on success
-        return res !== null;
-      });
+        if (res && (res.id || (res as any)._id)) {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(
+              new CustomEvent('sos-report-synced', {
+                detail: {
+                  clientId: report.client_id || report.id,
+                  backendIncident: res,
+                },
+              })
+            );
+          }
+          return true;
+        }
+        return false;
+      }, userId);
 
       const syncRes: SyncResult = {
         synced: result.synced,
@@ -75,8 +98,9 @@ export function useOfflineSync() {
     const handleOnline = () => {
       setIsOnline(true);
       refreshPendingCount();
-      // Auto-trigger sync when connectivity returns
-      if (getOfflineQueue().length > 0) {
+      const userId = getStoredUser()?.id;
+      // Auto-trigger sync when connectivity returns for current user
+      if (getOfflineQueue(userId).length > 0) {
         triggerSync();
       }
     };
@@ -86,20 +110,25 @@ export function useOfflineSync() {
       refreshPendingCount();
     };
 
+    const handleQueueChanged = () => {
+      refreshPendingCount();
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('offline-sos-queue-changed', handleQueueChanged);
 
-    // Initial check
+    // Initial check: update pending queue count without flushing on page load
     refreshPendingCount();
-    if (navigator.onLine && getOfflineQueue().length > 0) {
-      triggerSync();
-    }
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offline-sos-queue-changed', handleQueueChanged);
     };
   }, [refreshPendingCount, triggerSync]);
+
+
 
   return {
     isOnline,

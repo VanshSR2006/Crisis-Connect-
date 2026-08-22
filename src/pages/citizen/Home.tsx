@@ -22,9 +22,30 @@ import {
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { incidents, activeIncident, shelters } = useCitizenContext();
+  const { user, incidents, activeIncident, shelters, lat, lng, geoStatus } = useCitizenContext();
   const { language } = useLanguage();
   const { t } = useTranslation();
+
+  const getMapCoordinatesText = () => {
+    if (geoStatus === 'detecting') {
+      return 'Detecting GPS location...';
+    }
+    if (geoStatus === 'acquired' && lat !== null && lng !== null) {
+      const latDir = lat >= 0 ? 'N' : 'S';
+      const lngDir = lng >= 0 ? 'E' : 'W';
+      return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
+    }
+    if (geoStatus === 'denied') {
+      return 'GPS Permission Denied';
+    }
+    if (geoStatus === 'timeout') {
+      return 'GPS Location Timeout';
+    }
+    if (geoStatus === 'unavailable') {
+      return 'GPS Location Unavailable';
+    }
+    return 'Detecting GPS location...';
+  };
 
   // Find critical or high alerts
   const criticalAlerts = mockAlerts.filter((a) => a.severity === 'critical' || a.severity === 'high');
@@ -33,6 +54,18 @@ export const Home: React.FC = () => {
   const nearbyShelters = [...shelters]
     .sort((a, b) => (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy))
     .slice(0, 3);
+
+  // Filter incidents created by current authenticated citizen from backend-confirmed data
+  const citizenIncidents = user?.id
+    ? incidents.filter((i) => i.reporter_id === user.id || i.reported_by_user_id === user.id)
+    : [];
+
+  // Determine tracker incidents to display (only authenticated citizen's backend-confirmed incidents)
+  const trackerIncidents = citizenIncidents.length > 0
+    ? citizenIncidents
+    : activeIncident && (activeIncident.reporter_id === user?.id || activeIncident.reported_by_user_id === user?.id)
+    ? [activeIncident]
+    : [];
 
   return (
     <div className="space-y-5">
@@ -76,9 +109,9 @@ export const Home: React.FC = () => {
         </Button>
       </div>
 
-      {/* ── Active Incident Progress Tracker (if any exists) ─────── */}
-      {activeIncident && (
-        <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
+      {/* ── Active Incident Progress Tracker Section ─────── */}
+      {trackerIncidents.map((inc) => (
+        <div key={inc.id} className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
           <div className="px-3 py-2 border-b border-[#c6c6cd] flex items-center justify-between bg-[#f0edef]">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-[#2563eb]" />
@@ -87,28 +120,31 @@ export const Home: React.FC = () => {
               </span>
             </div>
             <span className="text-[11px] font-mono text-[#76777d] font-semibold">
-              ID: {activeIncident.id}
+              ID: {inc.id}
             </span>
           </div>
 
           <div className="p-4 space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-[#1b1b1d]">{activeIncident.title}</h3>
-                <p className="text-xs text-[#45464d] mt-0.5">{activeIncident.description}</p>
+                <h3 className="text-sm font-bold text-[#1b1b1d]">{inc.title}</h3>
+                <p className="text-xs text-[#45464d] mt-0.5">{inc.description}</p>
               </div>
-              <SeverityBadge severity={activeIncident.severity} showIcon={false} />
+              <SeverityBadge severity={inc.severity} showIcon={false} />
             </div>
 
-            <StatusStepper currentStatus={activeIncident.status} />
+            <StatusStepper currentStatus={inc.status} />
 
             <div className="p-2.5 bg-[#f6f3f5] rounded border border-[#c6c6cd] flex items-center justify-between text-[11px] text-[#45464d]">
-              <span>{t('common.status')}: <strong className="uppercase text-[#0f172a]">{t(`common.${activeIncident.status}`)}</strong></span>
-              <span>{t('common.updated')} {formatDate(activeIncident.created_at)}</span>
+              <span>
+                {t('common.status')}: <strong className="uppercase text-[#0f172a]">{t(`common.${inc.status}`, { defaultValue: inc.status })}</strong>
+              </span>
+              <span>{t('common.updated')} {formatDate(inc.created_at)}</span>
             </div>
           </div>
         </div>
-      )}
+      ))}
+
 
       {/* ── Location Map Visual ─────────────────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
@@ -119,10 +155,13 @@ export const Home: React.FC = () => {
               {t('citizen.home.locationMap')}
             </span>
           </div>
-          <span className="text-[11px] text-[#45464d] font-medium">{t('citizen.home.gpsActive')}</span>
+          <span className="text-[11px] text-[#45464d] font-medium font-mono">
+            {geoStatus === 'acquired' ? t('citizen.home.gpsActive') : geoStatus === 'detecting' ? 'Detecting...' : 'GPS Status: ' + geoStatus.toUpperCase()}
+          </span>
         </div>
-        <MapPlaceholder height="h-48" />
+        <MapPlaceholder height="h-48" centerCoordinates={getMapCoordinatesText()} />
       </div>
+
 
       {/* ── Nearby Shelters Quick Overview ──────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">

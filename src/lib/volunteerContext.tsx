@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Dispatch, Incident, DispatchStatus } from '../types';
-import { mockDispatches, mockIncidents } from '../mocks';
+import { mockIncidents } from '../mocks';
 import { getDispatches, updateDispatchStatus } from './api/dispatches';
 import { getIncidents } from './api/incidents';
 import { realtimeClient } from './api/websocket';
@@ -42,13 +42,8 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
         getIncidents(),
       ]);
 
-      const dispatchesList = backendDispatches && backendDispatches.length > 0
-        ? backendDispatches
-        : mockDispatches;
-
-      const incidentsList = backendIncidents && backendIncidents.length > 0
-        ? backendIncidents
-        : mockIncidents;
+      const dispatchesList = backendDispatches || [];
+      const incidentsList = backendIncidents || [];
 
       const merged: VolunteerTask[] = dispatchesList.map((dispatch) => {
         const matchingInc = incidentsList.find((i) => i.id === dispatch.incident_id);
@@ -122,12 +117,12 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
         return true;
       } else {
-        setError(`Failed to update task ${taskId} to Arrived. Backend rejected update or is unreachable.`);
+        setError(`Failed to update task #${taskId.slice(0, 8)} to Arrived. API server returned an error or is offline. Please retry.`);
         return false;
       }
     } catch (err) {
       console.error(`[VolunteerContext] Error marking arrived for ${taskId}:`, err);
-      setError(`Network error while updating task ${taskId} to Arrived.`);
+      setError(`Network error while updating task #${taskId.slice(0, 8)} to Arrived. Please check connection and retry.`);
       return false;
     } finally {
       setActiveActionTaskId(null);
@@ -155,12 +150,12 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
         return true;
       } else {
-        setError(`Failed to resolve task ${taskId}. Backend rejected update or is unreachable.`);
+        setError(`Failed to resolve task #${taskId.slice(0, 8)}. API server returned an error or is offline. Please retry.`);
         return false;
       }
     } catch (err) {
       console.error(`[VolunteerContext] Error marking resolved for ${taskId}:`, err);
-      setError(`Network error while marking task ${taskId} as Resolved.`);
+      setError(`Network error while marking task #${taskId.slice(0, 8)} as Resolved. Please check connection and retry.`);
       return false;
     } finally {
       setActiveActionTaskId(null);

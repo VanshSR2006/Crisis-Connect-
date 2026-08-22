@@ -21,16 +21,35 @@ export async function createIncident(
   options?: { idempotencyKey?: string }
 ): Promise<Incident | null> {
   try {
-    const idempotencyKey = options?.idempotencyKey || (newIncident as any).client_id || (newIncident as any).id;
+    const payload = { ...newIncident };
+
+    // Derive reporter_id from stored user session if not explicitly provided in payload
+    if (!payload.reporter_id && typeof localStorage !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && parsed.id) {
+            payload.reporter_id = parsed.id;
+          }
+        }
+      } catch {
+        // Ignore parse error
+      }
+    }
+
+
+    const idempotencyKey = options?.idempotencyKey || (payload as any).client_id || (payload as any).id;
     const data = await apiFetch<Incident>('/incidents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
-      body: JSON.stringify(newIncident),
+      body: JSON.stringify(payload),
     });
     return data;
+
   } catch (err) {
     console.warn("Backend 500 hit, falling back to local generated incident response:", err);
     // Offline queue logic component level par trigger ho jayegi

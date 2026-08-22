@@ -1,14 +1,12 @@
 import { apiFetch } from './client';
 import { Dispatch, DispatchStatus } from '../../types';
-import { mockDispatches } from '../../mocks';
 
 /**
- * GET /dispatches – returns all dispatch assignments from backend.
- * Falls back to mockDispatches when backend is unreachable.
+ * GET /dispatches – returns all dispatch assignments directly from backend database.
  */
 export async function getDispatches(): Promise<Dispatch[]> {
   const data = await apiFetch<Dispatch[]>('/dispatches');
-  return data ?? mockDispatches;
+  return data || [];
 }
 
 /**
@@ -29,8 +27,8 @@ export async function createDispatch(newDispatch: {
 }
 
 /**
- * PATCH /dispatches/{id} – updates dispatch status (e.g., pending -> arrived -> resolved).
- * Returns updated dispatch object from backend, or null if failed.
+ * PATCH /dispatches/{id} – updates dispatch status (e.g., pending -> on_site -> completed).
+ * Directly issues request to backend and returns updated Dispatch model.
  */
 export async function updateDispatchStatus(
   id: string,
@@ -42,3 +40,6 @@ export async function updateDispatchStatus(
   });
   return data;
 }
+
+
+
