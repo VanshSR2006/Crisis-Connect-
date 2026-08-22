@@ -515,6 +515,8 @@ class TestWebSocketEvents:
     def test_ws_manager_broadcast_structure(self):
         """Verify the ConnectionManager emits properly structured JSON."""
         import asyncio
+        from typing import cast
+        from fastapi import WebSocket
         from app.websocket.manager import ConnectionManager
 
         received = []
@@ -527,7 +529,7 @@ class TestWebSocketEvents:
 
         async def run():
             mgr = ConnectionManager()
-            ws = MockWebSocket()
+            ws = cast(WebSocket, MockWebSocket())
             await mgr.connect(ws)
             await mgr.broadcast("incident.created", {"id": "abc", "severity": "critical"})
 

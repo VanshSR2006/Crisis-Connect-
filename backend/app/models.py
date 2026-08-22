@@ -4,7 +4,7 @@
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database.base import Base
 
 from sqlalchemy.types import UserDefinedType
@@ -36,12 +36,12 @@ def generate_uuid():
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    name = Column(String, nullable=False)
-    phone = Column(String, unique=True, nullable=True)
-    role = Column(String, nullable=False) # citizen | volunteer | officer | admin
-    language_pref = Column(String, default="en")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    phone: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    role: Mapped[str] = mapped_column(String, nullable=False) # citizen | volunteer | officer | admin
+    language_pref: Mapped[str] = mapped_column(String, default="en")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 class Zone(Base):
     __tablename__ = "zones"

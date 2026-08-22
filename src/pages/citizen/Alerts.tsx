@@ -31,12 +31,37 @@ export const Alerts: React.FC = () => {
   useEffect(() => {
     fetchAlerts();
 
-    // Subscribe to WebSocket realtime alert broadcasts
-    const unsubAlert = realtimeClient.subscribe('alert.created', () => fetchAlerts());
+    // Subscribe to WebSocket realtime alert broadcasts with deduplication
+    const unsubAlert = realtimeClient.subscribe('alert.created', (payload: any) => {
+      if (payload && payload.id) {
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === payload.id)) {
+            return prev;
+          }
+          const newAlert: Alert = {
+            id: payload.id,
+            title: `EMERGENCY ALERT — ${(payload.severity || 'CRITICAL').toUpperCase()}`,
+            message: payload.message_en || 'Emergency notification issued for your zone.',
+            message_en: payload.message_en,
+            message_translated: payload.message_translated || {},
+            severity: (payload.severity as SeverityLevel) || 'medium',
+            target_zone_id: payload.zone_id || 'z-silchar',
+            issued_at: payload.issued_at || new Date().toISOString(),
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            issued_by_user_id: 'usr-officer-1',
+          };
+          return [newAlert, ...prev];
+        });
+      } else {
+        fetchAlerts();
+      }
+    });
+
     return () => {
       unsubAlert();
     };
   }, [fetchAlerts]);
+
 
   const filteredAlerts = severityFilter === 'all'
     ? alerts

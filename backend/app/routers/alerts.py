@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -26,6 +26,13 @@ class AlertResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+@router.get("", response_model=List[AlertResponse])
+def list_alerts(db: Session = Depends(get_db)):
+    """
+    Returns all broadcast emergency alerts ordered by issued date.
+    """
+    return db.query(Alert).order_by(Alert.issued_at.desc()).all()
+
 @router.post("", response_model=AlertResponse)
 async def create_alert(
     a: AlertCreate, 
@@ -52,12 +59,15 @@ async def create_alert(
     db.commit()
     db.refresh(new_alert)
 
-    # Broadcast structured event
+    # Broadcast structured event with full multilingual translation dictionary
     await manager.broadcast("alert.created", {
         "id": new_alert.id,
         "zone_id": new_alert.zone_id,
         "message_en": new_alert.message_en,
-        "severity": new_alert.severity
+        "message_translated": new_alert.message_translated,
+        "severity": new_alert.severity,
+        "issued_at": new_alert.issued_at.isoformat() if new_alert.issued_at else datetime.utcnow().isoformat()
     })
 
     return new_alert
+

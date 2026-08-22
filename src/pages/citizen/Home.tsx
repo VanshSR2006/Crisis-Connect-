@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCitizenContext } from '@/lib/citizenContext';
@@ -9,7 +9,10 @@ import { StatusStepper } from '@/components/shared/StatusStepper';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { formatDate } from '@/lib/utils';
+import { getAlerts } from '@/lib/api/alerts';
+import { realtimeClient } from '@/lib/api/websocket';
 import { mockAlerts } from '@/mocks';
+import { Alert, SeverityLevel } from '@/types';
 import {
   AlertTriangle,
   MapPin,
@@ -25,6 +28,48 @@ export const Home: React.FC = () => {
   const { user, incidents, activeIncident, shelters, lat, lng, geoStatus } = useCitizenContext();
   const { language } = useLanguage();
   const { t } = useTranslation();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const data = await getAlerts();
+      setAlerts(data || mockAlerts);
+    } catch (err) {
+      console.warn('[Home] Error loading alerts:', err);
+      setAlerts(mockAlerts);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAlerts();
+
+    const unsubAlert = realtimeClient.subscribe('alert.created', (payload: any) => {
+      if (payload && payload.id) {
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === payload.id)) return prev;
+          const newAlert: Alert = {
+            id: payload.id,
+            title: `EMERGENCY ALERT — ${(payload.severity || 'CRITICAL').toUpperCase()}`,
+            message: payload.message_en || 'Emergency notification issued for your zone.',
+            message_en: payload.message_en,
+            message_translated: payload.message_translated || {},
+            severity: (payload.severity as SeverityLevel) || 'medium',
+            target_zone_id: payload.zone_id || 'z-silchar',
+            issued_at: payload.issued_at || new Date().toISOString(),
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            issued_by_user_id: 'usr-officer-1',
+          };
+          return [newAlert, ...prev];
+        });
+      } else {
+        fetchAlerts();
+      }
+    });
+
+    return () => {
+      unsubAlert();
+    };
+  }, [fetchAlerts]);
 
   const getMapCoordinatesText = () => {
     if (geoStatus === 'detecting') {
@@ -48,7 +93,8 @@ export const Home: React.FC = () => {
   };
 
   // Find critical or high alerts
-  const criticalAlerts = mockAlerts.filter((a) => a.severity === 'critical' || a.severity === 'high');
+  const activeAlertsSource = alerts.length > 0 ? alerts : mockAlerts;
+  const criticalAlerts = activeAlertsSource.filter((a) => a.severity === 'critical' || a.severity === 'high');
 
   // Sorted nearby shelters (open shelters first, then by available capacity)
   const nearbyShelters = [...shelters]
@@ -74,14 +120,19 @@ export const Home: React.FC = () => {
         <div className="bg-[#ba1a1a] text-white px-4 py-3 rounded flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5 animate-pulse" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold uppercase tracking-wide">{criticalAlerts[0].title_translated?.[language] || criticalAlerts[0].title}</p>
-            <p className="text-xs text-red-100 mt-0.5 line-clamp-2">{criticalAlerts[0].message_translated?.[language] || criticalAlerts[0].message}</p>
+            <p className="text-sm font-bold uppercase tracking-wide">
+              {criticalAlerts[0].title_translated?.[language] || criticalAlerts[0].title || `EMERGENCY ALERT — ${criticalAlerts[0].severity?.toUpperCase() || 'CRITICAL'}`}
+            </p>
+            <p className="text-xs text-red-100 mt-0.5 line-clamp-2">
+              {criticalAlerts[0].message_translated?.[language] || (criticalAlerts[0] as any).message_en || criticalAlerts[0].message}
+            </p>
           </div>
           <span className="text-[10px] font-semibold text-red-200 whitespace-nowrap flex-shrink-0 mt-0.5">
             {formatDate(criticalAlerts[0].issued_at)}
           </span>
         </div>
       )}
+
 
       {/* ── Primary SOS CTA Action ──────────────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
