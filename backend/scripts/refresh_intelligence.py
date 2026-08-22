@@ -17,6 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database.session import SessionLocal
 from app.core.config import settings
+from app.models import Zone
+from app.services.risk_service import get_zone_risk_snapshot
 
 def main():
     print(f"Starting scheduled intelligence refresh... [ENV: {settings.ENVIRONMENT.upper()}]")
@@ -25,7 +27,12 @@ def main():
     try:
         # Safe command structure to be filled with Member 4 / 5 services later:
         print("[Cron] Refreshing zone-level flood risk scores...")
-        # TODO: call Member 4 risk calculation service
+        for zone in db.query(Zone).all():
+            snapshot = get_zone_risk_snapshot(zone.id, db)
+            print(
+                f"[Cron]   zone={zone.id} risk_score={snapshot['risk_score']} "
+                f"risk_level={snapshot['risk_level']} source={snapshot['source']}"
+            )
         
         print("[Cron] Recalculating demographic resource demand forecasts...")
         # TODO: call Member 4 resource forecasting service
