@@ -14,6 +14,8 @@ class Settings:
     JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "super-secret-temporary-key-change-in-prod")
     JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
     JWT_EXPIRATION_MINUTES: int = int(os.getenv("JWT_EXPIRATION_MINUTES", "1440")) # default 24 hours
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "super-secret-temporary-key-change-in-prod")
+    JWT_EXPIRATION_MINUTES: int = int(os.getenv("JWT_EXPIRATION_MINUTES", "1440"))
     
     # CORS
     FRONTEND_ORIGINS: str = os.getenv("FRONTEND_ORIGINS", "")

@@ -10,12 +10,15 @@ from ..models import (
 )
 from ..services.priority_service import calculate_response_priority
 
-from ..core.security import hash_password
+from ..core.security import hash_password, require_officer
 
 router = APIRouter(prefix="/auth", tags=["Authentication"]) if False else APIRouter(prefix="/demo", tags=["Demo Scenario"])
 
 @router.post("/reset-scenario")
-def reset_demo_scenario(db: Session = Depends(get_db)):
+def reset_demo_scenario(
+    current_user: User = Depends(require_officer),
+    db: Session = Depends(get_db),
+):
     """
     Resets & seeds the controlled Assam Cachar Flood crisis scenario for live judging demos.
     Fixes the schema discrepancies of the RiskScore model.

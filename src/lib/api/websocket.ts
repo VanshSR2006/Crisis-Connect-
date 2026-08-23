@@ -27,11 +27,20 @@ class RealtimeClient {
       (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
       'https://crisis-connect-api-dev.onrender.com';
     const wsBase = apiBase.replace(/^http/, 'ws');
-    return `${wsBase}/ws/dashboard`;
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    const base = `${wsBase}/ws/dashboard`;
+    if (!token) return base;
+    return `${base}?token=${encodeURIComponent(token)}`;
   }
 
   public connect(): void {
     if (this.status === 'connected' || this.status === 'connecting') return;
+
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+      this.status = 'disconnected';
+      return;
+    }
 
     this.isExplicitClose = false;
     this.status = 'connecting';
@@ -53,10 +62,11 @@ class RealtimeClient {
         this.handleMessage(event.data);
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event: CloseEvent) => {
         this.status = 'disconnected';
         this.ws = null;
-        if (!this.isExplicitClose) {
+        const authRejected = event.code === 4401 || event.code === 4403;
+        if (!this.isExplicitClose && !authRejected) {
           this.scheduleReconnect();
         }
       };

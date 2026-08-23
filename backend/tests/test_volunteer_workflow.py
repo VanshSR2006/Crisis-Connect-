@@ -92,8 +92,12 @@ def test_volunteer_workflow_status_progression(client, db):
     dispatches = list_resp.json()
     assert any(d["id"] == dispatch_id for d in dispatches)
 
+    # Volunteer token for assignment updates
+    vol_token_resp = client.post("/auth/login", json={"phone": "1111111111", "password": "DemoPassword123", "role": "volunteer"})
+    vol_headers = {"Authorization": f"Bearer {vol_token_resp.json()['access_token']}"}
+
     # 4. Progress status to 'on_site' (Mark Arrived) via PATCH /dispatches/{dispatch_id}
-    patch_arrived = client.patch(f"/dispatches/{dispatch_id}", json={"status": "on_site"})
+    patch_arrived = client.patch(f"/dispatches/{dispatch_id}", json={"status": "on_site"}, headers=vol_headers)
     assert patch_arrived.status_code == 200
     assert patch_arrived.json()["status"] == "on_site"
 
@@ -103,7 +107,7 @@ def test_volunteer_workflow_status_progression(client, db):
     assert inc_obj["status"] == "arrived"
 
     # 5. Progress status to 'completed' (Mark Resolved) via PATCH /dispatches/{dispatch_id}
-    patch_resolved = client.patch(f"/dispatches/{dispatch_id}", json={"status": "completed"})
+    patch_resolved = client.patch(f"/dispatches/{dispatch_id}", json={"status": "completed"}, headers=vol_headers)
     assert patch_resolved.status_code == 200
     assert patch_resolved.json()["status"] == "completed"
 

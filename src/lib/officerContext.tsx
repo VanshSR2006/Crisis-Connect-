@@ -294,7 +294,10 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     let reconnectTimer: NodeJS.Timeout;
 
     const connectWs = () => {
-      ws = new WebSocket(wsUrl);
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) return;
+      const url = `${wsUrl}?token=${encodeURIComponent(token)}`;
+      ws = new WebSocket(url);
 
       ws.onmessage = (event) => {
         try {
@@ -327,7 +330,8 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
+        if (event.code === 4401 || event.code === 4403) return;
         reconnectTimer = setTimeout(connectWs, 5000);
       };
     };

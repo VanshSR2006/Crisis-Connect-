@@ -108,6 +108,35 @@ def citizen_token(seeded_db, client):
     return resp.json()["access_token"]
 
 
+@pytest.fixture
+def volunteer_token(seeded_db, client):
+    """Get a JWT token for the pre-seeded volunteer."""
+    resp = client.post("/auth/login", json={"phone": "1111111111", "password": "TestPassword123", "role": "volunteer"})
+    assert resp.status_code == 200
+    return resp.json()["access_token"]
+
+
+def _seed_dispatch(db, dispatch_id, assigned_user_id, incident_id="inc-auth-1"):
+    from app.models import Dispatch, Incident, Zone
+    if not db.query(Zone).filter(Zone.id == "z-auth").first():
+        db.add(Zone(id="z-auth", name="Auth Zone", district="Test", population_est=1000))
+    if not db.query(Incident).filter(Incident.id == incident_id).first():
+        db.add(Incident(
+            id=incident_id, title="Auth Inc", category="rescue", severity="high",
+            description="test", lat=24.8, lng=92.7, zone_id="z-auth",
+            status="dispatched", review_state="unverified",
+            credibility_score=1.0, priority_score=80.0
+        ))
+    db.add(Dispatch(
+        id=dispatch_id,
+        incident_id=incident_id,
+        assigned_user_id=assigned_user_id,
+        status="pending",
+        eta_minutes=15,
+    ))
+    db.commit()
+
+
 # ===========================================================================
 # 1. Health
 # ===========================================================================
@@ -349,6 +378,85 @@ class TestAuthorization:
                         headers={"Authorization": f"Bearer {citizen_token}"})
         assert r.status_code == 403
 
+    def test_unauthenticated_patch_dispatch_returns_401(self, client, seeded_db):
+        _seed_dispatch(seeded_db, "disp-auth-1", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-1", json={"status": "en_route"})
+        assert r.status_code == 401
+
+    def test_citizen_cannot_patch_dispatch(self, client, seeded_db, citizen_token):
+        _seed_dispatch(seeded_db, "disp-auth-1", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-1",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {citizen_token}"})
+        assert r.status_code == 403
+
+    def test_volunteer_can_patch_own_dispatch(self, client, seeded_db, volunteer_token):
+        _seed_dispatch(seeded_db, "disp-auth-own", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-own",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {volunteer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "en_route"
+
+    def test_volunteer_cannot_patch_others_dispatch(self, client, seeded_db, volunteer_token):
+        from app.models import User
+        from app.core.security import hash_password
+        other = User(
+            id="usr-volunteer-2", name="Other Volunteer",
+            phone="1111111113", email="volunteer2.test@crisisconnect.org",
+            role="volunteer", password_hash=hash_password("TestPassword123")
+        )
+        seeded_db.add(other)
+        seeded_db.commit()
+        _seed_dispatch(seeded_db, "disp-auth-other", "usr-volunteer-2")
+        r = client.patch("/dispatches/disp-auth-other",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {volunteer_token}"})
+        assert r.status_code == 403
+
+    def test_officer_can_patch_dispatch(self, client, seeded_db, officer_token):
+        _seed_dispatch(seeded_db, "disp-auth-off", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-off",
+                         json={"status": "on_site"},
+                         headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "on_site"
+
+    def test_unauthenticated_demo_reset_returns_401(self, client, db):
+        r = client.post("/demo/reset-scenario")
+        assert r.status_code == 401
+
+    def test_citizen_cannot_demo_reset(self, client, seeded_db, citizen_token):
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {citizen_token}"})
+        assert r.status_code == 403
+
+    def test_officer_can_demo_reset(self, client, seeded_db, officer_token):
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "success"
+
+    def test_admin_can_demo_reset(self, client, seeded_db):
+        from app.models import User
+        from app.core.security import hash_password
+        seeded_db.add(User(
+            id="usr-admin-1", name="Admin Test",
+            email="admin.test@crisisconnect.org",
+            role="admin", password_hash=hash_password("TestPassword123")
+        ))
+        seeded_db.commit()
+        login = client.post("/auth/login", json={
+            "email": "admin.test@crisisconnect.org",
+            "password": "TestPassword123",
+            "role": "admin",
+        })
+        assert login.status_code == 200
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "success"
+
 
 # ===========================================================================
 # 5. Incidents
@@ -554,8 +662,28 @@ class TestDispatch:
 # 7. Demo Reset — Idempotency
 # ===========================================================================
 class TestDemoReset:
+    def _officer_auth_headers(self, client, db):
+        from app.models import User
+        from app.core.security import hash_password
+        if not db.query(User).filter(User.email == "reset.officer@crisisconnect.org").first():
+            db.add(User(
+                id="usr-reset-officer",
+                name="Reset Officer",
+                email="reset.officer@crisisconnect.org",
+                role="officer",
+                password_hash=hash_password("TestPassword123"),
+            ))
+            db.commit()
+        resp = client.post("/auth/login", json={
+            "email": "reset.officer@crisisconnect.org",
+            "password": "TestPassword123",
+            "role": "officer",
+        })
+        assert resp.status_code == 200
+        return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
     def test_demo_reset_returns_success(self, client, db):
-        r = client.post("/demo/reset-scenario")
+        r = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r.status_code == 200
         body = r.json()
         assert body["status"] == "success"
@@ -565,9 +693,10 @@ class TestDemoReset:
 
     def test_demo_reset_is_idempotent(self, client, db):
         """Calling reset twice should not crash or duplicate records."""
-        r1 = client.post("/demo/reset-scenario")
+        headers = self._officer_auth_headers(client, db)
+        r1 = client.post("/demo/reset-scenario", headers=headers)
         assert r1.status_code == 200
-        r2 = client.post("/demo/reset-scenario")
+        r2 = client.post("/demo/reset-scenario", headers=headers)
         assert r2.status_code == 200
         assert r2.json()["zones_seeded"] == 3  # Same count every time
 
@@ -578,7 +707,7 @@ class TestDemoReset:
         default to citizen auto-registration.
         """
         # 1. Reset scenario
-        r_reset = client.post("/demo/reset-scenario")
+        r_reset = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r_reset.status_code == 200
 
         # 2. Officer login (both standard demo numbers return 'officer')
@@ -625,8 +754,8 @@ class TestDemoReset:
         assert r_non_demo.status_code == 201
         non_demo_id = r_non_demo.json()["user"]["id"]
 
-        # 3. Perform demo reset
-        r_reset = client.post("/demo/reset-scenario")
+        # 3. Perform demo reset (authorized officer, not the canonical phone being reconciled)
+        r_reset = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r_reset.status_code == 200
 
         # 4. Canonical phone 1111111110 is reconciled to officer role
@@ -675,6 +804,87 @@ class TestWebSocketEvents:
         assert msg["payload"]["id"] == "abc"
         assert "timestamp" in msg
         assert msg["timestamp"].endswith("Z")
+
+
+# ===========================================================================
+# 8.5 WebSocket Dashboard Authorization
+# ===========================================================================
+class TestWebSocketAuth:
+    def _assert_rejected(self, connect_fn, expected_code=None):
+        from starlette.websockets import WebSocketDisconnect
+        try:
+            from starlette.testclient import WebSocketDenialResponse
+        except ImportError:
+            WebSocketDenialResponse = None
+        try:
+            with connect_fn() as ws:
+                ws.receive_text()
+            pytest.fail("WebSocket connection should have been rejected")
+        except WebSocketDisconnect as exc:
+            if expected_code is not None:
+                assert exc.code == expected_code
+        except Exception as exc:
+            if WebSocketDenialResponse is not None and isinstance(exc, WebSocketDenialResponse):
+                return
+            if type(exc).__name__ in ("WebSocketDisconnect", "WebSocketDenialResponse"):
+                return
+            raise
+
+    def test_ws_dashboard_no_token_rejected(self, client, seeded_db):
+        self._assert_rejected(lambda: client.websocket_connect("/ws/dashboard"), expected_code=4401)
+
+    def test_ws_dashboard_invalid_token_rejected(self, client, seeded_db):
+        self._assert_rejected(
+            lambda: client.websocket_connect("/ws/dashboard?token=not-a-valid-jwt"),
+            expected_code=4401,
+        )
+
+    def test_ws_dashboard_expired_token_rejected(self, client, seeded_db):
+        import datetime
+        from app.core.security import create_access_token
+        expired = create_access_token(
+            data={"sub": "usr-officer-1", "role": "officer"},
+            expires_delta=datetime.timedelta(seconds=-30),
+        )
+        self._assert_rejected(
+            lambda: client.websocket_connect(f"/ws/dashboard?token={expired}"),
+            expected_code=4401,
+        )
+
+    def test_ws_dashboard_unauthorized_role_rejected(self, client, seeded_db):
+        from app.models import User
+        from app.core.security import hash_password, create_access_token
+        seeded_db.add(User(
+            id="usr-guest-1",
+            name="Guest User",
+            phone="0000000000",
+            role="guest",
+            password_hash=hash_password("TestPassword123"),
+        ))
+        seeded_db.commit()
+        token = create_access_token(data={"sub": "usr-guest-1", "role": "guest"})
+        self._assert_rejected(
+            lambda: client.websocket_connect(f"/ws/dashboard?token={token}"),
+            expected_code=4403,
+        )
+
+    def test_ws_dashboard_authorized_officer_connects(self, client, seeded_db, officer_token):
+        with client.websocket_connect(f"/ws/dashboard?token={officer_token}") as ws:
+            ws.send_text("ping")
+            assert ws.receive_text() == "ACK:ping"
+
+    def test_ws_dashboard_authorized_citizen_connects(self, client, seeded_db, citizen_token):
+        with client.websocket_connect(f"/ws/dashboard?token={citizen_token}") as ws:
+            ws.send_text("hello")
+            assert ws.receive_text() == "ACK:hello"
+
+    def test_ws_dashboard_authorized_volunteer_connects(self, client, seeded_db, volunteer_token):
+        with client.websocket_connect(
+            "/ws/dashboard",
+            headers={"Authorization": f"Bearer {volunteer_token}"},
+        ) as ws:
+            ws.send_text("sync")
+            assert ws.receive_text() == "ACK:sync"
 
 
 # ===========================================================================

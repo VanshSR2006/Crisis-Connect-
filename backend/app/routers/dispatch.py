@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Dispatch, Incident, Resource, User
-from ..core.security import require_officer
+from ..core.security import get_current_user, require_officer
 from ..websocket.manager import manager
 
 router = APIRouter(prefix="/dispatches", tags=["Dispatches"])
@@ -117,14 +117,31 @@ async def create_dispatch(
 async def update_dispatch_status(
     dispatch_id: str,
     payload: dict,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
     Updates the status of an existing dispatch assignment.
+    Officers/admins may update any dispatch. Volunteers may update only
+    dispatches assigned to them (assigned_user_id).
     """
     dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch not found")
+
+    if current_user.role in ("officer", "admin"):
+        pass
+    elif current_user.role == "volunteer":
+        if dispatch.assigned_user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Operation not permitted. Volunteers may update only their assigned dispatches.",
+            )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operation not permitted. Required roles: ['officer', 'admin', 'volunteer']",
+        )
 
     if "status" in payload:
         new_status = payload["status"]
