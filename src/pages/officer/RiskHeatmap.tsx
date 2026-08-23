@@ -6,12 +6,10 @@ import { Activity, Droplets, Waves, TrendingUp, AlertTriangle, ShieldAlert, Laye
 
 export const RiskHeatmap: React.FC = () => {
   const { t } = useTranslation();
-  const { riskScores } = useOfficerContext();
-  // Default to null on page load — user must click a card to select it
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const { riskZones, isLoadingRisk, isErrorRisk, selectedZoneId, setSelectedZoneId } = useOfficerContext();
 
-  const highestScore = Math.max(...riskScores.map((s) => s.score));
-  const activeZone = selectedZoneId ? riskScores.find((s) => s.zone_id === selectedZoneId) || null : null;
+  const highestScore = riskZones.length > 0 ? Math.max(...riskZones.map((s) => s.score)) : 0;
+  const activeZone = selectedZoneId ? riskZones.find((s) => s.zone_id === selectedZoneId) || null : null;
 
   const getHeatColor = (score: number) => {
     if (score >= 85) return 'bg-red-600 text-white border-red-500 shadow-red-900/50';
@@ -29,7 +27,7 @@ export const RiskHeatmap: React.FC = () => {
             {t('officer.riskHeatmap.title')}
           </h1>
           <p className="text-[13px] text-[#45464d] mt-0.5">
-            {t('officer.riskHeatmap.subtitle')} · {riskScores.length} {t('officer.riskHeatmap.zonesMonitored')}
+            {t('officer.riskHeatmap.subtitle')} · {riskZones.length} {t('officer.riskHeatmap.zonesMonitored')}
           </p>
         </div>
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
@@ -46,7 +44,7 @@ export const RiskHeatmap: React.FC = () => {
             {t('officer.riskHeatmap.criticalFloodWarning')}
           </p>
           <p className="text-[12px] text-[#9a3412] mt-0.5">
-            Uttarakhand Himalayan Sector score reached <strong className="font-mono">{highestScore}/100</strong> due to sustained 112.5mm precipitation and river elevation crossing 206.1m mark.
+            Maximum risk score detected is <strong className="font-mono">{highestScore}/100</strong> across monitored zones.
           </p>
         </div>
       </div>
@@ -79,31 +77,37 @@ export const RiskHeatmap: React.FC = () => {
         </div>
 
         {/* Heatmap Grid Cells */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {riskScores.map((score) => {
-            const isSelected = selectedZoneId === score.zone_id;
-            return (
-              <button
-                key={score.id}
-                onClick={() => setSelectedZoneId(score.zone_id)}
-                className={`p-3.5 rounded border text-left flex flex-col justify-between transition-all cursor-pointer ${getHeatColor(
-                  score.score
-                )} ${isSelected ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-lg' : 'hover:opacity-90'}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-mono font-bold uppercase tracking-wide opacity-90">
-                    {score.zone_id}
+        {isLoadingRisk ? (
+          <div className="py-10 text-center text-slate-400">Loading risk data...</div>
+        ) : isErrorRisk ? (
+          <div className="py-10 text-center text-red-500">Failed to load risk zones.</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {riskZones.map((zone) => {
+              const isSelected = selectedZoneId === zone.zone_id;
+              return (
+                <button
+                  key={zone.id}
+                  onClick={() => setSelectedZoneId(zone.zone_id)}
+                  className={`p-3.5 rounded border text-left flex flex-col justify-between transition-all cursor-pointer ${getHeatColor(
+                    zone.score
+                  )} ${isSelected ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-lg' : 'hover:opacity-90'}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wide opacity-90 truncate max-w-[80px]">
+                      {zone.name}
+                    </span>
+                    <SeverityBadge severity={zone.risk_level} showIcon={false} />
+                  </div>
+                  <div className="text-3xl font-black">{zone.score}</div>
+                  <span className="text-[10px] font-medium opacity-80 mt-1 block">
+                    Pop: {zone.population_est.toLocaleString()}
                   </span>
-                  <SeverityBadge severity={score.level} showIcon={false} />
-                </div>
-                <div className="text-3xl font-black">{score.score}</div>
-                <span className="text-[10px] font-medium opacity-80 mt-1 block">
-                  {score.rainfall_mm}mm rain · {score.river_level_m}m gauge
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Selected Zone Metrics Detail Card (or prompt when none selected) ─── */}
@@ -116,7 +120,7 @@ export const RiskHeatmap: React.FC = () => {
                 {t('officer.riskHeatmap.detailedAnalysis')} — {t('officer.dashboard.zone')}: <span className="font-mono text-[#0f172a]">{activeZone.zone_id}</span>
               </h3>
             </div>
-            <SeverityBadge severity={activeZone.level} />
+            <SeverityBadge severity={activeZone.risk_level} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -129,16 +133,16 @@ export const RiskHeatmap: React.FC = () => {
 
             <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
               <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <Droplets className="h-3.5 w-3.5 text-[#2563eb]" /> {t('officer.riskHeatmap.precipitationGauge')}
+                <AlertTriangle className="h-3.5 w-3.5 text-[#2563eb]" /> Population at Risk
               </span>
-              <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.rainfall_mm} mm</span>
+              <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.population_est.toLocaleString()}</span>
             </div>
 
             <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
               <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <Waves className="h-3.5 w-3.5 text-[#2563eb]" /> {t('officer.riskHeatmap.riverWaterLevel')}
+                <Activity className="h-3.5 w-3.5 text-[#2563eb]" /> Last Updated
               </span>
-              <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.river_level_m} meters</span>
+              <span className="text-sm font-bold text-[#0f172a] mt-2 block">{new Date(activeZone.computed_at).toLocaleString()}</span>
             </div>
           </div>
         </div>

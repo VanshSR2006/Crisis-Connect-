@@ -21,13 +21,13 @@ import {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { incidents, dispatches, riskScores, setSelectedIncidentId } = useOfficerContext();
+  const { incidents, dispatches, riskZones, setSelectedIncidentId, isCrisisMode, setIsCrisisMode } = useOfficerContext();
 
-  const criticalCount = incidents.filter((i) => i.severity === 'critical').length;
-  const highCount = incidents.filter((i) => i.severity === 'high').length;
-  const activeDispatchesCount = dispatches.filter((d) => d.status !== 'completed').length;
-  const highestRisk = Math.max(...riskScores.map((r) => r.score));
-  const highestRiskZone = riskScores.find((r) => r.score === highestRisk);
+  const criticalCount = incidents.filter(i => i.severity === 'critical').length;
+  const highCount = incidents.filter(i => i.severity === 'high').length;
+  const activeDispatchesCount = dispatches.filter(d => d.status !== 'completed').length;
+  const highestRisk = riskZones.length > 0 ? Math.max(...riskZones.map(r => r.score)) : 0;
+  const highestRiskZone = riskZones.find(r => r.score === highestRisk);
 
   const recentIncidents = incidents.slice(0, 5);
 
@@ -53,7 +53,7 @@ export const Dashboard: React.FC = () => {
     {
       label: t('officer.dashboard.highestRiskScore'),
       value: `${highestRisk} / 100`,
-      sub: highestRiskZone ? `${t('officer.dashboard.zone')} ${highestRiskZone.zone_id}` : 'Delhi NCR Basin',
+      sub: highestRiskZone ? `${t('officer.dashboard.zone')} ${highestRiskZone.name}` : '—',
       icon: Activity,
       valueColor: 'text-[#c2410c]',
       iconColor: 'text-[#c2410c]',
@@ -79,7 +79,7 @@ export const Dashboard: React.FC = () => {
   ];
 
   return (
-    <div className="space-y-5">
+    <div className={`space-y-5 transition-colors duration-500 ${isCrisisMode ? 'bg-[#1b1b1d]/5 -mx-4 px-4 py-2 rounded-lg border border-red-900/10' : ''}`}>
       {/* ── Page Header ──────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>
@@ -90,9 +90,18 @@ export const Dashboard: React.FC = () => {
             {t('officer.dashboard.subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-[#45464d]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
-          {t('officer.dashboard.liveFeedActive')}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider cursor-pointer bg-white px-2 py-1 rounded border border-[#c6c6cd] shadow-sm hover:bg-slate-50 transition-colors">
+            <span className={isCrisisMode ? "text-[#ba1a1a]" : "text-[#45464d]"}>Crisis Mode</span>
+            <div className={`relative inline-block w-7 h-3.5 rounded-full transition-colors ${isCrisisMode ? 'bg-[#ba1a1a]' : 'bg-[#c6c6cd]'}`}>
+              <input type="checkbox" className="opacity-0 w-0 h-0 absolute" checked={isCrisisMode} onChange={(e) => setIsCrisisMode(e.target.checked)} />
+              <span className={`absolute left-[2px] top-[2px] bg-white w-2.5 h-2.5 rounded-full transition-transform ${isCrisisMode ? 'transform translate-x-3.5' : ''}`} />
+            </div>
+          </label>
+          <div className="flex items-center gap-2 text-[11px] font-semibold text-[#45464d]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse" />
+            {t('officer.dashboard.liveFeedActive')}
+          </div>
         </div>
       </div>
 
@@ -104,7 +113,11 @@ export const Dashboard: React.FC = () => {
             <div
               key={idx}
               onClick={card.onClick}
-              className="bg-white border border-[#c6c6cd] rounded p-3 cursor-pointer hover:border-[#2563eb] transition-all shadow-sm"
+              className={`bg-white border rounded p-3 cursor-pointer transition-all shadow-sm ${
+                isCrisisMode && idx === 0 
+                  ? 'border-[#ba1a1a] ring-1 ring-[#ba1a1a] shadow-red-100' 
+                  : 'border-[#c6c6cd] hover:border-[#2563eb]'
+              }`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#45464d]">
@@ -119,31 +132,33 @@ export const Dashboard: React.FC = () => {
         })}
       </div>
 
-      {/* ── Quick Navigation Grid ──────────────────────────── */}
-      <div className="bg-white border border-[#c6c6cd] rounded p-3 shadow-sm">
-        <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#1b1b1d] block mb-2.5">
-          {t('officer.dashboard.commandQuickAccess')}
-        </span>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          {quickNavLinks.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.path}
-                onClick={() => navigate(item.path)}
-                className="flex flex-col justify-between p-2.5 rounded bg-[#f6f3f5] hover:bg-[#d5e3fc] border border-[#c6c6cd] hover:border-[#2563eb] text-left transition-all"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Icon className="h-4 w-4 text-[#0f172a]" />
-                  <ChevronRight className="h-3 w-3 text-[#76777d]" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-[#1b1b1d] block">{item.label}</span>
-                  <span className="text-[10px] text-[#76777d] truncate block">{item.desc}</span>
-                </div>
-              </button>
-            );
-          })}
+      {/* ── Middle Row: Quick Nav ────────── */}
+      <div className="grid grid-cols-1 gap-4">
+        <div className="bg-white border border-[#c6c6cd] rounded p-3 shadow-sm flex flex-col justify-center">
+          <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[#1b1b1d] block mb-2.5">
+            {t('officer.dashboard.commandQuickAccess', 'Command Quick Access')}
+          </span>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {quickNavLinks.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.path}
+                  onClick={() => navigate(item.path)}
+                  className="flex flex-col justify-between p-2.5 rounded bg-[#f6f3f5] hover:bg-[#d5e3fc] border border-[#c6c6cd] hover:border-[#2563eb] text-left transition-all"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <Icon className="h-4 w-4 text-[#0f172a]" />
+                    <ChevronRight className="h-3 w-3 text-[#76777d]" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[#1b1b1d] block">{item.label}</span>
+                    <span className="text-[10px] text-[#76777d] truncate block">{item.desc}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

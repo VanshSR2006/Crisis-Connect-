@@ -1,14 +1,18 @@
-import { apiFetch } from './client';
-import { Incident } from '../../types';
-import { mockIncidents } from '../../mocks';
+import { apiFetch } from '@/lib/api/client';
+import { Incident } from '@/types';
 
 /**
  * GET /incidents – returns a list of incidents.
- * Falls back to mockIncidents when the backend is unreachable.
+ * Throws error if backend is unreachable (no mock fallback).
  */
 export async function getIncidents(): Promise<Incident[]> {
   const data = await apiFetch<Incident[]>('/incidents');
-  return data ?? mockIncidents;
+
+  if (!data) {
+    throw new Error('Unable to load incidents');
+  }
+
+  return data;
 }
 
 /**
@@ -23,36 +27,47 @@ export async function createIncident(
   try {
     const payload = { ...newIncident };
 
-    // Derive reporter_id from stored user session if not explicitly provided in payload
+    // Derive reporter_id from stored user session if not explicitly provided in payload.
     if (!payload.reporter_id && typeof localStorage !== 'undefined') {
       try {
         const storedUser = localStorage.getItem('user');
+
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
+
           if (parsed && parsed.id) {
             payload.reporter_id = parsed.id;
           }
         }
       } catch {
-        // Ignore parse error
+        // Ignore localStorage/JSON parse errors.
       }
     }
 
+    const idempotencyKey =
+      options?.idempotencyKey ||
+      (payload as any).client_id ||
+      (payload as any).id;
 
-    const idempotencyKey = options?.idempotencyKey || (payload as any).client_id || (payload as any).id;
     const data = await apiFetch<Incident>('/incidents', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
+        ...(idempotencyKey
+          ? { 'Idempotency-Key': idempotencyKey }
+          : {}),
       },
       body: JSON.stringify(payload),
     });
-    return data;
 
+    return data;
   } catch (err) {
-    console.warn("Backend 500 hit, falling back to local generated incident response:", err);
-    // Offline queue logic component level par trigger ho jayegi
+    console.warn(
+      'Backend 500 hit, falling back to local generated incident response:',
+      err
+    );
+
+    // Offline queue logic is handled at the component level.
     return null;
   }
 }
