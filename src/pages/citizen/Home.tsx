@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCitizenContext } from '@/lib/citizenContext';
@@ -9,7 +9,10 @@ import { StatusStepper } from '@/components/shared/StatusStepper';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { formatDate } from '@/lib/utils';
+import { getAlerts } from '@/lib/api/alerts';
+import { realtimeClient } from '@/lib/api/websocket';
 import { mockAlerts } from '@/mocks';
+import { Alert, SeverityLevel } from '@/types';
 import {
   AlertTriangle,
   MapPin,
@@ -22,17 +25,112 @@ import {
 
 export const Home: React.FC = () => {
   const navigate = useNavigate();
-  const { incidents, activeIncident, shelters } = useCitizenContext();
+  const { user, incidents, activeIncident, shelters, lat, lng, geoStatus } = useCitizenContext();
   const { language } = useLanguage();
   const { t } = useTranslation();
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const data = await getAlerts();
+      setAlerts(data || mockAlerts);
+    } catch (err) {
+      console.warn('[Home] Error loading alerts:', err);
+      setAlerts(mockAlerts);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAlerts();
+
+    const unsubAlert = realtimeClient.subscribe('alert.created', (payload: any) => {
+      if (payload && payload.id) {
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === payload.id)) return prev;
+          const newAlert: Alert = {
+            id: payload.id,
+            title: `EMERGENCY ALERT — ${(payload.severity || 'CRITICAL').toUpperCase()}`,
+            message: payload.message_en || 'Emergency notification issued for your zone.',
+            message_en: payload.message_en,
+            message_translated: payload.message_translated || {},
+            severity: (payload.severity as SeverityLevel) || 'medium',
+            target_zone_id: payload.zone_id || 'z-silchar',
+            issued_at: payload.issued_at || new Date().toISOString(),
+            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            issued_by_user_id: 'usr-officer-1',
+          };
+          return [newAlert, ...prev];
+        });
+      } else {
+        fetchAlerts();
+      }
+    });
+
+    return () => {
+      unsubAlert();
+    };
+  }, [fetchAlerts]);
+
+  const getMapCoordinatesText = () => {
+    if (geoStatus === 'detecting') {
+      return 'Detecting GPS location...';
+    }
+    if (geoStatus === 'acquired' && lat !== null && lng !== null) {
+      const latDir = lat >= 0 ? 'N' : 'S';
+      const lngDir = lng >= 0 ? 'E' : 'W';
+      return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
+    }
+    if (geoStatus === 'denied') {
+      return 'GPS Permission Denied';
+    }
+    if (geoStatus === 'timeout') {
+      return 'GPS Location Timeout';
+    }
+    if (geoStatus === 'unavailable') {
+      return 'GPS Location Unavailable';
+    }
+    return 'Detecting GPS location...';
+  };
 
   // Find critical or high alerts
-  const criticalAlerts = mockAlerts.filter((a) => a.severity === 'critical' || a.severity === 'high');
+  const activeAlertsSource = alerts.length > 0 ? alerts : mockAlerts;
+  const criticalAlerts = activeAlertsSource.filter((a) => a.severity === 'critical' || a.severity === 'high');
 
   // Sorted nearby shelters (open shelters first, then by available capacity)
   const nearbyShelters = [...shelters]
     .sort((a, b) => (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy))
     .slice(0, 3);
+
+  // Filter incidents created by current authenticated citizen from backend-confirmed data
+  const citizenIncidents = user?.id
+    ? incidents.filter((i) => i.reporter_id === user.id || i.reported_by_user_id === user.id)
+    : [];
+
+  // Determine tracker incidents to display (only authenticated citizen's backend-confirmed incidents)
+  // Always sorted in descending chronological order by created_at timestamp (newest → oldest)
+  const rawTrackerIncidents = citizenIncidents.length > 0
+    ? citizenIncidents
+    : activeIncident && (activeIncident.reporter_id === user?.id || activeIncident.reported_by_user_id === user?.id)
+    ? [activeIncident]
+    : [];
+
+  const trackerIncidents = [...rawTrackerIncidents].sort((a, b) => {
+    const getTime = (dateStr?: string) => {
+      if (!dateStr) return 0;
+      let formatted = dateStr;
+      if (
+        typeof dateStr === 'string' &&
+        dateStr.includes('T') &&
+        !dateStr.endsWith('Z') &&
+        !/[+-]\d{2}:\d{2}$/.test(dateStr)
+      ) {
+        formatted = `${dateStr}Z`;
+      }
+      const t = new Date(formatted).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    return getTime(b.created_at) - getTime(a.created_at);
+  });
 
   return (
     <div className="space-y-5">
@@ -41,14 +139,19 @@ export const Home: React.FC = () => {
         <div className="bg-[#ba1a1a] text-white px-4 py-3 rounded flex items-start gap-3 shadow-sm">
           <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5 animate-pulse" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold uppercase tracking-wide">{criticalAlerts[0].title_translated?.[language] || criticalAlerts[0].title}</p>
-            <p className="text-xs text-red-100 mt-0.5 line-clamp-2">{criticalAlerts[0].message_translated?.[language] || criticalAlerts[0].message}</p>
+            <p className="text-sm font-bold uppercase tracking-wide">
+              {criticalAlerts[0].title_translated?.[language] || criticalAlerts[0].title || `EMERGENCY ALERT — ${criticalAlerts[0].severity?.toUpperCase() || 'CRITICAL'}`}
+            </p>
+            <p className="text-xs text-red-100 mt-0.5 line-clamp-2">
+              {criticalAlerts[0].message_translated?.[language] || criticalAlerts[0].message_en || criticalAlerts[0].message}
+            </p>
           </div>
           <span className="text-[10px] font-semibold text-red-200 whitespace-nowrap flex-shrink-0 mt-0.5">
             {formatDate(criticalAlerts[0].issued_at)}
           </span>
         </div>
       )}
+
 
       {/* ── Primary SOS CTA Action ──────────────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
@@ -76,9 +179,9 @@ export const Home: React.FC = () => {
         </Button>
       </div>
 
-      {/* ── Active Incident Progress Tracker (if any exists) ─────── */}
-      {activeIncident && (
-        <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
+      {/* ── Active Incident Progress Tracker Section ─────── */}
+      {trackerIncidents.map((inc) => (
+        <div key={inc.id} className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
           <div className="px-3 py-2 border-b border-[#c6c6cd] flex items-center justify-between bg-[#f0edef]">
             <div className="flex items-center gap-2">
               <CheckCircle className="h-4 w-4 text-[#2563eb]" />
@@ -87,28 +190,31 @@ export const Home: React.FC = () => {
               </span>
             </div>
             <span className="text-[11px] font-mono text-[#76777d] font-semibold">
-              ID: {activeIncident.id}
+              ID: {inc.id}
             </span>
           </div>
 
           <div className="p-4 space-y-3">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="text-sm font-bold text-[#1b1b1d]">{activeIncident.title}</h3>
-                <p className="text-xs text-[#45464d] mt-0.5">{activeIncident.description}</p>
+                <h3 className="text-sm font-bold text-[#1b1b1d]">{inc.title}</h3>
+                <p className="text-xs text-[#45464d] mt-0.5">{inc.description}</p>
               </div>
-              <SeverityBadge severity={activeIncident.severity} showIcon={false} />
+              <SeverityBadge severity={inc.severity} showIcon={false} />
             </div>
 
-            <StatusStepper currentStatus={activeIncident.status} />
+            <StatusStepper currentStatus={inc.status} />
 
             <div className="p-2.5 bg-[#f6f3f5] rounded border border-[#c6c6cd] flex items-center justify-between text-[11px] text-[#45464d]">
-              <span>{t('common.status')}: <strong className="uppercase text-[#0f172a]">{t(`common.${activeIncident.status}`)}</strong></span>
-              <span>{t('common.updated')} {formatDate(activeIncident.created_at)}</span>
+              <span>
+                {t('common.status')}: <strong className="uppercase text-[#0f172a]">{t(`common.${inc.status}`, { defaultValue: inc.status })}</strong>
+              </span>
+              <span>{t('common.updated')} {formatDate(inc.created_at)}</span>
             </div>
           </div>
         </div>
-      )}
+      ))}
+
 
       {/* ── Location Map Visual ─────────────────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
@@ -119,10 +225,13 @@ export const Home: React.FC = () => {
               {t('citizen.home.locationMap')}
             </span>
           </div>
-          <span className="text-[11px] text-[#45464d] font-medium">{t('citizen.home.gpsActive')}</span>
+          <span className="text-[11px] text-[#45464d] font-medium font-mono">
+            {geoStatus === 'acquired' ? t('citizen.home.gpsActive') : geoStatus === 'detecting' ? 'Detecting...' : 'GPS Status: ' + geoStatus.toUpperCase()}
+          </span>
         </div>
-        <MapPlaceholder height="h-48" />
+        <MapPlaceholder height="h-48" centerCoordinates={getMapCoordinatesText()} />
       </div>
+
 
       {/* ── Nearby Shelters Quick Overview ──────────────────────── */}
       <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">

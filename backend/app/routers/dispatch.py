@@ -1,7 +1,10 @@
 from typing import List, Optional
 from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
+
 from pydantic import BaseModel, ConfigDict
+
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -109,3 +112,41 @@ async def create_dispatch(
         })
 
     return new_dispatch
+
+@router.patch("/{dispatch_id}", response_model=DispatchResponse)
+async def update_dispatch_status(
+    dispatch_id: str,
+    payload: dict,
+    db: Session = Depends(get_db)
+):
+    """
+    Updates the status of an existing dispatch assignment.
+    """
+    dispatch = db.query(Dispatch).filter(Dispatch.id == dispatch_id).first()
+    if not dispatch:
+        raise HTTPException(status_code=404, detail="Dispatch not found")
+
+    if "status" in payload:
+        new_status = payload["status"]
+        dispatch.status = new_status
+        
+        # Synchronize associated Incident status in database
+        incident = db.query(Incident).filter(Incident.id == dispatch.incident_id).first()
+        if incident:
+            if new_status in ("on_site", "arrived"):
+                incident.status = "arrived"
+            elif new_status in ("completed", "resolved"):
+                incident.status = "resolved"
+            elif new_status in ("dispatched", "pending", "en_route"):
+                incident.status = "dispatched"
+
+    db.commit()
+    db.refresh(dispatch)
+
+    await manager.broadcast("dispatch.status_changed", {
+        "id": dispatch.id,
+        "incident_id": dispatch.incident_id,
+        "status": dispatch.status
+    })
+
+    return dispatch

@@ -209,9 +209,8 @@ export const Dashboard: React.FC = () => {
                   setSelectedIncidentId(incident.id);
                   navigate('/officer/live-map');
                 }}
-                className={`p-3 hover:bg-[#f6f3f5] cursor-pointer transition-colors ${
-                  idx % 2 === 1 ? 'bg-[#f6f3f5]' : 'bg-white'
-                } ${incident.severity === 'critical' ? 'border-l-2 border-l-[#ba1a1a]' : ''}`}
+                className={`p-3 hover:bg-[#f6f3f5] cursor-pointer transition-colors ${idx % 2 === 1 ? 'bg-[#f6f3f5]' : 'bg-white'
+                  } ${incident.severity === 'critical' ? 'border-l-2 border-l-[#ba1a1a]' : ''}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">

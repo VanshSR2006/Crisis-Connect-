@@ -10,6 +10,9 @@ import { OfficerLayout } from '@/layouts/OfficerLayout';
 import { VolunteerLayout } from '@/layouts/VolunteerLayout';
 import { AuthLayout } from '@/layouts/AuthLayout';
 
+// Route guard
+import { RequireAuth } from '@/components/shared/RequireAuth';
+
 // Auth Pages
 import { Login } from '@/pages/auth/Login';
 
@@ -47,84 +50,102 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: '/citizen',
-    element: <CitizenLayout />,
+    // Citizen routes — requires authenticated citizen role
+    element: <RequireAuth allowedRole="citizen" />,
     children: [
       {
-        path: '',
-        element: <Navigate to="/citizen/home" replace />,
-      },
-      {
-        path: 'home',
-        element: <CitizenHome />,
-      },
-      {
-        path: 'sos-report',
-        element: <SosReport />,
-      },
-      {
-        path: 'shelters',
-        element: <Shelters />,
-      },
-      {
-        path: 'alerts',
-        element: <Alerts />,
-      },
-      {
-        path: 'profile',
-        element: <Profile />,
+        path: '/citizen',
+        element: <CitizenLayout />,
+        children: [
+          {
+            path: '',
+            element: <Navigate to="/citizen/home" replace />,
+          },
+          {
+            path: 'home',
+            element: <CitizenHome />,
+          },
+          {
+            path: 'sos-report',
+            element: <SosReport />,
+          },
+          {
+            path: 'shelters',
+            element: <Shelters />,
+          },
+          {
+            path: 'alerts',
+            element: <Alerts />,
+          },
+          {
+            path: 'profile',
+            element: <Profile />,
+          },
+        ],
       },
     ],
   },
   {
-    path: '/officer',
-    element: <OfficerLayout />,
+    // Officer routes — requires authenticated officer role
+    element: <RequireAuth allowedRole="officer" />,
     children: [
       {
-        path: '',
-        element: <Navigate to="/officer/dashboard" replace />,
-      },
-      {
-        path: 'dashboard',
-        element: <OfficerDashboard />,
-      },
-      {
-        path: 'live-map',
-        element: <LiveMap />,
-      },
-      {
-        path: 'incidents',
-        element: <Incidents />,
-      },
-      {
-        path: 'dispatch',
-        element: <Dispatch />,
-      },
-      {
-        path: 'risk-heatmap',
-        element: <RiskHeatmap />,
-      },
-      {
-        path: 'statistics',
-        element: <Statistics />,
+        path: '/officer',
+        element: <OfficerLayout />,
+        children: [
+          {
+            path: '',
+            element: <Navigate to="/officer/dashboard" replace />,
+          },
+          {
+            path: 'dashboard',
+            element: <OfficerDashboard />,
+          },
+          {
+            path: 'live-map',
+            element: <LiveMap />,
+          },
+          {
+            path: 'incidents',
+            element: <Incidents />,
+          },
+          {
+            path: 'dispatch',
+            element: <Dispatch />,
+          },
+          {
+            path: 'risk-heatmap',
+            element: <RiskHeatmap />,
+          },
+          {
+            path: 'statistics',
+            element: <Statistics />,
+          },
+        ],
       },
     ],
   },
   {
-    path: '/volunteer',
-    element: <VolunteerLayout />,
+    // Volunteer routes — requires authenticated volunteer role
+    element: <RequireAuth allowedRole="volunteer" />,
     children: [
       {
-        path: '',
-        element: <Navigate to="/volunteer/tasks" replace />,
-      },
-      {
-        path: 'tasks',
-        element: <VolunteerTasks />,
-      },
-      {
-        path: 'resources',
-        element: <VolunteerResources />,
+        path: '/volunteer',
+        element: <VolunteerLayout />,
+        children: [
+          {
+            path: '',
+            element: <Navigate to="/volunteer/tasks" replace />,
+          },
+          {
+            path: 'tasks',
+            element: <VolunteerTasks />,
+          },
+          {
+            path: 'resources',
+            element: <VolunteerResources />,
+          },
+        ],
       },
     ],
   },

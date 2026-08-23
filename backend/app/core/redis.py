@@ -44,7 +44,12 @@ class RedisClientManager:
                 return
 
         try:
-            self.client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            self.client = redis.from_url(
+                settings.REDIS_URL, 
+                decode_responses=True, 
+                socket_timeout=1.0, 
+                socket_connect_timeout=1.0
+            )
             self.client.ping()
         except Exception as e:
             if settings.ENVIRONMENT == "production":
