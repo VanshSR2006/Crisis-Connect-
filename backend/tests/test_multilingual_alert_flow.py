@@ -46,11 +46,12 @@ def client(db):
 
 def test_multilingual_alert_creation_and_fallback(client, db):
     from app.models import User
-    officer = User(id="usr-officer-1", name="Officer Test", phone="1111111110", role="officer")
+    from app.core.security import hash_password
+    officer = User(id="usr-officer-1", name="Officer Test", phone="1111111110", role="officer", password_hash=hash_password("DemoPassword123"))
     db.add(officer)
     db.commit()
 
-    token_resp = client.post("/auth/login", json={"phone": "1111111110"})
+    token_resp = client.post("/auth/login", json={"phone": "1111111110", "password": "DemoPassword123", "role": "officer"})
     token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

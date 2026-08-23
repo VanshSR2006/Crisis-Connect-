@@ -12,8 +12,9 @@ export interface AuthUser {
   id: string;
   name: string;
   role: UserRole;
-  phone: string;
-  language_pref: string;
+  phone?: string;
+  email?: string;
+  language_pref?: string;
 }
 
 /**

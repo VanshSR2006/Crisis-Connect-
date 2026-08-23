@@ -47,9 +47,11 @@ def client(db):
 def test_volunteer_workflow_status_progression(client, db):
     # 1. Seed officer, volunteer, and citizen users into test DB
     from app.models import User
-    officer = User(id="usr-officer-1", name="Command Officer", phone="1111111110", role="officer")
-    volunteer = User(id="usr-volunteer-1", name="Volunteer Alpha", phone="1111111111", role="volunteer")
-    citizen = User(id="usr-citizen-1", name="Citizen John", phone="1111111112", role="citizen")
+    from app.core.security import hash_password
+    pwd = hash_password("DemoPassword123")
+    officer = User(id="usr-officer-1", name="Command Officer", phone="1111111110", role="officer", password_hash=pwd)
+    volunteer = User(id="usr-volunteer-1", name="Volunteer Alpha", phone="1111111111", role="volunteer", password_hash=pwd)
+    citizen = User(id="usr-citizen-1", name="Citizen John", phone="1111111112", role="citizen", password_hash=pwd)
     db.add_all([officer, volunteer, citizen])
     db.commit()
 
@@ -69,7 +71,7 @@ def test_volunteer_workflow_status_progression(client, db):
     assert incident_data["status"] == "reported"
 
     # Get officer token
-    token_resp = client.post("/auth/login", json={"phone": "1111111110"})
+    token_resp = client.post("/auth/login", json={"phone": "1111111110", "password": "DemoPassword123", "role": "officer"})
     token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 

@@ -39,6 +39,8 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
     name: Mapped[str] = mapped_column(String, nullable=False)
     phone: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    email: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False) # citizen | volunteer | officer | admin
     language_pref: Mapped[str] = mapped_column(String, default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
