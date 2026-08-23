@@ -9,11 +9,16 @@ Run with:
 Uses in-memory SQLite for isolation (no production DB needed).
 """
 import json
+import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Set CORS origins for testing before app is imported
+os.environ["FRONTEND_ORIGINS"] = "http://localhost:3000,http://localhost:5173"
+
 
 # ---------------------------------------------------------------------------
 # Test database — in-memory SQLite (no file-lock issues on Windows)
@@ -111,6 +116,21 @@ class TestHealth:
         assert body["status"] == "healthy"
         assert "service" in body
         assert "environment" in body
+
+
+# ===========================================================================
+# 1.5 CORS
+# ===========================================================================
+class TestCORS:
+    def test_cors_options_request(self, client):
+        headers = {
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "GET"
+        }
+        r = client.options("/health", headers=headers)
+        assert r.status_code == 200
+        assert r.headers.get("access-control-allow-origin") == "http://localhost:3000"
+        assert r.headers.get("access-control-allow-credentials") == "true"
 
 
 # ===========================================================================
