@@ -16,8 +16,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Set CORS origins for testing before app is imported
+# Set CORS origins and empty REDIS_URL for testing before app is imported
 os.environ["FRONTEND_ORIGINS"] = "http://localhost:3000,http://localhost:5173"
+os.environ["REDIS_URL"] = ""
 
 
 # ---------------------------------------------------------------------------
@@ -258,6 +259,56 @@ class TestIncidents:
         scores = [i["priority_score"] for i in r.json()]
         assert scores == sorted(scores, reverse=True)
 
+    @pytest.mark.parametrize("guest_id", ["usr-guest", "guest", "", "   "])
+    def test_create_incident_guest_sos(self, client, seeded_db, guest_id):
+        """Guest SOS with placeholder reporter_id resolves to None (NULL)."""
+        r = client.post("/incidents", json={
+            "category": "rescue",
+            "severity": "high",
+            "description": "Guest SOS flood",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": guest_id
+        })
+        assert r.status_code == 200
+        body = r.json()
+        assert body["reporter_id"] is None
+
+        # Verify DB persisted reporter_id = NULL
+        all_incidents = client.get("/incidents").json()
+        created_inc = next(i for i in all_incidents if i["id"] == body["id"])
+        assert created_inc["reporter_id"] is None
+
+    def test_create_incident_valid_citizen(self, client, seeded_db):
+        """Valid logged-in citizen reporter_id persists correctly."""
+        r = client.post("/incidents", json={
+            "category": "medical",
+            "severity": "high",
+            "description": "Medical emergency by valid citizen",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": "usr-citizen-1"
+        })
+        assert r.status_code == 200
+        body = r.json()
+        assert body["reporter_id"] == "usr-citizen-1"
+
+    def test_create_incident_invalid_reporter_returns_400(self, client, seeded_db):
+        """Non-existent reporter_id returns 400 Bad Request (not 500) and no row is inserted."""
+        inc_count_before = len(client.get("/incidents").json())
+        r = client.post("/incidents", json={
+            "category": "rescue",
+            "severity": "high",
+            "description": "Invalid reporter test",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": "usr-does-not-exist"
+        })
+        assert r.status_code == 400
+        assert r.json()["detail"] == "Invalid reporter_id"
+        inc_count_after = len(client.get("/incidents").json())
+        assert inc_count_after == inc_count_before
+
 
 # ===========================================================================
 # 6. Dispatch — Transaction Safety
@@ -464,6 +515,8 @@ class TestWebSocketEvents:
     def test_ws_manager_broadcast_structure(self):
         """Verify the ConnectionManager emits properly structured JSON."""
         import asyncio
+        from typing import cast
+        from fastapi import WebSocket
         from app.websocket.manager import ConnectionManager
 
         received = []
@@ -476,7 +529,7 @@ class TestWebSocketEvents:
 
         async def run():
             mgr = ConnectionManager()
-            ws = MockWebSocket()
+            ws = cast(WebSocket, MockWebSocket())
             await mgr.connect(ws)
             await mgr.broadcast("incident.created", {"id": "abc", "severity": "critical"})
 

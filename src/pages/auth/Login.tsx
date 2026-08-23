@@ -21,27 +21,64 @@ import {
 } from 'lucide-react';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { EmergencySOSButton } from '@/components/shared/EmergencySOSButton';
+import { apiFetch } from '@/lib/api/client';
+
 
 export const Login: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('officer');
   const [email, setEmail] = useState<string>('command.officer@crisisconnect.org');
   const [zoneId, setZoneId] = useState<string>('zone-north-01');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
   const { t } = useTranslation();
 
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
+    setErrorMsg(null);
     if (role === 'citizen') setEmail('citizen@crisisconnect.org');
     if (role === 'officer') setEmail('command.officer@crisisconnect.org');
     if (role === 'volunteer') setEmail('volunteer.lead@crisisconnect.org');
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedRole === 'citizen') navigate('/citizen/home');
-    if (selectedRole === 'officer') navigate('/officer/dashboard');
-    if (selectedRole === 'volunteer') navigate('/volunteer/tasks');
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      const phoneMap: Record<UserRole, string> = {
+        citizen: '9876543212',    // Fresh canonical backend citizen: Ramesh Kumar (usr-citizen-2)
+        officer: '1111111110',    // Canonical backend officer: Officer R. Sharma
+        volunteer: '1111111111',  // Canonical backend volunteer: Volunteer Team Alpha
+      };
+
+      const res = await apiFetch<{ access_token: string; user: any }>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ phone: phoneMap[selectedRole] || '1111111112' }),
+      });
+
+      if (res && res.access_token && res.user) {
+        localStorage.setItem('token', res.access_token);
+        localStorage.setItem('user', JSON.stringify(res.user));
+
+        // Navigate based on the role the backend assigned, not the UI toggle
+        const role: UserRole = res.user.role;
+        if (role === 'citizen') navigate('/citizen/home');
+        else if (role === 'officer') navigate('/officer/dashboard');
+        else if (role === 'volunteer') navigate('/volunteer/tasks');
+        else navigate('/citizen/home'); // safe fallback
+      } else {
+        setErrorMsg('Authentication failed. Backend may be unreachable — please try again.');
+      }
+    } catch (err) {
+      console.warn('[Login] Auth login error:', err);
+      setErrorMsg('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   const zoneOptions = [
     { label: 'Uttarakhand Himalayan Sector (UK-01)', value: 'zone-north-01', risk: 'Critical', color: 'text-red-700 bg-red-50 border-red-200' },
@@ -305,10 +342,19 @@ export const Login: React.FC = () => {
                 </div>
               </div>
 
+              {/* Error message */}
+              {errorMsg && (
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                  {errorMsg}
+                </div>
+              )}
+
               {/* Action Button with Hover Motion */}
               <button
                 type="submit"
-                className={`w-full py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer ${
+                disabled={isLoading}
+                className={`w-full py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed disabled:scale-100 ${
                   selectedRole === 'officer'
                     ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-red-200/80'
                     : selectedRole === 'volunteer'
@@ -316,8 +362,20 @@ export const Login: React.FC = () => {
                     : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-blue-200/80'
                 }`}
               >
-                <span>{t('auth.enterPortal', { role: t(`auth.${selectedRole}Role`).toUpperCase() })}</span>
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                {isLoading ? (
+                  <>
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                    </svg>
+                    <span>Authenticating…</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t('auth.enterPortal', { role: t(`auth.${selectedRole}Role`).toUpperCase() })}</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
             </form>
           </div>

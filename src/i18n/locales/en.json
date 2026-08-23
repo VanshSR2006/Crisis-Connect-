@@ -119,6 +119,8 @@
       "sending": "Sending Distressed Signal...",
       "successTitle": "SOS Emergency Broadcast Sent",
       "successDesc": "Your request is live on the Emergency Command Network. Rescue units are being dispatched.",
+      "queuedTitle": "SOS Saved Offline",
+      "queuedDesc": "Your emergency alert is stored safely in your browser storage. It will automatically submit to emergency dispatch as soon as network connectivity is restored.",
       "liveEmergencyTracking": "Live Emergency Tracking",
       "recommendedShelter": "Recommended Safe Shelter",
       "capacity": "Capacity",

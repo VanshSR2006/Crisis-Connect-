@@ -9,14 +9,19 @@ import {
   User,
   ShieldAlert,
   ArrowLeftRight,
+  WifiOff,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CitizenProvider } from '@/lib/citizenContext';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
+import { useOfflineSync } from '@/lib/useOfflineSync';
 
 export const CitizenLayoutContent: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { isOnline, pendingCount, isSyncing, triggerSync } = useOfflineSync();
 
   const navItems = [
     { to: '/citizen/home', label: t('nav.home'), icon: Home },
@@ -50,8 +55,15 @@ export const CitizenLayoutContent: React.FC = () => {
           <div className="flex items-center gap-3">
             <LanguageToggle variant="light" />
             <div className="hidden sm:flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              <span className="text-[11px] font-medium text-slate-300">{t('common.systemOperational')}</span>
+              <span
+                className={cn(
+                  'w-1.5 h-1.5 rounded-full inline-block',
+                  isOnline ? 'bg-emerald-400' : 'bg-amber-400'
+                )}
+              />
+              <span className="text-[11px] font-medium text-slate-300">
+                {isOnline ? t('common.systemOperational') : 'Offline Mode'}
+              </span>
             </div>
             <button
               onClick={() => navigate('/login')}
@@ -65,8 +77,46 @@ export const CitizenLayoutContent: React.FC = () => {
         </div>
       </header>
 
+      {/* Offline / Pending Queue Sync Banner */}
+      {(!isOnline || pendingCount > 0) && (
+        <div
+          className={cn(
+            'px-4 py-2 text-xs font-medium flex items-center justify-between shadow-inner transition-colors',
+            !isOnline
+              ? 'bg-amber-800 text-amber-100 border-b border-amber-900'
+              : 'bg-blue-950 text-blue-100 border-b border-blue-900'
+          )}
+        >
+          <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {!isOnline ? (
+                <WifiOff className="h-4 w-4 text-amber-300 animate-pulse flex-shrink-0" />
+              ) : (
+                <Clock className="h-4 w-4 text-blue-300 flex-shrink-0" />
+              )}
+              <span>
+                {!isOnline
+                  ? `Offline Mode — ${pendingCount} SOS report${pendingCount === 1 ? '' : 's'} queued locally on device.`
+                  : `${pendingCount} SOS report${pendingCount === 1 ? '' : 's'} pending transmission to backend.`}
+              </span>
+            </div>
+
+            {isOnline && pendingCount > 0 && (
+              <button
+                onClick={() => triggerSync()}
+                disabled={isSyncing}
+                className="bg-blue-800 hover:bg-blue-700 text-white px-2.5 py-1 rounded text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={cn('h-3 w-3', isSyncing && 'animate-spin')} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync Now'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Content */}
-      <main 
+      <main
         className="flex-1 max-w-4xl w-full mx-auto px-4 py-5"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 6rem)' }}
       >
@@ -74,7 +124,7 @@ export const CitizenLayoutContent: React.FC = () => {
       </main>
 
       {/* Bottom Navigation — Stitch light style */}
-      <nav 
+      <nav
         className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-[#c6c6cd] shadow-sm"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
