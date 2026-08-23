@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { rankRescueSites, RankedRescueSite } from '@/lib/api/rescueSites';
+import { ActionBar } from '@/components/officer/ActionBar';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
 // ── Helper: Center map on selection ─────────────────────────────────────────
 const MapController: React.FC<{ center: [number, number]; zoom: number }> = ({ center, zoom }) => {
@@ -68,6 +70,7 @@ export const LiveMap: React.FC = () => {
     zonePressure,
     isLoadingPressure,
     isErrorPressure,
+    isCrisisMode,
   } = useOfficerContext();
 
   // ── Layer toggles ──────────────────────────────────────────────────────────
@@ -159,9 +162,10 @@ export const LiveMap: React.FC = () => {
   };
 
   const createCustomIcon = (incident: any, isSelected: boolean) => {
+    const dim = isCrisisMode && incident.severity !== 'critical' && !isSelected;
     const iconHtml = renderToString(
       <div
-        className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold shadow-lg whitespace-nowrap ${getSeverityPinColor(incident.severity)} ${isSelected ? 'ring-4 ring-white scale-110 z-50' : 'opacity-90'}`}
+        className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold shadow-lg whitespace-nowrap ${getSeverityPinColor(incident.severity)} ${isSelected ? 'ring-4 ring-white scale-110 z-50' : 'opacity-90'} ${dim ? 'opacity-40 grayscale' : ''}`}
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
@@ -312,8 +316,9 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Center: Map ─────────────────────────────────── */}
-        <div className="lg:col-span-2 bg-[#e2e8f0] border border-[#cbd5e1] rounded overflow-hidden shadow-sm relative min-h-[480px] flex flex-col z-0">
-          <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={true} className="w-full h-full min-h-[480px]" zoomControl={false}>
+        <div className={`lg:col-span-2 bg-[#e2e8f0] border rounded overflow-hidden shadow-sm relative min-h-[480px] flex flex-col z-0 ${isCrisisMode ? 'border-red-500 shadow-red-200' : 'border-[#cbd5e1]'}`}>
+          <ErrorBoundary fallbackMessage="The map encountered an error.">
+            <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={true} className="w-full h-full min-h-[480px]" zoomControl={false}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
@@ -356,6 +361,7 @@ export const LiveMap: React.FC = () => {
               );
             })}
           </MapContainer>
+          </ErrorBoundary>
 
           {/* Map top bar */}
           <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded shadow-sm text-slate-800 text-[11px] pointer-events-none">
@@ -378,8 +384,9 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Right: Tabbed Detail Panel ──────────────────── */}
-        <div className="bg-white border border-[#c6c6cd] rounded shadow-sm flex flex-col">
-          {/* Tabs */}
+        <div className="bg-white border border-[#c6c6cd] rounded shadow-sm flex flex-col gap-3 pb-3">
+          <div className="flex-1 flex flex-col">
+            {/* Tabs */}
           <div className="flex border-b border-[#f0edef]">
             {[
               { key: 'incident', label: 'Incident', color: 'border-[#2563eb]' },
@@ -400,7 +407,8 @@ export const LiveMap: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1 p-3.5 overflow-y-auto max-h-[460px]">
+          <div className="flex-1 p-3.5 overflow-y-auto max-h-[380px]">
+            <ErrorBoundary fallbackMessage="Detail panel encountered an error.">
             {/* ── INCIDENT TAB ────────────────────────────── */}
             {detailMode === 'incident' && (
               selectedIncident ? (
@@ -673,6 +681,19 @@ export const LiveMap: React.FC = () => {
                 )}
               </div>
             )}
+            </ErrorBoundary>
+          </div>
+          </div>
+          
+          <div className="border-t border-[#f0edef] px-3.5 pt-3">
+            <ActionBar 
+              selectedEntityId={
+                detailMode === 'incident' ? selectedIncidentId 
+                : detailMode === 'sites' ? selectedSiteId 
+                : selectedZoneId
+              } 
+              entityType={detailMode === 'sites' ? 'site' : detailMode === 'incident' ? 'incident' : 'dispatch'}
+            />
           </div>
         </div>
       </div>

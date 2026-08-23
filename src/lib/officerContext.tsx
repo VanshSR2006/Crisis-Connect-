@@ -183,6 +183,9 @@ interface OfficerContextType {
 
   updateIncidentStatus: (id: string, status: IncidentStatus) => void;
   createDispatch: (payload: CreateDispatchPayload) => Dispatch;
+
+  isCrisisMode: boolean;
+  setIsCrisisMode: (isCrisis: boolean) => void;
 }
 
 const OfficerContext = createContext<OfficerContextType | undefined>(undefined);
@@ -272,6 +275,7 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [dispatches, setDispatches] = useState<Dispatch[]>(mockDispatches);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
+  const [isCrisisMode, setIsCrisisMode] = useState<boolean>(false);
 
   // Set initial selected incident once data loads
   useEffect(() => {
@@ -381,6 +385,8 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setSelectedZoneId,
         updateIncidentStatus,
         createDispatch,
+        isCrisisMode,
+        setIsCrisisMode,
       }}
     >
       {children}
