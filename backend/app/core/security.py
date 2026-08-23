@@ -1,4 +1,7 @@
 import datetime
+import hashlib
+import hmac
+import secrets
 from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -10,6 +13,19 @@ from ..database import get_db
 from ..models import User
 
 security_scheme = HTTPBearer(auto_error=False)
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return f"{salt}${hash_bytes.hex()}"
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if not hashed_password or "$" not in hashed_password:
+        return False
+    salt, expected_hash = hashed_password.split("$", 1)
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return hmac.compare_digest(hash_bytes.hex(), expected_hash)
+
 
 def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None) -> str:
     to_encode = data.copy()

@@ -9,25 +9,36 @@ import {
   ArrowRight, 
   CheckCircle2, 
   Mail, 
-  MapPin, 
+  Phone,
+  Lock,
+  KeyRound,
   ShieldCheck, 
   Activity,
-  Users,
   RadioTower,
-  Lock,
   Globe,
   Compass,
   Zap
 } from 'lucide-react';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { EmergencySOSButton } from '@/components/shared/EmergencySOSButton';
-import { apiFetch } from '@/lib/api/client';
 
+const BASE_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
+  'https://crisis-connect-api-dev.onrender.com';
+
+type AuthMode = 'login' | 'signup';
 
 export const Login: React.FC = () => {
+  const [mode, setMode] = useState<AuthMode>('login');
   const [selectedRole, setSelectedRole] = useState<UserRole>('officer');
-  const [email, setEmail] = useState<string>('command.officer@crisisconnect.org');
-  const [zoneId, setZoneId] = useState<string>('zone-north-01');
+  
+  // Input fields
+  const [name, setName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
+  const [languagePref, setLanguagePref] = useState<string>('en');
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -36,49 +47,84 @@ export const Login: React.FC = () => {
   const handleRoleSelect = (role: UserRole) => {
     setSelectedRole(role);
     setErrorMsg(null);
-    if (role === 'citizen') setEmail('citizen@crisisconnect.org');
-    if (role === 'officer') setEmail('command.officer@crisisconnect.org');
-    if (role === 'volunteer') setEmail('volunteer.lead@crisisconnect.org');
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleModeChange = (newMode: AuthMode) => {
+    setMode(newMode);
+    setErrorMsg(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
     try {
-      const phoneMap: Record<UserRole, string> = {
-        citizen: '9876543212',    // Fresh canonical backend citizen: Ramesh Kumar (usr-citizen-2)
-        officer: '1111111110',    // Canonical backend officer: Officer R. Sharma
-        volunteer: '1111111111',  // Canonical backend volunteer: Volunteer Team Alpha
-      };
+      const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
+      const url = `${BASE_URL}${endpoint}`;
 
-      const res = await apiFetch<{ access_token: string; user: any }>('/auth/login', {
+      let bodyPayload: Record<string, any> = {};
+
+      if (mode === 'login') {
+        if (selectedRole === 'citizen') {
+          bodyPayload = { phone, password, role: 'citizen' };
+        } else {
+          bodyPayload = { email, password, role: selectedRole };
+        }
+      } else {
+        // Signup
+        if (selectedRole === 'citizen') {
+          bodyPayload = {
+            name,
+            phone,
+            password,
+            role: 'citizen',
+            language_pref: languagePref
+          };
+        } else {
+          bodyPayload = {
+            name,
+            email,
+            password,
+            role: selectedRole
+          };
+        }
+      }
+
+      const response = await fetch(url, {
         method: 'POST',
-        body: JSON.stringify({ phone: phoneMap[selectedRole] || '1111111112' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
       });
 
-      if (res && res.access_token && res.user) {
-        localStorage.setItem('token', res.access_token);
-        localStorage.setItem('user', JSON.stringify(res.user));
+      const data = await response.json();
 
-        // Navigate based on the role the backend assigned, not the UI toggle
-        const role: UserRole = res.user.role;
-        if (role === 'citizen') navigate('/citizen/home');
-        else if (role === 'officer') navigate('/officer/dashboard');
-        else if (role === 'volunteer') navigate('/volunteer/tasks');
-        else navigate('/citizen/home'); // safe fallback
+      if (!response.ok) {
+        const errorDetail = data?.detail || 'Authentication failed. Please check your credentials.';
+        setErrorMsg(typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail));
+        return;
+      }
+
+      if (data && data.access_token && data.user) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+
+        // Navigate strictly based on backend-verified role
+        const authenticatedRole: UserRole = data.user.role;
+        if (authenticatedRole === 'citizen') navigate('/citizen/home');
+        else if (authenticatedRole === 'officer') navigate('/officer/dashboard');
+        else if (authenticatedRole === 'volunteer') navigate('/volunteer/tasks');
+        else navigate('/citizen/home');
       } else {
-        setErrorMsg('Authentication failed. Backend may be unreachable — please try again.');
+        setErrorMsg('Invalid response from server.');
       }
     } catch (err) {
-      console.warn('[Login] Auth login error:', err);
+      console.warn('[Auth] Error during submit:', err);
       setErrorMsg('Network error. Please check your connection and try again.');
     } finally {
       setIsLoading(false);
     }
   };
-
 
   const zoneOptions = [
     { label: 'Uttarakhand Himalayan Sector (UK-01)', value: 'zone-north-01', risk: 'Critical', color: 'text-red-700 bg-red-50 border-red-200' },
@@ -89,7 +135,7 @@ export const Login: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between px-4 pt-3 pb-6 sm:px-8 sm:pt-4 sm:pb-8 lg:px-10 lg:pt-5 lg:pb-8 relative overflow-hidden text-slate-900 selection:bg-blue-600 selection:text-white">
-      {/* Light Theme Ambient Soft Glow (No Grid Lines) */}
+      {/* Light Theme Ambient Soft Glow */}
       <div className="absolute -top-40 -left-40 w-[650px] h-[650px] bg-blue-500/10 blur-[150px] rounded-full pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-[650px] h-[650px] bg-red-500/10 blur-[150px] rounded-full pointer-events-none" />
 
@@ -115,17 +161,16 @@ export const Login: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 text-xs">
-          {/* Language Toggle — prominent on the login page */}
           <LanguageToggle variant="dark" />
 
-          <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-xs hover:border-slate-300 transition-all">
+          <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 font-medium shadow-xs">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span>{t('auth.activeDisasterZones')}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-600 font-mono text-[11px] bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs hover:border-slate-300 transition-all">
+          <div className="flex items-center gap-1.5 text-slate-600 font-mono text-[11px] bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs">
             <Lock className="h-3.5 w-3.5 text-blue-600" />
             <span>{t('auth.encryptedChannel')}</span>
           </div>
@@ -138,7 +183,7 @@ export const Login: React.FC = () => {
         {/* Left Column: Telemetry & Info (7 Columns) */}
         <div className="lg:col-span-7 space-y-8 pr-0 lg:pr-4">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold tracking-wide hover:bg-blue-100/80 transition-colors cursor-default">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold tracking-wide cursor-default">
               <Globe className="h-3.5 w-3.5 text-blue-600" />
               <span>{t('auth.tagline')}</span>
             </div>
@@ -150,9 +195,9 @@ export const Login: React.FC = () => {
             </p>
           </div>
 
-          {/* Quick Metrics Bar - Properly Padded with Hover Scale */}
+          {/* Quick Metrics Bar */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-[11px] font-bold uppercase tracking-wider">{t('auth.activeSectors')}</span>
                 <Compass className="h-4.5 w-4.5 text-blue-600" />
@@ -161,7 +206,7 @@ export const Login: React.FC = () => {
               <p className="text-[11px] text-slate-500 font-medium">UK, AS, OD, KL</p>
             </div>
 
-            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-[11px] font-bold uppercase tracking-wider">{t('auth.dispatchTarget')}</span>
                 <Zap className="h-4.5 w-4.5 text-amber-500" />
@@ -170,7 +215,7 @@ export const Login: React.FC = () => {
               <p className="text-[11px] text-amber-700 font-medium">{t('auth.sosToDispatch')}</p>
             </div>
 
-            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md hover:-translate-y-1 hover:border-slate-300 transition-all duration-300">
+            <div className="bg-white border border-slate-200 p-5 sm:p-6 rounded-2xl space-y-1.5 shadow-sm hover:shadow-md transition-all duration-300">
               <div className="flex items-center justify-between text-slate-500">
                 <span className="text-[11px] font-bold uppercase tracking-wider">{t('auth.fieldResponse')}</span>
                 <RadioTower className="h-4.5 w-4.5 text-red-600" />
@@ -180,8 +225,8 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-          {/* Real-time Zone Overview List with Hover Effects */}
-          <div className="bg-white/90 border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm hover:shadow-md transition-shadow duration-300">
+          {/* Real-time Zone Overview List */}
+          <div className="bg-white/90 border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4 shadow-sm">
             <div className="flex items-center justify-between text-xs border-b border-slate-100 pb-3">
               <span className="font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                 <Activity className="h-4 w-4 text-blue-600" />
@@ -192,7 +237,7 @@ export const Login: React.FC = () => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               {zoneOptions.map((zone) => (
-                <div key={zone.value} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 hover:bg-slate-100/80 hover:translate-x-1 transition-all duration-200 cursor-default">
+                <div key={zone.value} className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 cursor-default">
                   <div className="space-y-0.5">
                     <p className="text-xs font-semibold text-slate-900">{zone.label}</p>
                     <p className="text-[10px] text-slate-500 font-mono">Sector ID: {zone.value}</p>
@@ -206,143 +251,225 @@ export const Login: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Sign-In Command Card (5 Columns) */}
+        {/* Right Column: Unified Auth Command Card (5 Columns) */}
         <div className="lg:col-span-5 w-full">
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl shadow-slate-200/60 relative">
-            <div>
+            
+            {/* Header with Login / Signup Toggle */}
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
                   <ShieldCheck className="h-4.5 w-4.5 text-blue-600" />
-                  {t('auth.selectPortal')}
+                  {mode === 'login' ? 'Authentication Command' : 'Create System Account'}
                 </h2>
                 <span className="text-[10px] font-mono font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
                   {t('auth.secureAccess')}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                {t('auth.chooseRole')}
-              </p>
-            </div>
 
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Role Cards Selector with Subtle Hover & Motion */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {/* Citizen */}
+              {/* Signup / Login Segmented Control */}
+              <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-bold">
                 <button
                   type="button"
-                  onClick={() => handleRoleSelect('citizen')}
-                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
-                    selectedRole === 'citizen'
-                      ? 'bg-blue-50/90 border-blue-600 text-slate-900 shadow-md ring-1 ring-blue-600/30'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
+                  onClick={() => handleModeChange('signup')}
+                  className={`py-2 rounded-lg transition-all text-center ${
+                    mode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'citizen' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
-                      <User className="h-4 w-4" />
-                    </div>
-                    {selectedRole === 'citizen' && <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>}
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-slate-900">{t('auth.citizenRole')}</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('auth.publicRelief')}</div>
-                  </div>
+                  SIGNUP
                 </button>
-
-                {/* Officer */}
                 <button
                   type="button"
-                  onClick={() => handleRoleSelect('officer')}
-                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
-                    selectedRole === 'officer'
-                      ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-md ring-1 ring-red-600/30'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
+                  onClick={() => handleModeChange('login')}
+                  className={`py-2 rounded-lg transition-all text-center ${
+                    mode === 'login'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80 font-extrabold'
+                      : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'officer' ? 'bg-red-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
-                      <ShieldAlert className="h-4 w-4" />
-                    </div>
-                    {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-slate-900">{t('auth.officerRole')}</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('auth.commandCenter')}</div>
-                  </div>
-                </button>
-
-                {/* Volunteer */}
-                <button
-                  type="button"
-                  onClick={() => handleRoleSelect('volunteer')}
-                  className={`p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 relative overflow-hidden group hover:-translate-y-0.5 active:scale-[0.98] ${
-                    selectedRole === 'volunteer'
-                      ? 'bg-emerald-50/90 border-emerald-600 text-slate-900 shadow-md ring-1 ring-emerald-600/30'
-                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/90 hover:text-slate-900 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`p-2 rounded-xl transition-transform duration-200 group-hover:scale-105 ${selectedRole === 'volunteer' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500'}`}>
-                      <Radio className="h-4 w-4" />
-                    </div>
-                    {selectedRole === 'volunteer' && <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>}
-                  </div>
-                  <div>
-                    <div className="font-bold text-xs text-slate-900">{t('auth.volunteerRole')}</div>
-                    <div className="text-[10px] text-slate-500 font-medium font-sans">{t('auth.fieldLogistics')}</div>
-                  </div>
+                  LOGIN
                 </button>
               </div>
+            </div>
 
-              {/* Email Input */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Role Selector */}
               <div className="space-y-1.5">
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  {t('auth.emailLabel')}
+                  Select Role
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Citizen */}
+                  <button
+                    type="button"
+                    onClick={() => handleRoleSelect('citizen')}
+                    className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
+                      selectedRole === 'citizen'
+                        ? 'bg-blue-50/90 border-blue-600 text-slate-900 shadow-sm ring-1 ring-blue-600/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-1.5 rounded-lg ${selectedRole === 'citizen' ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                        <User className="h-3.5 w-3.5" />
+                      </div>
+                      {selectedRole === 'citizen' && <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>}
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">{t('auth.citizenRole')}</div>
+                    </div>
+                  </button>
+
+                  {/* Officer */}
+                  <button
+                    type="button"
+                    onClick={() => handleRoleSelect('officer')}
+                    className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
+                      selectedRole === 'officer'
+                        ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-sm ring-1 ring-red-600/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-1.5 rounded-lg ${selectedRole === 'officer' ? 'bg-red-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                        <ShieldAlert className="h-3.5 w-3.5" />
+                      </div>
+                      {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">{t('auth.officerRole')}</div>
+                    </div>
+                  </button>
+
+                  {/* Volunteer */}
+                  <button
+                    type="button"
+                    onClick={() => handleRoleSelect('volunteer')}
+                    className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
+                      selectedRole === 'volunteer'
+                        ? 'bg-emerald-50/90 border-emerald-600 text-slate-900 shadow-sm ring-1 ring-emerald-600/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={`p-1.5 rounded-lg ${selectedRole === 'volunteer' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                        <Radio className="h-3.5 w-3.5" />
+                      </div>
+                      {selectedRole === 'volunteer' && <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>}
+                    </div>
+                    <div>
+                      <div className="font-bold text-xs text-slate-900">{t('auth.volunteerRole')}</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Full Name Input (Signup Mode Only) */}
+              {mode === 'signup' && (
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Full Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-sans shadow-xs"
+                      placeholder="e.g. Ramesh Kumar"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamic Identifier Field: Phone Number for Citizen, Email for Officer/Volunteer */}
+              {selectedRole === 'citizen' ? (
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Phone Number
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Phone className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-mono shadow-xs"
+                      placeholder="e.g. 9876543212"
+                      required
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Mail className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-mono shadow-xs"
+                      placeholder="name@crisisconnect.org"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Language Preference (Citizen Signup Only) */}
+              {mode === 'signup' && selectedRole === 'citizen' && (
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    Language Preference
+                  </label>
+                  <select
+                    value={languagePref}
+                    onChange={(e) => setLanguagePref(e.target.value)}
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 shadow-xs cursor-pointer"
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">Hindi (हिन्दी)</option>
+                    <option value="as">Assamese (অসমীয়া)</option>
+                    <option value="bn">Bengali (বাংলা)</option>
+                    <option value="ka">Kannada (ಕನ್ನಡ)</option>
+                  </select>
+                </div>
+              )}
+
+              {/* Password Input */}
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  Password
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <Mail className="h-4 w-4" />
+                    <KeyRound className="h-4 w-4" />
                   </div>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-3 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all font-mono shadow-xs"
-                    placeholder="name@crisisconnect.org"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-mono shadow-xs"
+                    placeholder="••••••••"
                     required
                   />
                 </div>
               </div>
 
-              {/* Disaster Zone Dropdown */}
-              <div className="space-y-1.5">
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
-                  {t('auth.zoneLabel')}
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                    <MapPin className="h-4 w-4" />
-                  </div>
-                  <select
-                    value={zoneId}
-                    onChange={(e) => setZoneId(e.target.value)}
-                    className="w-full pl-10 pr-9 py-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 transition-all appearance-none cursor-pointer shadow-xs"
-                  >
-                    {zoneOptions.map((zone) => (
-                      <option key={zone.value} value={zone.value} className="bg-white text-slate-900 py-1">
-                        {zone.label}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
-                    <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error message */}
+              {/* Error message display */}
               {errorMsg && (
                 <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
                   <span className="h-1.5 w-1.5 rounded-full bg-red-500 flex-shrink-0" />
@@ -350,11 +477,11 @@ export const Login: React.FC = () => {
                 </div>
               )}
 
-              {/* Action Button with Hover Motion */}
+              {/* Action Button */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-4 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed disabled:scale-100 ${
+                className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs uppercase tracking-widest text-white flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg active:scale-[0.99] cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed ${
                   selectedRole === 'officer'
                     ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 shadow-red-200/80'
                     : selectedRole === 'volunteer'
@@ -368,12 +495,12 @@ export const Login: React.FC = () => {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                     </svg>
-                    <span>Authenticating…</span>
+                    <span>{mode === 'login' ? 'Authenticating…' : 'Creating Account…'}</span>
                   </>
                 ) : (
                   <>
-                    <span>{t('auth.enterPortal', { role: t(`auth.${selectedRole}Role`).toUpperCase() })}</span>
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                    <span>{mode === 'login' ? `LOG IN AS ${selectedRole.toUpperCase()}` : `REGISTER AS ${selectedRole.toUpperCase()}`}</span>
+                    <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
