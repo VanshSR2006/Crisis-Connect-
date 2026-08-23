@@ -2,7 +2,7 @@
 # All SQLAlchemy ORM models live here. Coordinate before adding or altering any model.
 # Model field changes affect the database schema and all API responses.
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database.base import Base
@@ -88,7 +88,7 @@ class Incident(Base):
     credibility_score = Column(Float, default=1.0)
     review_state = Column(String, default="unverified") # unverified | flagged | verified
     priority_score = Column(Float, default=50.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Shelter(Base):
     __tablename__ = "shelters"

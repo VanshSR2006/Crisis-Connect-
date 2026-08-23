@@ -49,7 +49,7 @@ export const SosReport: React.FC = () => {
 
   const [category, setCategory] = useState<IncidentCategory>('rescue');
   const [description, setDescription] = useState<string>('');
-  const [locationName, setLocationName] = useState<string>('Civil Lines, Block B, Delhi');
+  const [locationName, setLocationName] = useState<string>('');
   const [attachedPhoto, setAttachedPhoto] = useState<File | null>(null);
   const [hasVoiceNote, setHasVoiceNote] = useState<boolean>(false);
   const [submittedIncidentId, setSubmittedIncidentId] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export const SosReport: React.FC = () => {
     setErrorMsg(null);
     setIsSubmitting(true);
 
-    const sosDescription = description || `Emergency request for ${category} assistance at ${locationName}.`;
+    const sosDescription = description || (locationName ? `Emergency request for ${category} assistance at ${locationName}.` : `Emergency request for ${category} assistance.`);
     const zoneId = user?.zone_id || 'z-silchar';
 
     // Authenticated citizen real backend ID from context or localStorage session

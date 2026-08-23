@@ -107,11 +107,30 @@ export const Home: React.FC = () => {
     : [];
 
   // Determine tracker incidents to display (only authenticated citizen's backend-confirmed incidents)
-  const trackerIncidents = citizenIncidents.length > 0
+  // Always sorted in descending chronological order by created_at timestamp (newest → oldest)
+  const rawTrackerIncidents = citizenIncidents.length > 0
     ? citizenIncidents
     : activeIncident && (activeIncident.reporter_id === user?.id || activeIncident.reported_by_user_id === user?.id)
     ? [activeIncident]
     : [];
+
+  const trackerIncidents = [...rawTrackerIncidents].sort((a, b) => {
+    const getTime = (dateStr?: string) => {
+      if (!dateStr) return 0;
+      let formatted = dateStr;
+      if (
+        typeof dateStr === 'string' &&
+        dateStr.includes('T') &&
+        !dateStr.endsWith('Z') &&
+        !/[+-]\d{2}:\d{2}$/.test(dateStr)
+      ) {
+        formatted = `${dateStr}Z`;
+      }
+      const t = new Date(formatted).getTime();
+      return isNaN(t) ? 0 : t;
+    };
+    return getTime(b.created_at) - getTime(a.created_at);
+  });
 
   return (
     <div className="space-y-5">
