@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Incident, Dispatch, Resource, IncidentStatus, DispatchStatus, SeverityLevel } from '@/types';
 import { mockDispatches } from '@/mocks';
-import { getIncidents } from '@/lib/api/incidents';
+import { getIncidents, updateIncidentStatus as persistIncidentStatus } from '@/lib/api/incidents';
 import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
@@ -181,7 +181,7 @@ interface OfficerContextType {
   selectedZoneId: string | null;
   setSelectedZoneId: (id: string | null) => void;
 
-  updateIncidentStatus: (id: string, status: IncidentStatus) => void;
+  updateIncidentStatus: (id: string, status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>) => Promise<void>;
   createDispatch: (payload: CreateDispatchPayload) => Dispatch;
 
   isCrisisMode: boolean;
@@ -304,7 +304,7 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (event.data.startsWith('ACK:')) return;
           const data = JSON.parse(event.data);
 
-          if (data.type === 'incident.created' || data.type === 'incident.verified') {
+          if (data.type === 'incident.created' || data.type === 'incident.verified' || data.type === 'incident.updated') {
             const payload = data.payload;
             queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
               if (!old) return old;
@@ -344,10 +344,16 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [queryClient]);
 
-  const updateIncidentStatus = (id: string, status: IncidentStatus) => {
+  const updateIncidentStatus = async (
+    id: string,
+    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
+  ) => {
+    const updatedIncident = await persistIncidentStatus(id, status);
+    if (!updatedIncident) return;
+
     queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
       if (!old) return old;
-      return old.map(i => i.id === id ? { ...i, status } : i);
+      return old.map(i => i.id === id ? updatedIncident : i);
     });
   };
 
@@ -362,7 +368,6 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     };
 
     setDispatches((prev) => [newDispatch, ...prev]);
-    updateIncidentStatus(payload.incidentId, 'dispatched');
 
     return newDispatch;
   };

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,6 +28,9 @@ class IncidentCreate(BaseModel):
 class IncidentVerifyRequest(BaseModel):
     review_state: str  # verified | flagged
     credibility_score: float
+
+class IncidentStatusUpdateRequest(BaseModel):
+    status: Literal["acknowledged", "resolved"]
 
 class IncidentResponse(BaseModel):
     id: str
@@ -155,5 +158,28 @@ async def verify_incident(
         "review_state": incident.review_state,
         "credibility_score": incident.credibility_score,
         "priority_score": incident.priority_score
+    })
+    return incident
+
+
+@router.patch("/{id}/status", response_model=IncidentResponse)
+async def update_incident_status(
+    id: str,
+    req: IncidentStatusUpdateRequest,
+    current_user: User = Depends(require_officer),
+    db: Session = Depends(get_db),
+):
+    """Persist an officer acknowledgement or resolution on the Incident record."""
+    incident = db.query(Incident).filter(Incident.id == id).first()
+    if not incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    incident.status = req.status
+    db.commit()
+    db.refresh(incident)
+
+    await manager.broadcast("incident.updated", {
+        "id": incident.id,
+        "status": incident.status,
     })
     return incident

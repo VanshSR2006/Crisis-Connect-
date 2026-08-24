@@ -1,5 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
-import { Incident } from '@/types';
+import { Incident, IncidentStatus } from '@/types';
 
 /**
  * GET /incidents – returns a list of incidents.
@@ -70,4 +70,15 @@ export async function createIncident(
     // Offline queue logic is handled at the component level.
     return null;
   }
+}
+
+/** Persist an officer status transition on the canonical incident record. */
+export async function updateIncidentStatus(
+  id: string,
+  status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
+): Promise<Incident | null> {
+  return apiFetch<Incident>(`/incidents/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }

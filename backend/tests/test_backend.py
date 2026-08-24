@@ -257,6 +257,41 @@ def test_dispatch_create_does_not_default_to_a_demo_volunteer():
 
     assert DispatchCreate(incident_id="inc-1").assigned_user_id is None
 
+
+def test_officer_status_updates_persist_for_citizen_refresh(client, seeded_db, officer_token):
+    created = client.post("/incidents", json={
+        "title": "Citizen SOS",
+        "category": "rescue",
+        "severity": "high",
+        "description": "Needs assistance",
+        "lat": 24.82,
+        "lng": 92.79,
+        "reporter_id": "usr-citizen-1",
+    })
+    assert created.status_code == 200
+    incident_id = created.json()["id"]
+    assert created.json()["status"] == "reported"
+
+    headers = {"Authorization": f"Bearer {officer_token}"}
+    acknowledged = client.patch(
+        f"/incidents/{incident_id}/status",
+        json={"status": "acknowledged"},
+        headers=headers,
+    )
+    assert acknowledged.status_code == 200
+    assert acknowledged.json()["status"] == "acknowledged"
+    refreshed = client.get("/incidents")
+    assert next(i for i in refreshed.json() if i["id"] == incident_id)["status"] == "acknowledged"
+
+    resolved = client.patch(
+        f"/incidents/{incident_id}/status",
+        json={"status": "resolved"},
+        headers=headers,
+    )
+    assert resolved.status_code == 200
+    refreshed = client.get("/incidents")
+    assert next(i for i in refreshed.json() if i["id"] == incident_id)["status"] == "resolved"
+
 class TestSignup:
     def test_citizen_signup_and_login_with_phone(self, client):
         # Signup

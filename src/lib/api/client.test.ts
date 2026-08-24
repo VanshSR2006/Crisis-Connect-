@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '@/lib/api/client';
 import { getStoredSession, storeAuth } from '@/lib/auth';
+import { updateIncidentStatus } from '@/lib/api/incidents';
 
 const fetchMock = vi.fn();
 
@@ -19,6 +20,24 @@ describe('apiFetch authentication handling', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/dispatches'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }) })
+    );
+  });
+
+  it('sends an officer status transition to the incident API', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'incident-1', status: 'acknowledged' }),
+    });
+
+    await updateIncidentStatus('incident-1', 'acknowledged');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/incidents/incident-1/status'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'acknowledged' }),
+        headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }),
+      })
     );
   });
 
