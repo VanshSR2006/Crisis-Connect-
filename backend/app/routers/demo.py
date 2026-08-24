@@ -10,10 +10,15 @@ from ..models import (
 )
 from ..services.priority_service import calculate_response_priority
 
-router = APIRouter(prefix="/demo", tags=["Demo Scenario"])
+from ..core.security import hash_password, require_officer
+
+router = APIRouter(prefix="/auth", tags=["Authentication"]) if False else APIRouter(prefix="/demo", tags=["Demo Scenario"])
 
 @router.post("/reset-scenario")
-def reset_demo_scenario(db: Session = Depends(get_db)):
+def reset_demo_scenario(
+    current_user: User = Depends(require_officer),
+    db: Session = Depends(get_db),
+):
     """
     Resets & seeds the controlled Assam Cachar Flood crisis scenario for live judging demos.
     Fixes the schema discrepancies of the RiskScore model.
@@ -32,40 +37,40 @@ def reset_demo_scenario(db: Session = Depends(get_db)):
     # Note: Do NOT delete all users so non-demo users persist.
     db.commit()
 
-    # 2. Upsert Canonical Demo Users by phone
+    # 2. Upsert Canonical Demo Users by phone/email
+    default_hash = hash_password("DemoPassword123")
     canonical_users = [
-        {"id": "usr-officer-1", "name": "Officer R. Sharma", "phone": "1111111110", "role": "officer", "language_pref": "en"},
-        {"id": "usr-officer-2", "name": "Command Officer", "phone": "9876543210", "role": "officer", "language_pref": "en"},
-        {"id": "usr-volunteer-1", "name": "Volunteer Team Alpha", "phone": "1111111111", "role": "volunteer", "language_pref": "en"},
-        {"id": "usr-volunteer-2", "name": "Volunteer Priya Patel", "phone": "9876543211", "role": "volunteer", "language_pref": "en"},
-        {"id": "usr-citizen-1", "name": "Anita Das", "phone": "1111111112", "role": "citizen", "language_pref": "en"},
-        {"id": "usr-citizen-2", "name": "Ramesh Kumar", "phone": "9876543212", "role": "citizen", "language_pref": "en"},
+        {"id": "usr-officer-1", "name": "Officer R. Sharma", "phone": "1111111110", "email": "command.officer@crisisconnect.org", "role": "officer", "language_pref": "en"},
+        {"id": "usr-officer-2", "name": "Command Officer", "phone": "9876543210", "email": "officer2@crisisconnect.org", "role": "officer", "language_pref": "en"},
+        {"id": "usr-volunteer-1", "name": "Volunteer Team Alpha", "phone": "1111111111", "email": "volunteer.lead@crisisconnect.org", "role": "volunteer", "language_pref": "en"},
+        {"id": "usr-volunteer-2", "name": "Volunteer Priya Patel", "phone": "9876543211", "email": "volunteer2@crisisconnect.org", "role": "volunteer", "language_pref": "en"},
+        {"id": "usr-citizen-1", "name": "Anita Das", "phone": "1111111112", "email": "citizen@crisisconnect.org", "role": "citizen", "language_pref": "en"},
+        {"id": "usr-citizen-2", "name": "Ramesh Kumar", "phone": "9876543212", "email": "ramesh@crisisconnect.org", "role": "citizen", "language_pref": "en"},
     ]
 
     for cdata in canonical_users:
         user_by_phone = db.query(User).filter(User.phone == cdata["phone"]).first()
         user_by_id = db.query(User).filter(User.id == cdata["id"]).first()
 
-        if user_by_phone:
-            if user_by_id and user_by_id.id != user_by_phone.id:
-                db.delete(user_by_id)
-                db.flush()
-            user_by_phone.id = cdata["id"]
-            user_by_phone.name = cdata["name"]
-            user_by_phone.role = cdata["role"]
-            user_by_phone.language_pref = cdata["language_pref"]
-        elif user_by_id:
-            user_by_id.name = cdata["name"]
-            user_by_id.phone = cdata["phone"]
-            user_by_id.role = cdata["role"]
-            user_by_id.language_pref = cdata["language_pref"]
+        target_user = user_by_phone or user_by_id
+        if target_user:
+            target_user.id = cdata["id"]
+            target_user.name = cdata["name"]
+            target_user.phone = cdata["phone"]
+            target_user.email = cdata["email"]
+            target_user.role = cdata["role"]
+            target_user.language_pref = cdata["language_pref"]
+            if not target_user.password_hash:
+                target_user.password_hash = default_hash
         else:
             new_user = User(
                 id=cdata["id"],
                 name=cdata["name"],
                 phone=cdata["phone"],
+                email=cdata["email"],
                 role=cdata["role"],
-                language_pref=cdata["language_pref"]
+                language_pref=cdata["language_pref"],
+                password_hash=default_hash
             )
             db.add(new_user)
 

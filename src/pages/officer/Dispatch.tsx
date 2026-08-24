@@ -140,7 +140,7 @@ export const Dispatch: React.FC = () => {
                 >
                   {resources.map((res) => (
                     <option key={res.id} value={res.id}>
-                      {t(`resources.names.${res.name}`)} ({res.quantity} {t(`resources.units.${res.unit}`)} - {t(`resources.statuses.${res.status}`).toUpperCase()})
+                      {t(`resources.names.${res.name}`, { defaultValue: res.name })} ({res.quantity} {t(`resources.units.${res.unit}`, { defaultValue: res.unit })} - {String(res.status).toUpperCase()})
                     </option>
                   ))}
                 </select>
@@ -207,11 +207,13 @@ export const Dispatch: React.FC = () => {
                 className="p-2.5 rounded bg-[#f6f3f5] border border-[#c6c6cd] flex items-center justify-between text-xs"
               >
                 <div>
-                  <span className="font-bold text-[#1b1b1d] block">{t(`resources.names.${res.name}`)}</span>
-                  <span className="text-[10px] text-[#76777d] uppercase">{t(`resources.categories.${res.category}`)}</span>
+                  <span className="font-bold text-[#1b1b1d] block">
+                    {t(`resources.names.${res.name}`, { defaultValue: res.name })}
+                  </span>
+                  <span className="text-[10px] text-[#76777d] uppercase">{res.category}</span>
                 </div>
                 <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {res.quantity} {t(`resources.units.${res.unit}`)}
+                  {res.quantity} {t(`resources.units.${res.unit}`, { defaultValue: res.unit })}
                 </span>
               </div>
             ))}

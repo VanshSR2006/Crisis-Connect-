@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -7,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from .core.config import settings
 from .core.redis import redis_client
+from .core.security import DASHBOARD_WS_ALLOWED_ROLES, get_user_from_token
 from .database import get_db
 from .websocket.manager import manager
 
@@ -37,13 +39,13 @@ app = FastAPI(
 )
 
 # CORS configuration
-allow_origins_list = []
+allow_origins_list = ["http://localhost:3000", "http://127.0.0.1:3000"]
 if settings.FRONTEND_ORIGINS:
     allow_origins_list.extend([origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()])
 if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
     allow_origins_list.append(settings.FRONTEND_ORIGIN.strip())
 
-allow_origins_list = list(set(allow_origins_list)) if allow_origins_list else []
+allow_origins_list = list(set(allow_origins_list))
 
 app.add_middleware(
     CORSMiddleware,
@@ -120,9 +122,29 @@ def readiness_check(db: Session = Depends(get_db)):
 def home_redirect():
     return health_check()
 
+def _websocket_bearer_token(websocket: WebSocket) -> Optional[str]:
+    """Read JWT from ?token= (browser WS) or Authorization: Bearer (clients/tests)."""
+    query_token = websocket.query_params.get("token")
+    if query_token:
+        return query_token
+    auth_header = websocket.headers.get("authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        return auth_header.split(" ", 1)[1].strip() or None
+    return None
+
+
 # WebSocket dashboard endpoint
 @app.websocket("/ws/dashboard")
-async def websocket_dashboard_endpoint(websocket: WebSocket):
+async def websocket_dashboard_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
+    token = _websocket_bearer_token(websocket)
+    user = get_user_from_token(token, db)
+    if user is None:
+        await websocket.close(code=4401)
+        return
+    if user.role not in DASHBOARD_WS_ALLOWED_ROLES:
+        await websocket.close(code=4403)
+        return
+
     await manager.connect(websocket)
     try:
         while True:

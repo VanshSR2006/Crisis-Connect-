@@ -16,8 +16,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-# Set CORS origins for testing before app is imported
+# Set CORS origins and empty REDIS_URL for testing before app is imported
 os.environ["FRONTEND_ORIGINS"] = "http://localhost:3000,http://localhost:5173"
+os.environ["REDIS_URL"] = ""
 
 
 # ---------------------------------------------------------------------------
@@ -81,9 +82,11 @@ def client(db):
 def seeded_db(db):
     """Seed basic users into the test DB for auth tests."""
     from app.models import User
-    officer = User(id="usr-officer-1", name="Officer Test", phone="1111111110", role="officer")
-    volunteer = User(id="usr-volunteer-1", name="Volunteer Test", phone="1111111111", role="volunteer")
-    citizen = User(id="usr-citizen-1", name="Citizen Test", phone="1111111112", role="citizen")
+    from app.core.security import hash_password
+    pwd = hash_password("TestPassword123")
+    officer = User(id="usr-officer-1", name="Officer Test", phone="1111111110", email="officer.test@crisisconnect.org", role="officer", password_hash=pwd)
+    volunteer = User(id="usr-volunteer-1", name="Volunteer Test", phone="1111111111", email="volunteer.test@crisisconnect.org", role="volunteer", password_hash=pwd)
+    citizen = User(id="usr-citizen-1", name="Citizen Test", phone="1111111112", email="citizen.test@crisisconnect.org", role="citizen", password_hash=pwd)
     db.add_all([officer, volunteer, citizen])
     db.commit()
     return db
@@ -92,7 +95,7 @@ def seeded_db(db):
 @pytest.fixture
 def officer_token(seeded_db, client):
     """Get a JWT token for the pre-seeded officer."""
-    resp = client.post("/auth/login", json={"phone": "1111111110"})
+    resp = client.post("/auth/login", json={"phone": "1111111110", "password": "TestPassword123", "role": "officer"})
     assert resp.status_code == 200
     return resp.json()["access_token"]
 
@@ -100,9 +103,38 @@ def officer_token(seeded_db, client):
 @pytest.fixture
 def citizen_token(seeded_db, client):
     """Get a JWT token for the pre-seeded citizen."""
-    resp = client.post("/auth/login", json={"phone": "1111111112"})
+    resp = client.post("/auth/login", json={"phone": "1111111112", "password": "TestPassword123", "role": "citizen"})
     assert resp.status_code == 200
     return resp.json()["access_token"]
+
+
+@pytest.fixture
+def volunteer_token(seeded_db, client):
+    """Get a JWT token for the pre-seeded volunteer."""
+    resp = client.post("/auth/login", json={"phone": "1111111111", "password": "TestPassword123", "role": "volunteer"})
+    assert resp.status_code == 200
+    return resp.json()["access_token"]
+
+
+def _seed_dispatch(db, dispatch_id, assigned_user_id, incident_id="inc-auth-1"):
+    from app.models import Dispatch, Incident, Zone
+    if not db.query(Zone).filter(Zone.id == "z-auth").first():
+        db.add(Zone(id="z-auth", name="Auth Zone", district="Test", population_est=1000))
+    if not db.query(Incident).filter(Incident.id == incident_id).first():
+        db.add(Incident(
+            id=incident_id, title="Auth Inc", category="rescue", severity="high",
+            description="test", lat=24.8, lng=92.7, zone_id="z-auth",
+            status="dispatched", review_state="unverified",
+            credibility_score=1.0, priority_score=80.0
+        ))
+    db.add(Dispatch(
+        id=dispatch_id,
+        incident_id=incident_id,
+        assigned_user_id=assigned_user_id,
+        status="pending",
+        eta_minutes=15,
+    ))
+    db.commit()
 
 
 # ===========================================================================
@@ -146,40 +178,178 @@ class TestReadiness:
 
 
 # ===========================================================================
-# 3. Authentication — Login
+# 3. Authentication — Login & Signup
 # ===========================================================================
 class TestLogin:
-    def test_new_citizen_auto_created(self, client, db):
-        """A new phone number gets auto-registered as citizen."""
-        r = client.post("/auth/login", json={"phone": "9999999990"})
+    def test_citizen_login_phone_password_success(self, seeded_db, client):
+        r = client.post("/auth/login", json={"phone": "1111111112", "password": "TestPassword123", "role": "citizen"})
         assert r.status_code == 200
         body = r.json()
         assert body["access_token"]
-        assert body["token_type"] == "bearer"
         assert body["user"]["role"] == "citizen"
-        assert body["user"]["phone"] == "9999999990"
 
-    def test_existing_officer_login_preserves_role(self, seeded_db, client):
-        """Pre-seeded officer gets back officer role — role NOT changeable by client."""
-        r = client.post("/auth/login", json={"phone": "1111111110"})
+    def test_officer_login_email_password_success(self, seeded_db, client):
+        r = client.post("/auth/login", json={"email": "officer.test@crisisconnect.org", "password": "TestPassword123", "role": "officer"})
         assert r.status_code == 200
-        body = r.json()
-        assert body["user"]["role"] == "officer"
+        assert r.json()["user"]["role"] == "officer"
 
-    def test_login_missing_phone_returns_422(self, client):
-        """Missing required field returns validation error."""
-        r = client.post("/auth/login", json={})
-        assert r.status_code == 422
-
-    def test_client_cannot_self_assign_officer_role(self, client, db):
-        """
-        The login endpoint ONLY accepts phone. The role is ALWAYS resolved from DB.
-        A brand-new phone cannot be an officer even if the client tried.
-        """
-        # New phone → always citizen regardless of what attacker sends
-        r = client.post("/auth/login", json={"phone": "8888888880"})
+    def test_volunteer_login_email_password_success(self, seeded_db, client):
+        r = client.post("/auth/login", json={"email": "volunteer.test@crisisconnect.org", "password": "TestPassword123", "role": "volunteer"})
         assert r.status_code == 200
-        assert r.json()["user"]["role"] == "citizen"
+        assert r.json()["user"]["role"] == "volunteer"
+
+    def test_missing_password_rejected(self, seeded_db, client):
+        r = client.post("/auth/login", json={"phone": "1111111112"})
+        assert r.status_code == 401
+
+    def test_empty_password_rejected(self, seeded_db, client):
+        r = client.post("/auth/login", json={"phone": "1111111112", "password": "   "})
+        assert r.status_code == 401
+
+    def test_wrong_password_rejected(self, seeded_db, client):
+        r = client.post("/auth/login", json={"phone": "1111111112", "password": "WrongPassword"})
+        assert r.status_code == 401
+
+    def test_unknown_credentials_rejected(self, client):
+        r = client.post("/auth/login", json={"phone": "9990001112", "password": "SomePassword"})
+        assert r.status_code == 401
+
+    def test_account_with_null_password_hash_rejected(self, db, client):
+        from app.models import User
+        no_pwd_user = User(id="usr-no-pwd", name="No Password User", phone="7777777777", role="citizen", password_hash=None)
+        db.add(no_pwd_user)
+        db.commit()
+
+        # Login attempt must fail with 401
+        r = client.post("/auth/login", json={"phone": "7777777777", "password": "AnyPassword"})
+        assert r.status_code == 401
+
+    def test_login_does_not_create_account(self, db, client):
+        r = client.post("/auth/login", json={"phone": "0000000000", "password": "SomePassword"})
+        assert r.status_code == 401
+        from app.models import User
+        u = db.query(User).filter(User.phone == "0000000000").first()
+        assert u is None
+
+    def test_login_does_not_modify_password_hash(self, db, client):
+        from app.models import User
+        from app.core.security import hash_password
+        original_hash = hash_password("OriginalPassword")
+        user = User(id="usr-test-hash", name="Hash Test", phone="6666666666", role="citizen", password_hash=original_hash)
+        db.add(user)
+        db.commit()
+
+        # Attempt login with wrong password
+        r = client.post("/auth/login", json={"phone": "6666666666", "password": "AttemptedPassword"})
+        assert r.status_code == 401
+
+        # Check DB hash remains unchanged
+        db.refresh(user)
+        assert user.password_hash == original_hash
+
+    def test_login_wrong_role_rejected(self, seeded_db, client):
+        r = client.post("/auth/login", json={"phone": "1111111112", "password": "TestPassword123", "role": "officer"})
+        assert r.status_code == 401
+
+
+def test_dispatch_create_does_not_default_to_a_demo_volunteer():
+    from app.routers.dispatch import DispatchCreate
+
+    assert DispatchCreate(incident_id="inc-1").assigned_user_id is None
+
+class TestSignup:
+    def test_citizen_signup_and_login_with_phone(self, client):
+        # Signup
+        signup_resp = client.post("/auth/signup", json={
+            "name": "Citizen User",
+            "phone": "9876543219",
+            "password": "Password123",
+            "role": "citizen",
+            "language_pref": "en"
+        })
+        assert signup_resp.status_code == 201
+        data = signup_resp.json()
+        assert data["user"]["role"] == "citizen"
+        assert data["user"]["phone"] == "9876543219"
+        assert "access_token" in data
+
+        # Login with correct password
+        login_resp = client.post("/auth/login", json={
+            "phone": "9876543219",
+            "password": "Password123",
+            "role": "citizen"
+        })
+        assert login_resp.status_code == 200
+        assert login_resp.json()["user"]["role"] == "citizen"
+
+        # Login with wrong password
+        wrong_login = client.post("/auth/login", json={
+            "phone": "9876543219",
+            "password": "WrongPassword",
+            "role": "citizen"
+        })
+        assert wrong_login.status_code == 401
+
+    def test_officer_signup_and_login_with_email(self, client):
+        # Signup
+        signup_resp = client.post("/auth/signup", json={
+            "name": "Officer User",
+            "email": "officer.test@crisisconnect.org",
+            "password": "OfficerSecret123",
+            "role": "officer"
+        })
+        assert signup_resp.status_code == 201
+        data = signup_resp.json()
+        assert data["user"]["role"] == "officer"
+        assert data["user"]["email"] == "officer.test@crisisconnect.org"
+
+        # Login with correct credentials
+        login_resp = client.post("/auth/login", json={
+            "email": "officer.test@crisisconnect.org",
+            "password": "OfficerSecret123",
+            "role": "officer"
+        })
+        assert login_resp.status_code == 200
+        assert login_resp.json()["user"]["role"] == "officer"
+
+    def test_volunteer_signup_and_login_with_email(self, client):
+        # Signup
+        signup_resp = client.post("/auth/signup", json={
+            "name": "Volunteer User",
+            "email": "volunteer.test@crisisconnect.org",
+            "password": "VolunteerSecret123",
+            "role": "volunteer"
+        })
+        assert signup_resp.status_code == 201
+        data = signup_resp.json()
+        assert data["user"]["role"] == "volunteer"
+
+        # Login with correct credentials
+        login_resp = client.post("/auth/login", json={
+            "email": "volunteer.test@crisisconnect.org",
+            "password": "VolunteerSecret123",
+            "role": "volunteer"
+        })
+        assert login_resp.status_code == 200
+        assert login_resp.json()["user"]["role"] == "volunteer"
+
+    def test_duplicate_signup_rejected(self, client):
+        # First signup
+        client.post("/auth/signup", json={
+            "name": "Original User",
+            "email": "duplicate.test@crisisconnect.org",
+            "password": "Password123",
+            "role": "officer"
+        })
+        # Duplicate email
+        dup_resp = client.post("/auth/signup", json={
+            "name": "Imposter User",
+            "email": "duplicate.test@crisisconnect.org",
+            "password": "Password123",
+            "role": "officer"
+        })
+        assert dup_resp.status_code == 400
+        assert "already exists" in dup_resp.json()["detail"]
 
 
 # ===========================================================================
@@ -213,6 +383,85 @@ class TestAuthorization:
                         json={"zone_id": "z1", "message_en": "test", "severity": "high"},
                         headers={"Authorization": f"Bearer {citizen_token}"})
         assert r.status_code == 403
+
+    def test_unauthenticated_patch_dispatch_returns_401(self, client, seeded_db):
+        _seed_dispatch(seeded_db, "disp-auth-1", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-1", json={"status": "en_route"})
+        assert r.status_code == 401
+
+    def test_citizen_cannot_patch_dispatch(self, client, seeded_db, citizen_token):
+        _seed_dispatch(seeded_db, "disp-auth-1", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-1",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {citizen_token}"})
+        assert r.status_code == 403
+
+    def test_volunteer_can_patch_own_dispatch(self, client, seeded_db, volunteer_token):
+        _seed_dispatch(seeded_db, "disp-auth-own", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-own",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {volunteer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "en_route"
+
+    def test_volunteer_cannot_patch_others_dispatch(self, client, seeded_db, volunteer_token):
+        from app.models import User
+        from app.core.security import hash_password
+        other = User(
+            id="usr-volunteer-2", name="Other Volunteer",
+            phone="1111111113", email="volunteer2.test@crisisconnect.org",
+            role="volunteer", password_hash=hash_password("TestPassword123")
+        )
+        seeded_db.add(other)
+        seeded_db.commit()
+        _seed_dispatch(seeded_db, "disp-auth-other", "usr-volunteer-2")
+        r = client.patch("/dispatches/disp-auth-other",
+                         json={"status": "en_route"},
+                         headers={"Authorization": f"Bearer {volunteer_token}"})
+        assert r.status_code == 403
+
+    def test_officer_can_patch_dispatch(self, client, seeded_db, officer_token):
+        _seed_dispatch(seeded_db, "disp-auth-off", "usr-volunteer-1")
+        r = client.patch("/dispatches/disp-auth-off",
+                         json={"status": "on_site"},
+                         headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "on_site"
+
+    def test_unauthenticated_demo_reset_returns_401(self, client, db):
+        r = client.post("/demo/reset-scenario")
+        assert r.status_code == 401
+
+    def test_citizen_cannot_demo_reset(self, client, seeded_db, citizen_token):
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {citizen_token}"})
+        assert r.status_code == 403
+
+    def test_officer_can_demo_reset(self, client, seeded_db, officer_token):
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "success"
+
+    def test_admin_can_demo_reset(self, client, seeded_db):
+        from app.models import User
+        from app.core.security import hash_password
+        seeded_db.add(User(
+            id="usr-admin-1", name="Admin Test",
+            email="admin.test@crisisconnect.org",
+            role="admin", password_hash=hash_password("TestPassword123")
+        ))
+        seeded_db.commit()
+        login = client.post("/auth/login", json={
+            "email": "admin.test@crisisconnect.org",
+            "password": "TestPassword123",
+            "role": "admin",
+        })
+        assert login.status_code == 200
+        r = client.post("/demo/reset-scenario",
+                        headers={"Authorization": f"Bearer {login.json()['access_token']}"})
+        assert r.status_code == 200
+        assert r.json()["status"] == "success"
 
 
 # ===========================================================================
@@ -257,6 +506,56 @@ class TestIncidents:
         r = client.get("/incidents")
         scores = [i["priority_score"] for i in r.json()]
         assert scores == sorted(scores, reverse=True)
+
+    @pytest.mark.parametrize("guest_id", ["usr-guest", "guest", "", "   "])
+    def test_create_incident_guest_sos(self, client, seeded_db, guest_id):
+        """Guest SOS with placeholder reporter_id resolves to None (NULL)."""
+        r = client.post("/incidents", json={
+            "category": "rescue",
+            "severity": "high",
+            "description": "Guest SOS flood",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": guest_id
+        })
+        assert r.status_code == 200
+        body = r.json()
+        assert body["reporter_id"] is None
+
+        # Verify DB persisted reporter_id = NULL
+        all_incidents = client.get("/incidents").json()
+        created_inc = next(i for i in all_incidents if i["id"] == body["id"])
+        assert created_inc["reporter_id"] is None
+
+    def test_create_incident_valid_citizen(self, client, seeded_db):
+        """Valid logged-in citizen reporter_id persists correctly."""
+        r = client.post("/incidents", json={
+            "category": "medical",
+            "severity": "high",
+            "description": "Medical emergency by valid citizen",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": "usr-citizen-1"
+        })
+        assert r.status_code == 200
+        body = r.json()
+        assert body["reporter_id"] == "usr-citizen-1"
+
+    def test_create_incident_invalid_reporter_returns_400(self, client, seeded_db):
+        """Non-existent reporter_id returns 400 Bad Request (not 500) and no row is inserted."""
+        inc_count_before = len(client.get("/incidents").json())
+        r = client.post("/incidents", json={
+            "category": "rescue",
+            "severity": "high",
+            "description": "Invalid reporter test",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": "usr-does-not-exist"
+        })
+        assert r.status_code == 400
+        assert r.json()["detail"] == "Invalid reporter_id"
+        inc_count_after = len(client.get("/incidents").json())
+        assert inc_count_after == inc_count_before
 
 
 # ===========================================================================
@@ -369,8 +668,28 @@ class TestDispatch:
 # 7. Demo Reset — Idempotency
 # ===========================================================================
 class TestDemoReset:
+    def _officer_auth_headers(self, client, db):
+        from app.models import User
+        from app.core.security import hash_password
+        if not db.query(User).filter(User.email == "reset.officer@crisisconnect.org").first():
+            db.add(User(
+                id="usr-reset-officer",
+                name="Reset Officer",
+                email="reset.officer@crisisconnect.org",
+                role="officer",
+                password_hash=hash_password("TestPassword123"),
+            ))
+            db.commit()
+        resp = client.post("/auth/login", json={
+            "email": "reset.officer@crisisconnect.org",
+            "password": "TestPassword123",
+            "role": "officer",
+        })
+        assert resp.status_code == 200
+        return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
     def test_demo_reset_returns_success(self, client, db):
-        r = client.post("/demo/reset-scenario")
+        r = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r.status_code == 200
         body = r.json()
         assert body["status"] == "success"
@@ -380,9 +699,10 @@ class TestDemoReset:
 
     def test_demo_reset_is_idempotent(self, client, db):
         """Calling reset twice should not crash or duplicate records."""
-        r1 = client.post("/demo/reset-scenario")
+        headers = self._officer_auth_headers(client, db)
+        r1 = client.post("/demo/reset-scenario", headers=headers)
         assert r1.status_code == 200
-        r2 = client.post("/demo/reset-scenario")
+        r2 = client.post("/demo/reset-scenario", headers=headers)
         assert r2.status_code == 200
         assert r2.json()["zones_seeded"] == 3  # Same count every time
 
@@ -393,34 +713,34 @@ class TestDemoReset:
         default to citizen auto-registration.
         """
         # 1. Reset scenario
-        r_reset = client.post("/demo/reset-scenario")
+        r_reset = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r_reset.status_code == 200
 
         # 2. Officer login (both standard demo numbers return 'officer')
-        r_officer1 = client.post("/auth/login", json={"phone": "1111111110"})
+        r_officer1 = client.post("/auth/login", json={"phone": "1111111110", "password": "DemoPassword123", "role": "officer"})
         assert r_officer1.status_code == 200
         assert r_officer1.json()["user"]["role"] == "officer"
 
-        r_officer2 = client.post("/auth/login", json={"phone": "9876543210"})
+        r_officer2 = client.post("/auth/login", json={"phone": "9876543210", "password": "DemoPassword123", "role": "officer"})
         assert r_officer2.status_code == 200
         assert r_officer2.json()["user"]["role"] == "officer"
 
         # 3. Volunteer login
-        r_vol1 = client.post("/auth/login", json={"phone": "1111111111"})
+        r_vol1 = client.post("/auth/login", json={"phone": "1111111111", "password": "DemoPassword123", "role": "volunteer"})
         assert r_vol1.status_code == 200
         assert r_vol1.json()["user"]["role"] == "volunteer"
 
-        r_vol2 = client.post("/auth/login", json={"phone": "9876543211"})
+        r_vol2 = client.post("/auth/login", json={"phone": "9876543211", "password": "DemoPassword123", "role": "volunteer"})
         assert r_vol2.status_code == 200
         assert r_vol2.json()["user"]["role"] == "volunteer"
 
-        # 4. Unknown phone auto-registers as citizen
-        r_unk = client.post("/auth/login", json={"phone": "5555555555"})
-        assert r_unk.status_code == 200
-        assert r_unk.json()["user"]["role"] == "citizen"
+        # 4. Citizen login
+        r_cit1 = client.post("/auth/login", json={"phone": "1111111112", "password": "DemoPassword123", "role": "citizen"})
+        assert r_cit1.status_code == 200
+        assert r_cit1.json()["user"]["role"] == "citizen"
 
         # 5. Second reset remains idempotent
-        r_officer_again = client.post("/auth/login", json={"phone": "1111111110"})
+        r_officer_again = client.post("/auth/login", json={"phone": "1111111110", "password": "DemoPassword123", "role": "officer"})
         assert r_officer_again.status_code == 200
         assert r_officer_again.json()["user"]["role"] == "officer"
 
@@ -430,29 +750,30 @@ class TestDemoReset:
         earlier as a 'citizen' before scenario reset, and reset reconciles it to 'officer'.
         Also verifies non-demo user accounts are preserved across resets.
         """
-        # 1. Login with canonical officer phone BEFORE reset -> creates user as citizen
-        r_pre = client.post("/auth/login", json={"phone": "1111111110"})
-        assert r_pre.status_code == 200
+        # 1. Signup with canonical officer phone BEFORE reset -> creates user as citizen
+        r_pre = client.post("/auth/signup", json={"name": "Pre Citizen", "phone": "1111111110", "password": "DemoPassword123", "role": "citizen"})
+        assert r_pre.status_code == 201
         assert r_pre.json()["user"]["role"] == "citizen"
 
-        # 2. Login with a non-demo user
-        r_non_demo = client.post("/auth/login", json={"phone": "7777777777"})
-        assert r_non_demo.status_code == 200
+        # 2. Signup a non-demo user
+        r_non_demo = client.post("/auth/signup", json={"name": "Non Demo User", "phone": "7777777777", "password": "DemoPassword123", "role": "citizen"})
+        assert r_non_demo.status_code == 201
         non_demo_id = r_non_demo.json()["user"]["id"]
 
-        # 3. Perform demo reset
-        r_reset = client.post("/demo/reset-scenario")
+        # 3. Perform demo reset (authorized officer, not the canonical phone being reconciled)
+        r_reset = client.post("/demo/reset-scenario", headers=self._officer_auth_headers(client, db))
         assert r_reset.status_code == 200
 
         # 4. Canonical phone 1111111110 is reconciled to officer role
-        r_post = client.post("/auth/login", json={"phone": "1111111110"})
+        r_post = client.post("/auth/login", json={"phone": "1111111110", "password": "DemoPassword123", "role": "officer"})
         assert r_post.status_code == 200
         assert r_post.json()["user"]["role"] == "officer"
         assert r_post.json()["user"]["id"] == "usr-officer-1"
 
         # 5. Non-demo user still exists
-        r_non_demo_post = client.post("/auth/login", json={"phone": "7777777777"})
+        r_non_demo_post = client.post("/auth/login", json={"phone": "7777777777", "password": "DemoPassword123", "role": "citizen"})
         assert r_non_demo_post.status_code == 200
+        assert r_non_demo_post.json()["user"]["id"] == non_demo_id
         assert r_non_demo_post.json()["user"]["id"] == non_demo_id
         assert r_non_demo_post.json()["user"]["role"] == "citizen"
 
@@ -464,6 +785,8 @@ class TestWebSocketEvents:
     def test_ws_manager_broadcast_structure(self):
         """Verify the ConnectionManager emits properly structured JSON."""
         import asyncio
+        from typing import cast
+        from fastapi import WebSocket
         from app.websocket.manager import ConnectionManager
 
         received = []
@@ -476,7 +799,7 @@ class TestWebSocketEvents:
 
         async def run():
             mgr = ConnectionManager()
-            ws = MockWebSocket()
+            ws = cast(WebSocket, MockWebSocket())
             await mgr.connect(ws)
             await mgr.broadcast("incident.created", {"id": "abc", "severity": "critical"})
 
@@ -487,6 +810,87 @@ class TestWebSocketEvents:
         assert msg["payload"]["id"] == "abc"
         assert "timestamp" in msg
         assert msg["timestamp"].endswith("Z")
+
+
+# ===========================================================================
+# 8.5 WebSocket Dashboard Authorization
+# ===========================================================================
+class TestWebSocketAuth:
+    def _assert_rejected(self, connect_fn, expected_code=None):
+        from starlette.websockets import WebSocketDisconnect
+        try:
+            from starlette.testclient import WebSocketDenialResponse
+        except ImportError:
+            WebSocketDenialResponse = None
+        try:
+            with connect_fn() as ws:
+                ws.receive_text()
+            pytest.fail("WebSocket connection should have been rejected")
+        except WebSocketDisconnect as exc:
+            if expected_code is not None:
+                assert exc.code == expected_code
+        except Exception as exc:
+            if WebSocketDenialResponse is not None and isinstance(exc, WebSocketDenialResponse):
+                return
+            if type(exc).__name__ in ("WebSocketDisconnect", "WebSocketDenialResponse"):
+                return
+            raise
+
+    def test_ws_dashboard_no_token_rejected(self, client, seeded_db):
+        self._assert_rejected(lambda: client.websocket_connect("/ws/dashboard"), expected_code=4401)
+
+    def test_ws_dashboard_invalid_token_rejected(self, client, seeded_db):
+        self._assert_rejected(
+            lambda: client.websocket_connect("/ws/dashboard?token=not-a-valid-jwt"),
+            expected_code=4401,
+        )
+
+    def test_ws_dashboard_expired_token_rejected(self, client, seeded_db):
+        import datetime
+        from app.core.security import create_access_token
+        expired = create_access_token(
+            data={"sub": "usr-officer-1", "role": "officer"},
+            expires_delta=datetime.timedelta(seconds=-30),
+        )
+        self._assert_rejected(
+            lambda: client.websocket_connect(f"/ws/dashboard?token={expired}"),
+            expected_code=4401,
+        )
+
+    def test_ws_dashboard_unauthorized_role_rejected(self, client, seeded_db):
+        from app.models import User
+        from app.core.security import hash_password, create_access_token
+        seeded_db.add(User(
+            id="usr-guest-1",
+            name="Guest User",
+            phone="0000000000",
+            role="guest",
+            password_hash=hash_password("TestPassword123"),
+        ))
+        seeded_db.commit()
+        token = create_access_token(data={"sub": "usr-guest-1", "role": "guest"})
+        self._assert_rejected(
+            lambda: client.websocket_connect(f"/ws/dashboard?token={token}"),
+            expected_code=4403,
+        )
+
+    def test_ws_dashboard_authorized_officer_connects(self, client, seeded_db, officer_token):
+        with client.websocket_connect(f"/ws/dashboard?token={officer_token}") as ws:
+            ws.send_text("ping")
+            assert ws.receive_text() == "ACK:ping"
+
+    def test_ws_dashboard_authorized_citizen_connects(self, client, seeded_db, citizen_token):
+        with client.websocket_connect(f"/ws/dashboard?token={citizen_token}") as ws:
+            ws.send_text("hello")
+            assert ws.receive_text() == "ACK:hello"
+
+    def test_ws_dashboard_authorized_volunteer_connects(self, client, seeded_db, volunteer_token):
+        with client.websocket_connect(
+            "/ws/dashboard",
+            headers={"Authorization": f"Bearer {volunteer_token}"},
+        ) as ws:
+            ws.send_text("sync")
+            assert ws.receive_text() == "ACK:sync"
 
 
 # ===========================================================================

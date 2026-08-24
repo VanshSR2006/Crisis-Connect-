@@ -22,7 +22,7 @@ export type IncidentCategory =
   | 'panic'
   | 'other';
 
-export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'resolved';
+export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'arrived' | 'resolved';
 
 export type ReviewState = 'unverified' | 'flagged' | 'verified';
 
@@ -50,6 +50,7 @@ export interface User {
   role: UserRole;
   phone: string;
   zone_id: string;
+  language_pref?: string;
   created_at: string;
 }
 
@@ -77,6 +78,7 @@ export interface Incident {
   lat: number;
   lng: number;
   reported_by_user_id?: string | null;
+  reporter_id?: string | null;
   zone_id: string;
   created_at: string;
 }
@@ -161,15 +163,17 @@ export interface Dispatch {
 
 export interface Alert {
   id: string;
-  title: string;
-  message: string;
+  zone_id?: string | null;
+  target_zone_id?: string;
+  message_en?: string;
+  title?: string;
+  message?: string;
   severity: SeverityLevel;
-  target_zone_id: string;
   issued_at: string;
-  expires_at: string;
-  issued_by_user_id: string;
+  expires_at?: string;
+  issued_by_user_id?: string;
   title_translated?: Record<string, string>;
-  message_translated?: Record<string, string>;
+  message_translated?: Record<string, string> | null;
 }
 
 export interface RiskScore {

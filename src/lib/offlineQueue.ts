@@ -9,6 +9,7 @@
  */
 
 import { IncidentCategory, SeverityLevel } from '../types';
+import { getStoredUser } from './auth';
 
 export interface QueuedSosReport {
   id: string;
@@ -21,11 +22,26 @@ export interface QueuedSosReport {
   zone_id: string;
   queued_at: string;
   photo_base64?: string;
+  title?: string;
+  client_id?: string;
 }
 
 const QUEUE_STORAGE_KEY = 'crisis_connect_offline_sos_queue';
 
-export const getOfflineQueue = (): QueuedSosReport[] => {
+let isFlushingQueue = false;
+
+export const isQueueFlushing = (): boolean => isFlushingQueue;
+
+const notifyQueueChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('offline-sos-queue-changed'));
+  }
+};
+
+/**
+ * Reads all raw stored SOS reports from localStorage.
+ */
+export const getAllRawOfflineQueue = (): QueuedSosReport[] => {
   try {
     const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -35,18 +51,46 @@ export const getOfflineQueue = (): QueuedSosReport[] => {
   }
 };
 
-export const enqueueSosReport = (report: Omit<QueuedSosReport, 'id' | 'queued_at'>): QueuedSosReport => {
+/**
+ * Gets offline SOS queue items scoped strictly to the specified user ID (or current logged-in user).
+ */
+export const getOfflineQueue = (targetUserId?: string): QueuedSosReport[] => {
+  const userId = targetUserId || getStoredUser()?.id;
+  const rawQueue = getAllRawOfflineQueue();
+  if (!userId) return [];
+
+  return rawQueue.filter((item) => {
+    if (!item.reporter_id) {
+      // Legacy unassigned item defaults to original test citizen usr-citizen-1 / usr-001
+      return userId === 'usr-citizen-1' || userId === 'usr-001';
+    }
+    return item.reporter_id === userId;
+  });
+};
+
+/**
+ * Enqueues an SOS report associated with the user ID who created it.
+ */
+export const enqueueSosReport = (
+  report: Omit<QueuedSosReport, 'queued_at'> & { id?: string },
+  targetUserId?: string
+): QueuedSosReport => {
+  const userId = targetUserId || report.reporter_id || getStoredUser()?.id;
+  const queuedId = report.id || `offline-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   const queuedItem: QueuedSosReport = {
     ...report,
-    id: `offline-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    id: queuedId,
+    client_id: report.client_id || queuedId,
+    reporter_id: userId || report.reporter_id,
     queued_at: new Date().toISOString(),
   };
 
-  const currentQueue = getOfflineQueue();
-  currentQueue.push(queuedItem);
+  const rawQueue = getAllRawOfflineQueue();
+  rawQueue.push(queuedItem);
 
   try {
-    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(currentQueue));
+    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(rawQueue));
+    notifyQueueChanged();
   } catch (err) {
     console.error('Failed to save SOS report to offline queue:', err);
   }
@@ -54,39 +98,84 @@ export const enqueueSosReport = (report: Omit<QueuedSosReport, 'id' | 'queued_at
   return queuedItem;
 };
 
+/**
+ * Removes a specific queued report by ID.
+ */
 export const removeFromOfflineQueue = (id: string): void => {
-  const currentQueue = getOfflineQueue();
-  const updatedQueue = currentQueue.filter((item) => item.id !== id);
-  localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(updatedQueue));
+  const rawQueue = getAllRawOfflineQueue();
+  const updatedQueue = rawQueue.filter((item) => item.id !== id);
+  try {
+    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(updatedQueue));
+    notifyQueueChanged();
+  } catch (err) {
+    console.error('Failed to remove report from offline queue:', err);
+  }
 };
 
-export const clearOfflineQueue = (): void => {
-  localStorage.removeItem(QUEUE_STORAGE_KEY);
-};
-
-export const flushOfflineQueue = async (
-  sendReportFn: (report: QueuedSosReport) => Promise<boolean>
-): Promise<{ synced: number; failed: number }> => {
-  const queue = getOfflineQueue();
-  if (queue.length === 0) return { synced: 0, failed: 0 };
-
-  let synced = 0;
-  let failed = 0;
-
-  for (const report of queue) {
-    try {
-      const success = await sendReportFn(report);
-      if (success) {
-        removeFromOfflineQueue(report.id);
-        synced++;
-      } else {
-        failed++;
-      }
-    } catch (error) {
-      console.error(`Failed to flush queued SOS report ${report.id}:`, error);
-      failed++;
+/**
+ * Clears offline queue items belonging to a specific user (or all if no userId).
+ */
+export const clearOfflineQueue = (targetUserId?: string): void => {
+  const userId = targetUserId || getStoredUser()?.id;
+  if (!userId) {
+    localStorage.removeItem(QUEUE_STORAGE_KEY);
+    notifyQueueChanged();
+    return;
+  }
+  const rawQueue = getAllRawOfflineQueue();
+  const remaining = rawQueue.filter((item) => {
+    if (!item.reporter_id) {
+      return !(userId === 'usr-citizen-1' || userId === 'usr-001');
     }
+    return item.reporter_id !== userId;
+  });
+  try {
+    localStorage.setItem(QUEUE_STORAGE_KEY, JSON.stringify(remaining));
+    notifyQueueChanged();
+  } catch (err) {
+    console.error('Failed to clear offline queue:', err);
+  }
+};
+
+
+/**
+ * Flushes offline queue items isolated strictly to the specified user ID.
+ */
+export const flushOfflineQueue = async (
+  sendReportFn: (report: QueuedSosReport) => Promise<boolean>,
+  targetUserId?: string
+): Promise<{ synced: number; failed: number }> => {
+  if (isFlushingQueue) {
+    console.log('[OfflineQueue] Flush already in progress, skipping duplicate call.');
+    return { synced: 0, failed: 0 };
   }
 
-  return { synced, failed };
+  isFlushingQueue = true;
+  try {
+    const queue = getOfflineQueue(targetUserId);
+    if (queue.length === 0) return { synced: 0, failed: 0 };
+
+    let synced = 0;
+    let failed = 0;
+
+    for (const report of queue) {
+      try {
+        const success = await sendReportFn(report);
+        if (success) {
+          removeFromOfflineQueue(report.id);
+          synced++;
+        } else {
+          failed++;
+        }
+      } catch (error) {
+        console.error(`Failed to flush queued SOS report ${report.id}:`, error);
+        failed++;
+      }
+    }
+
+    return { synced, failed };
+  } finally {
+    isFlushingQueue = false;
+  }
 };
+

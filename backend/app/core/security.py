@@ -1,4 +1,7 @@
 import datetime
+import hashlib
+import hmac
+import secrets
 from typing import Optional
 import jwt
 from fastapi import Depends, HTTPException, status
@@ -10,6 +13,19 @@ from ..database import get_db
 from ..models import User
 
 security_scheme = HTTPBearer(auto_error=False)
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_hex(16)
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return f"{salt}${hash_bytes.hex()}"
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    if not hashed_password or "$" not in hashed_password:
+        return False
+    salt, expected_hash = hashed_password.split("$", 1)
+    hash_bytes = hashlib.pbkdf2_hmac("sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000)
+    return hmac.compare_digest(hash_bytes.hex(), expected_hash)
+
 
 def create_access_token(data: dict, expires_delta: Optional[datetime.timedelta] = None) -> str:
     to_encode = data.copy()
@@ -28,6 +44,18 @@ def decode_access_token(token: str) -> Optional[dict]:
     except jwt.PyJWTError:
         return None
 
+def get_user_from_token(token: Optional[str], db: Session) -> Optional[User]:
+    """Resolve a JWT to the authenticated DB user. Shared by HTTP and WebSocket auth."""
+    if not token:
+        return None
+    payload = decode_access_token(token)
+    if payload is None:
+        return None
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+    return db.query(User).filter(User.id == user_id).first()
+
 def get_current_user(
     auth_credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
     db: Session = Depends(get_db)
@@ -37,19 +65,8 @@ def get_current_user(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    if not auth_credentials or not auth_credentials.credentials:
-        raise credentials_exception
-        
-    token = auth_credentials.credentials
-    payload = decode_access_token(token)
-    if payload is None:
-        raise credentials_exception
-        
-    user_id: str = payload.get("sub")
-    if user_id is None:
-        raise credentials_exception
-        
-    user = db.query(User).filter(User.id == user_id).first()
+    token = auth_credentials.credentials if auth_credentials else None
+    user = get_user_from_token(token, db)
     if user is None:
         raise credentials_exception
     return user
@@ -67,6 +84,8 @@ class RoleChecker:
         return current_user
 
 # Reusable role guards
+# Dashboard WS is used by citizen, volunteer, and officer frontends (plus admin).
+DASHBOARD_WS_ALLOWED_ROLES = ["citizen", "officer", "volunteer", "admin"]
 require_citizen = RoleChecker(["citizen", "officer", "volunteer", "admin"])
 require_volunteer = RoleChecker(["volunteer", "officer", "admin"])
 require_officer = RoleChecker(["officer", "admin"])
