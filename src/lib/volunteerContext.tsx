@@ -4,6 +4,7 @@ import { mockIncidents } from '../mocks';
 import { getDispatches, updateDispatchStatus } from './api/dispatches';
 import { getIncidents } from './api/incidents';
 import { realtimeClient } from './api/websocket';
+import { useAuth } from './authContext';
 
 /**
  * Enriched volunteer task type – combines a Dispatch with its Incident details.
@@ -11,6 +12,13 @@ import { realtimeClient } from './api/websocket';
 export type VolunteerTask = Dispatch & {
   incident: Incident;
 };
+
+export function getDispatchesForVolunteer(
+  dispatches: Dispatch[],
+  volunteerId: string
+): Dispatch[] {
+  return dispatches.filter((dispatch) => dispatch.assigned_user_id === volunteerId);
+}
 
 interface VolunteerContextType {
   tasks: VolunteerTask[];
@@ -28,6 +36,7 @@ interface VolunteerContextType {
 const VolunteerContext = createContext<VolunteerContextType | undefined>(undefined);
 
 export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const { session } = useAuth();
   const [tasks, setTasks] = useState<VolunteerTask[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +44,14 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [activeActionTaskId, setActiveActionTaskId] = useState<string | null>(null);
 
   const fetchAndMergeTasks = useCallback(async () => {
+    const currentVolunteer = session?.user;
+    if (!currentVolunteer || currentVolunteer.role !== 'volunteer') {
+      setTasks([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const [backendDispatches, backendIncidents] = await Promise.all([
@@ -42,7 +59,12 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
         getIncidents(),
       ]);
 
-      const dispatchesList = backendDispatches || [];
+      // The backend authorizes status changes by assigned_user_id. Only show
+      // the dispatches owned by this authenticated volunteer in their task UI.
+      const dispatchesList = getDispatchesForVolunteer(
+        backendDispatches || [],
+        currentVolunteer.id
+      );
       const incidentsList = backendIncidents || [];
 
       const merged: VolunteerTask[] = dispatchesList.map((dispatch) => {
@@ -77,7 +99,7 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [session?.user]);
 
   useEffect(() => {
     fetchAndMergeTasks();

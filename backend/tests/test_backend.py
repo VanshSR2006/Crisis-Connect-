@@ -251,6 +251,12 @@ class TestLogin:
         r = client.post("/auth/login", json={"phone": "1111111112", "password": "TestPassword123", "role": "officer"})
         assert r.status_code == 401
 
+
+def test_dispatch_create_does_not_default_to_a_demo_volunteer():
+    from app.routers.dispatch import DispatchCreate
+
+    assert DispatchCreate(incident_id="inc-1").assigned_user_id is None
+
 class TestSignup:
     def test_citizen_signup_and_login_with_phone(self, client):
         # Signup

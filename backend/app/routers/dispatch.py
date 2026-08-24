@@ -17,7 +17,9 @@ router = APIRouter(prefix="/dispatches", tags=["Dispatches"])
 class DispatchCreate(BaseModel):
     incident_id: str
     resource_id: Optional[str] = None
-    assigned_user_id: Optional[str] = "usr-volunteer-1"
+    # Officers must explicitly select a real volunteer. Never silently assign
+    # a dispatch to a demo account.
+    assigned_user_id: Optional[str] = None
     eta_minutes: Optional[int] = 15
     notes: Optional[str] = "Authorized by Command Officer"
 

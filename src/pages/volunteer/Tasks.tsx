@@ -155,7 +155,7 @@ export const Tasks: React.FC = () => {
                     <div className="flex items-center gap-1.5 text-[11px] text-[#76777d]">
                       <Clock className="h-3.5 w-3.5 text-[#45464d]" />
                       <span>
-                        {t('volunteer.tasks.assignedToUnit')}: <strong className="text-[#1b1b1d]">{task.assigned_user_id || 'usr-volunteer-1'}</strong>
+                        {t('volunteer.tasks.assignedToUnit')}: <strong className="text-[#1b1b1d]">{task.assigned_user_id || 'Unassigned'}</strong>
                       </span>
                     </div>
 
