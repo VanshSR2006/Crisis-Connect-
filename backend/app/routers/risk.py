@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
 from ..database import get_db
 from ..models import RiskScore
-from ..services.risk_service import calculate_flood_risk
+from ..services.risk_service import calculate_flood_risk, get_zone_risk_snapshot
 
 router = APIRouter(prefix="/risk", tags=["Risk Intelligence"])
 
@@ -47,3 +47,12 @@ def calculate_risk(input_data: RiskCalcInput):
         elevation_m=input_data.elevation_m,
         soil_saturation=input_data.soil_saturation
     )
+
+
+
+@router.get("/zones/{zone_id}/snapshot")
+def get_zone_risk(zone_id: str, db: Session = Depends(get_db)):
+    """
+    Returns the latest AI risk intelligence for a zone.
+    """
+    return get_zone_risk_snapshot(zone_id, db)
