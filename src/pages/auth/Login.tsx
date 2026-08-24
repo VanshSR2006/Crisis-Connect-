@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { EmergencySOSButton } from '@/components/shared/EmergencySOSButton';
+import { useAuth } from '@/lib/authContext';
 
 const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
@@ -42,6 +43,7 @@ export const Login: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { setSession } = useAuth();
   const { t } = useTranslation();
 
   const handleRoleSelect = (role: UserRole) => {
@@ -106,8 +108,7 @@ export const Login: React.FC = () => {
       }
 
       if (data && data.access_token && data.user) {
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        setSession({ token: data.access_token, user: data.user });
 
         // Navigate strictly based on backend-verified role
         const authenticatedRole: UserRole = data.user.role;

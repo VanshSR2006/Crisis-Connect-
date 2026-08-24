@@ -6,10 +6,10 @@
  * src/lib/api/client.ts
  * Thin wrapper around fetch that adds base URL, auth header, and JSON handling.
  * Returns typed data or null on network error/fallback.
- * On 401/403 the stored auth is cleared and the user is redirected to /login.
+ * Only a 401 authentication failure clears stored auth and redirects to /login.
  */
 
-import { clearAuth } from '@/lib/auth';
+import { clearAuth, getStoredToken } from '@/lib/auth';
 
 export interface ApiError extends Error {
   status?: number;
@@ -19,18 +19,15 @@ const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
   'https://crisis-connect-api-dev.onrender.com';
 
-function getAuthToken(): string | null {
-  return typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-}
-
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T | null> {
   const url = BASE_URL ? `${BASE_URL}${endpoint}` : '';
+  const token = getStoredToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(getAuthToken() && { Authorization: `Bearer ${getAuthToken()}` }),
+    ...(token && { Authorization: `Bearer ${token}` }),
     ...(options.headers ?? {}),
   };
 
@@ -51,7 +48,7 @@ export async function apiFetch<T>(
   } catch (e) {
     const apiErr = e as ApiError;
     // Auth errors: clear stored credentials and force re-login
-    if (apiErr.status === 401 || apiErr.status === 403) {
+    if (apiErr.status === 401) {
       console.warn(`[apiFetch] Auth error ${apiErr.status} on ${endpoint} — clearing session.`);
       clearAuth();
       if (typeof window !== 'undefined') {

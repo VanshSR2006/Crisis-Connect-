@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
-import { getStoredToken, getStoredUser } from '@/lib/auth';
+import { useAuth } from '@/lib/authContext';
 import type { UserRole } from '@/types';
 
 interface RequireAuthProps {
@@ -21,11 +21,16 @@ interface RequireAuthProps {
 }
 
 export const RequireAuth: React.FC<RequireAuthProps> = ({ allowedRole }) => {
-  const token = getStoredToken();
-  const user = getStoredUser();
+  const { session, isRestoring } = useAuth();
+
+  // Storage restoration is asynchronous from React's perspective.  Do not
+  // redirect a persisted session during this first render.
+  if (isRestoring) return null;
+
+  const user = session?.user;
 
   // No active session at all
-  if (!token || !user) {
+  if (!session || !user) {
     return <Navigate to="/login" replace />;
   }
 

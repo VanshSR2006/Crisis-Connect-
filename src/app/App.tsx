@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { router } from './router';
 import { LanguageProvider } from '@/lib/languageContext';
 import { VolunteerProvider } from '@/lib/volunteerContext';
+import { AuthProvider } from '@/lib/authContext';
 import '@/i18n';
 
 const queryClient = new QueryClient({
@@ -22,9 +23,11 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
-        <VolunteerProvider>
-          <RouterProvider router={router} />
-        </VolunteerProvider>
+        <AuthProvider>
+          <VolunteerProvider>
+            <RouterProvider router={router} />
+          </VolunteerProvider>
+        </AuthProvider>
       </LanguageProvider>
     </QueryClientProvider>
   );

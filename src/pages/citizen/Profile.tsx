@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Select';
 import { User, Phone, Mail, MapPin, ShieldCheck, Globe, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
+import { clearAuth } from '@/lib/auth';
 
 export const Profile: React.FC = () => {
   const { user, setZoneId } = useCitizenContext();
@@ -133,7 +134,10 @@ export const Profile: React.FC = () => {
 
       {/* ── Role Switcher CTA ──────────────────────────────── */}
       <button
-        onClick={() => navigate('/login')}
+        onClick={() => {
+          clearAuth();
+          navigate('/login');
+        }}
         className="w-full flex items-center justify-center gap-2 bg-white border border-[#c6c6cd] text-[#45464d] hover:bg-[#f6f3f5] hover:text-[#1b1b1d] rounded py-3 text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
       >
         <LogOut className="h-4 w-4 text-[#76777d]" />

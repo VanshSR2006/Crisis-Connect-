@@ -17,6 +17,11 @@ export interface AuthUser {
   language_pref?: string;
 }
 
+export interface AuthSession {
+  token: string;
+  user: AuthUser;
+}
+
 /**
  * Returns the authenticated user stored in localStorage, or null if absent/invalid.
  * Reads the `user` key set by Login.tsx after a successful /auth/login response.
@@ -44,8 +49,25 @@ export function getStoredToken(): string | null {
 }
 
 /**
+ * Restores a complete persisted session.  Keeping the token and user together
+ * prevents a route from treating a partially-written login response as valid.
+ */
+export function getStoredSession(): AuthSession | null {
+  const token = getStoredToken();
+  const user = getStoredUser();
+  return token && user ? { token, user } : null;
+}
+
+/** Persists the backend-verified login response for the next app startup. */
+export function storeAuth(session: AuthSession): void {
+  if (typeof localStorage === 'undefined') return;
+  localStorage.setItem('token', session.token);
+  localStorage.setItem('user', JSON.stringify(session.user));
+}
+
+/**
  * Clears all auth state from localStorage.
- * Called on logout or when a 401/403 is received from the backend.
+ * Called on explicit logout or when a 401 is received from the backend.
  */
 export function clearAuth(): void {
   if (typeof localStorage === 'undefined') return;
