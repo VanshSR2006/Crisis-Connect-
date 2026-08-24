@@ -3,13 +3,14 @@
 // Coordinate before modifying outside this workstream.
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Incident, Dispatch, Resource, IncidentStatus, DispatchStatus, SeverityLevel } from '@/types';
+import { Incident, Dispatch, Resource, IncidentStatus, SeverityLevel } from '@/types';
 import { mockDispatches } from '@/mocks';
 import { getIncidents, updateIncidentStatus as persistIncidentStatus } from '@/lib/api/incidents';
 import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
 import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
+import { createDispatch as persistDispatch } from '@/lib/api/dispatches';
 
 // ── Exported Types ─────────────────────────────────────────────────────────────
 
@@ -153,6 +154,7 @@ function buildPressureModels(
 interface CreateDispatchPayload {
   incidentId: string;
   assignedUserId: string;
+  resourceId?: string;
   notes: string;
 }
 
@@ -182,7 +184,7 @@ interface OfficerContextType {
   setSelectedZoneId: (id: string | null) => void;
 
   updateIncidentStatus: (id: string, status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>) => Promise<void>;
-  createDispatch: (payload: CreateDispatchPayload) => Dispatch;
+  createDispatch: (payload: CreateDispatchPayload) => Promise<Dispatch | null>;
 
   isCrisisMode: boolean;
   setIsCrisisMode: (isCrisis: boolean) => void;
@@ -357,18 +359,19 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const createDispatch = (payload: CreateDispatchPayload): Dispatch => {
-    const newDispatch: Dispatch = {
-      id: `dsp-${Date.now().toString().slice(-4)}`,
+  const createDispatch = async (payload: CreateDispatchPayload): Promise<Dispatch | null> => {
+    const newDispatch = await persistDispatch({
       incident_id: payload.incidentId,
+      resource_id: payload.resourceId,
       assigned_user_id: payload.assignedUserId,
-      status: 'en_route' as DispatchStatus,
-      dispatched_at: new Date().toISOString(),
       notes: payload.notes,
-    };
+    });
+    if (!newDispatch) return null;
 
     setDispatches((prev) => [newDispatch, ...prev]);
-
+    // The dispatch endpoint commits Incident.status = "dispatched". Refetch it
+    // instead of manufacturing a frontend-only incident status.
+    await queryClient.invalidateQueries({ queryKey: ['incidents'] });
     return newDispatch;
   };
 

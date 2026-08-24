@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useOfficerContext } from '@/lib/officerContext';
-import { mockUsers } from '@/mocks';
+import { getVolunteers } from '@/lib/api/users';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
@@ -16,7 +17,7 @@ export const Dispatch: React.FC = () => {
   const [targetIncidentId, setTargetIncidentId] = useState<string>(
     selectedIncidentId || incidents[0]?.id || ''
   );
-  const [assignedUserId, setAssignedUserId] = useState<string>('usr-003');
+  const [assignedUserId, setAssignedUserId] = useState<string>('');
   const [selectedResourceId, setSelectedResourceId] = useState<string>(resources[0]?.id || '');
   const [dispatchNotes, setDispatchNotes] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -25,14 +26,17 @@ export const Dispatch: React.FC = () => {
   const completedCount = dispatches.filter((d) => d.status === 'completed').length;
 
   const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
-  const volunteerUsers = mockUsers.filter((u) => u.role === 'volunteer' || u.role === 'officer');
+  const { data: volunteerUsers = [], isLoading: isLoadingVolunteers } = useQuery({
+    queryKey: ['dispatch-volunteers'],
+    queryFn: getVolunteers,
+  });
 
-  const handleDispatchSubmit = (e: React.FormEvent) => {
+  const handleDispatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetIncidentId) return;
+    if (!targetIncidentId || !assignedUserId) return;
 
     const selectedResource = resources.find((r) => r.id === selectedResourceId);
-    const selectedUser = mockUsers.find((u) => u.id === assignedUserId);
+    const selectedUser = volunteerUsers.find((u) => u.id === assignedUserId);
 
     const fullNotes = dispatchNotes
       ? `${dispatchNotes} (Assigned unit: ${selectedUser?.name || assignedUserId}, Resource: ${
@@ -42,11 +46,14 @@ export const Dispatch: React.FC = () => {
           selectedUser?.name || assignedUserId
         }.`;
 
-    createDispatch({
+    const dispatch = await createDispatch({
       incidentId: targetIncidentId,
       assignedUserId,
+      resourceId: selectedResourceId || undefined,
       notes: fullNotes,
     });
+
+    if (!dispatch) return;
 
     setSuccessMessage(`Dispatch order issued for Incident #${targetIncidentId}!`);
     setDispatchNotes('');
@@ -153,14 +160,19 @@ export const Dispatch: React.FC = () => {
                 <select
                   value={assignedUserId}
                   onChange={(e) => setAssignedUserId(e.target.value)}
+                  disabled={isLoadingVolunteers || volunteerUsers.length === 0}
                   className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
                 >
+                  <option value="">{isLoadingVolunteers ? 'Loading volunteers...' : 'Select volunteer'}</option>
                   {volunteerUsers.map((usr) => (
                     <option key={usr.id} value={usr.id}>
-                      {usr.name} ({usr.role.toUpperCase()} · {usr.zone_id})
+                      {usr.name}{usr.email ? ` (${usr.email})` : ''}
                     </option>
                   ))}
                 </select>
+                {!isLoadingVolunteers && volunteerUsers.length === 0 && (
+                  <p className="mt-1 text-[11px] text-red-700">No volunteers available</p>
+                )}
               </div>
             </div>
 
@@ -184,6 +196,7 @@ export const Dispatch: React.FC = () => {
               fullWidth
               size="lg"
               className="bg-[#ba1a1a] hover:bg-[#991b1b] text-white font-black text-xs uppercase tracking-widest py-3 rounded shadow-sm flex items-center justify-center gap-2"
+              disabled={!targetIncidentId || !assignedUserId || isLoadingVolunteers || volunteerUsers.length === 0}
             >
               <Radio className="h-4 w-4" />
               <span>{t('officer.dispatch.confirmDispatch')}</span>

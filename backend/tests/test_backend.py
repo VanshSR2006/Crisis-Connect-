@@ -258,6 +258,27 @@ def test_dispatch_create_does_not_default_to_a_demo_volunteer():
     assert DispatchCreate(incident_id="inc-1").assigned_user_id is None
 
 
+def test_officer_can_list_real_volunteers_only(client, seeded_db, officer_token):
+    response = client.get(
+        "/users?role=volunteer",
+        headers={"Authorization": f"Bearer {officer_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json() == [{
+        "id": "usr-volunteer-1",
+        "name": "Volunteer Test",
+        "email": "volunteer.test@crisisconnect.org",
+    }]
+
+
+def test_citizen_cannot_list_volunteers(client, seeded_db, citizen_token):
+    response = client.get(
+        "/users?role=volunteer",
+        headers={"Authorization": f"Bearer {citizen_token}"},
+    )
+    assert response.status_code == 403
+
+
 def test_officer_status_updates_persist_for_citizen_refresh(client, seeded_db, officer_token):
     created = client.post("/incidents", json={
         "title": "Citizen SOS",

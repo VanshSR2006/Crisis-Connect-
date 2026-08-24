@@ -13,7 +13,7 @@ from .database import get_db
 from .websocket.manager import manager
 
 # Import routers
-from .routers import auth, incidents, resources, dispatch, zones, risk, sites, alerts, demo
+from .routers import auth, incidents, resources, dispatch, zones, risk, sites, alerts, demo, users
 
 # Auto-create SQLite tables on startup in development mode
 if settings.DATABASE_URL.startswith("sqlite"):
@@ -65,6 +65,7 @@ app.include_router(risk.router)
 app.include_router(sites.router)
 app.include_router(alerts.router)
 app.include_router(demo.router)
+app.include_router(users.router)
 
 # Health & Readiness split
 @app.get("/health", tags=["System Health"])

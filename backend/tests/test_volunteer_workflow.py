@@ -86,6 +86,10 @@ def test_volunteer_workflow_status_progression(client, db):
     dispatch_id = dispatch_data["id"]
     assert dispatch_data["status"] == "pending"
 
+    # The dispatch endpoint persists the canonical Incident.status value.
+    incident_after_dispatch = client.get("/incidents")
+    assert next(i for i in incident_after_dispatch.json() if i["id"] == incident_id)["status"] == "dispatched"
+
     # Verify GET /dispatches lists the created dispatch
     list_resp = client.get("/dispatches")
     assert list_resp.status_code == 200

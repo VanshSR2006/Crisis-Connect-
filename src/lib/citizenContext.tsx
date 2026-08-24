@@ -154,6 +154,7 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     // Subscribe to WebSocket realtime status events
     const unsubCreated = realtimeClient.subscribe('incident.created', () => refreshIncidents());
+    const unsubDispatchAuthorized = realtimeClient.subscribe('dispatch.authorized', () => refreshIncidents());
     const unsubUpdated = realtimeClient.subscribe('incident.updated', (payload: any) => {
       if (payload && payload.id) {
         setIncidents((prev) =>
@@ -195,6 +196,7 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     return () => {
       unsubCreated();
+      unsubDispatchAuthorized();
       unsubUpdated();
       unsubDispatchStatus();
     };
