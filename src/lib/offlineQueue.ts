@@ -57,12 +57,14 @@ export const getAllRawOfflineQueue = (): QueuedSosReport[] => {
 export const getOfflineQueue = (targetUserId?: string): QueuedSosReport[] => {
   const userId = targetUserId || getStoredUser()?.id;
   const rawQueue = getAllRawOfflineQueue();
-  if (!userId) return [];
+  if (!userId) {
+    // When unauthenticated, return all queued reports
+    return rawQueue;
+  }
 
   return rawQueue.filter((item) => {
-    if (!item.reporter_id) {
-      // Legacy unassigned item defaults to original test citizen usr-citizen-1 / usr-001
-      return userId === 'usr-citizen-1' || userId === 'usr-001';
+    if (!item.reporter_id || item.reporter_id === 'usr-guest' || item.reporter_id === 'guest' || item.reporter_id === 'usr-citizen-1') {
+      return true;
     }
     return item.reporter_id === userId;
   });
