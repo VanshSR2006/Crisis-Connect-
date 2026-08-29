@@ -1,20 +1,36 @@
 // TEAM OWNERSHIP: MEMBER 2 — OFFICER DASHBOARD + GIS
 // Officer global state: incidents, dispatches, resources, risk zones, resource pressure.
 // Coordinate before modifying outside this workstream.
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Incident, Dispatch, Resource, IncidentStatus, DispatchStatus, SeverityLevel } from '@/types';
-import { mockDispatches } from '@/mocks';
+
+import {
+  Incident,
+  Dispatch,
+  Resource,
+  IncidentStatus,
+  DispatchStatus,
+  SeverityLevel,
+} from '@/types';
+
 import { getIncidents } from '@/lib/api/incidents';
 import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
 import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
 
-// ── Exported Types ─────────────────────────────────────────────────────────────
+import {
+  getDispatches,
+  createDispatch as createDispatchApi,
+} from '@/lib/api/dispatches';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORTED TYPES
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface LiveRiskZone {
-  id: string; // risk score record ID
+  id: string;
   zone_id: string;
   name: string;
   risk_level: SeverityLevel;
@@ -24,90 +40,143 @@ export interface LiveRiskZone {
   population_est: number;
 }
 
-/**
- * Resource category pressure for a single category within a zone.
- * "available" and "demand" may be null if one side is unavailable.
- * Missing ≠ zero — do not treat null as 0.
- */
 export interface CategoryPressure {
-  category: string;         // e.g. 'food', 'medical', 'water'
-  unit: string;             // unit of measure for display
-  available: number | null; // from GET /resources (sum of zone resources in category), null if no data
-  demand: number | null;    // from GET /zones/{id}/demand, null if unavailable
-  gap: number | null;       // available - demand; null if either side is null
-  status: 'adequate' | 'under_pressure' | 'critical' | 'no_supply' | 'no_demand' | 'unknown';
+  category: string;
+  unit: string;
+  available: number | null;
+  demand: number | null;
+  gap: number | null;
+
+  status:
+    | 'adequate'
+    | 'under_pressure'
+    | 'critical'
+    | 'no_supply'
+    | 'no_demand'
+    | 'unknown';
 }
 
-/**
- * Zone-level resource pressure view model.
- * Derived from the merge of resource supply and zone demand data.
- */
 export interface ZoneResourcePressure {
   zone_id: string;
   name: string;
   boundary_json: string | null;
   categories: CategoryPressure[];
-  overallStatus: 'adequate' | 'under_pressure' | 'critical' | 'unknown';
+
+  overallStatus:
+    | 'adequate'
+    | 'under_pressure'
+    | 'critical'
+    | 'unknown';
+
   hasDemandData: boolean;
   hasSupplyData: boolean;
 }
 
-// ── Pressure Derivation ────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PRESSURE DERIVATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 function deriveCategoryStatus(
   available: number | null,
   demand: number | null
 ): CategoryPressure['status'] {
-  if (available === null && demand === null) return 'unknown';
-  if (available === null) return 'no_supply';
-  if (demand === null) return 'no_demand';
-  if (available >= demand) return 'adequate';
+  if (available === null && demand === null) {
+    return 'unknown';
+  }
+
+  if (available === null) {
+    return 'no_supply';
+  }
+
+  if (demand === null) {
+    return 'no_demand';
+  }
+
+  if (available >= demand) {
+    return 'adequate';
+  }
+
   const gapRatio = (demand - available) / demand;
-  if (gapRatio >= 0.5) return 'critical';
+
+  if (gapRatio >= 0.5) {
+    return 'critical';
+  }
+
   return 'under_pressure';
 }
 
-function deriveOverallStatus(cats: CategoryPressure[]): ZoneResourcePressure['overallStatus'] {
-  if (cats.some(c => c.status === 'critical')) return 'critical';
-  if (cats.some(c => c.status === 'under_pressure')) return 'under_pressure';
-  if (cats.every(c => c.status === 'adequate')) return 'adequate';
+function deriveOverallStatus(
+  cats: CategoryPressure[]
+): ZoneResourcePressure['overallStatus'] {
+  if (cats.some((c) => c.status === 'critical')) {
+    return 'critical';
+  }
+
+  if (cats.some((c) => c.status === 'under_pressure')) {
+    return 'under_pressure';
+  }
+
+  if (cats.every((c) => c.status === 'adequate')) {
+    return 'adequate';
+  }
+
   return 'unknown';
 }
 
-/**
- * Build ZoneResourcePressure view models from supply and demand data.
- * Categories matched:
- *   - food:    demand.food_packets      vs  sum of resources where type = 'food' or 'food_packet'
- *   - medical: demand.medical_kits      vs  sum of resources where type = 'medical' or 'medical_kit'
- *   - water:   demand.drinking_water_liters vs sum of resources where type = 'water'
- */
 function buildPressureModels(
-  zones: Array<{ id: string; name: string; boundary_json: string | null }>,
+  zones: Array<{
+    id: string;
+    name: string;
+    boundary_json: string | null;
+  }>,
   resources: Resource[],
   demandMap: Map<string, ZoneDemandResponse>
 ): ZoneResourcePressure[] {
-  return zones.map(zone => {
-    const zoneResources = resources.filter(r => r.zone_id === zone.id);
+  return zones.map((zone) => {
+    const zoneResources = resources.filter(
+      (r) => r.zone_id === zone.id
+    );
+
     const demand = demandMap.get(zone.id) ?? null;
 
     const hasSupplyData = zoneResources.length > 0;
     const hasDemandData = demand !== null;
 
-    // Sum resources by category for this zone
-    const sumCat = (types: string[]) =>
-      hasSupplyData
-        ? zoneResources
-            .filter(r => types.includes(r.category))
-            .reduce((acc, r) => acc + (r.quantity ?? 0), 0)
-        : null;
+    const sumCat = (types: string[]) => {
+      if (!hasSupplyData) {
+        return null;
+      }
 
-    const foodAvailable = sumCat(['food', 'food_packet']);
-    const medicalAvailable = sumCat(['medical', 'medical_kit']);
-    const waterAvailable = sumCat(['water']);
+      return zoneResources
+        .filter((r) => types.includes(r.category))
+        .reduce(
+          (acc, r) => acc + (r.quantity ?? 0),
+          0
+        );
+    };
 
-    const foodDemand = demand?.food_packets ?? null;
-    const medicalDemand = demand?.medical_kits ?? null;
-    const waterDemand = demand?.drinking_water_liters ?? null;
+    const foodAvailable = sumCat([
+      'food',
+      'food_packet',
+    ]);
+
+    const medicalAvailable = sumCat([
+      'medical',
+      'medical_kit',
+    ]);
+
+    const waterAvailable = sumCat([
+      'water',
+    ]);
+
+    const foodDemand =
+      demand?.food_packets ?? null;
+
+    const medicalDemand =
+      demand?.medical_kits ?? null;
+
+    const waterDemand =
+      demand?.drinking_water_liters ?? null;
 
     const categories: CategoryPressure[] = [
       {
@@ -115,24 +184,47 @@ function buildPressureModels(
         unit: 'packets',
         available: foodAvailable,
         demand: foodDemand,
-        gap: foodAvailable !== null && foodDemand !== null ? foodAvailable - foodDemand : null,
-        status: deriveCategoryStatus(foodAvailable, foodDemand),
+        gap:
+          foodAvailable !== null &&
+          foodDemand !== null
+            ? foodAvailable - foodDemand
+            : null,
+        status: deriveCategoryStatus(
+          foodAvailable,
+          foodDemand
+        ),
       },
+
       {
         category: 'Medical',
         unit: 'kits',
         available: medicalAvailable,
         demand: medicalDemand,
-        gap: medicalAvailable !== null && medicalDemand !== null ? medicalAvailable - medicalDemand : null,
-        status: deriveCategoryStatus(medicalAvailable, medicalDemand),
+        gap:
+          medicalAvailable !== null &&
+          medicalDemand !== null
+            ? medicalAvailable - medicalDemand
+            : null,
+        status: deriveCategoryStatus(
+          medicalAvailable,
+          medicalDemand
+        ),
       },
+
       {
         category: 'Water',
         unit: 'liters',
         available: waterAvailable,
         demand: waterDemand,
-        gap: waterAvailable !== null && waterDemand !== null ? waterAvailable - waterDemand : null,
-        status: deriveCategoryStatus(waterAvailable, waterDemand),
+        gap:
+          waterAvailable !== null &&
+          waterDemand !== null
+            ? waterAvailable - waterDemand
+            : null,
+        status: deriveCategoryStatus(
+          waterAvailable,
+          waterDemand
+        ),
       },
     ];
 
@@ -141,35 +233,45 @@ function buildPressureModels(
       name: zone.name,
       boundary_json: zone.boundary_json,
       categories,
-      overallStatus: deriveOverallStatus(categories),
+      overallStatus:
+        deriveOverallStatus(categories),
       hasDemandData,
       hasSupplyData,
     };
   });
 }
 
-// ── Context Types ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTEXT TYPES
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface CreateDispatchPayload {
   incidentId: string;
   assignedUserId: string;
   notes: string;
+
+  // Optional resource selected by officer
+  resourceId?: string;
 }
 
 interface OfficerContextType {
   incidents: Incident[];
+
   isLoadingIncidents: boolean;
   isErrorIncidents: boolean;
 
   riskZones: LiveRiskZone[];
+
   isLoadingRisk: boolean;
   isErrorRisk: boolean;
 
   resources: Resource[];
+
   isLoadingResources: boolean;
   isErrorResources: boolean;
 
   zonePressure: ZoneResourcePressure[];
+
   isLoadingPressure: boolean;
   isErrorPressure: boolean;
 
@@ -181,52 +283,105 @@ interface OfficerContextType {
   selectedZoneId: string | null;
   setSelectedZoneId: (id: string | null) => void;
 
-  updateIncidentStatus: (id: string, status: IncidentStatus) => void;
-  createDispatch: (payload: CreateDispatchPayload) => Dispatch;
+  updateIncidentStatus: (
+    id: string,
+    status: IncidentStatus
+  ) => void;
+
+  createDispatch: (
+    payload: CreateDispatchPayload
+  ) => Promise<Dispatch | null>;
 
   isCrisisMode: boolean;
   setIsCrisisMode: (isCrisis: boolean) => void;
 }
 
-const OfficerContext = createContext<OfficerContextType | undefined>(undefined);
+const OfficerContext =
+  createContext<OfficerContextType | undefined>(
+    undefined
+  );
 
-// ── Provider ───────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PROVIDER
+// ─────────────────────────────────────────────────────────────────────────────
 
-export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const OfficerProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
   const queryClient = useQueryClient();
 
-  // ── Incidents query ────────────────────────────────────────────────────────
-  const { data: liveIncidents, isLoading: isLoadingIncidents, isError: isErrorIncidents } = useQuery({
+  // ───────────────────────────────────────────────────────────────────────────
+  // INCIDENTS
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const {
+    data: liveIncidents,
+    isLoading: isLoadingIncidents,
+    isError: isErrorIncidents,
+  } = useQuery({
     queryKey: ['incidents'],
     queryFn: getIncidents,
+    refetchInterval: 15000,
   });
+
   const incidents = liveIncidents ?? [];
 
-  // ── Risk zones query (Phase 3) ─────────────────────────────────────────────
-  const { data: liveRiskZones, isLoading: isLoadingRisk, isError: isErrorRisk } = useQuery({
+  // ───────────────────────────────────────────────────────────────────────────
+  // RISK ZONES
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const {
+    data: liveRiskZones,
+    isLoading: isLoadingRisk,
+    isError: isErrorRisk,
+  } = useQuery({
     queryKey: ['risk_zones'],
+
     queryFn: async () => {
-      const [scores, zones] = await Promise.all([getRiskScores(), getZones()]);
-      const merged: LiveRiskZone[] = scores.map(score => {
-        const zone = zones.find(z => z.id === score.zone_id);
-        return {
-          id: score.id,
-          zone_id: score.zone_id,
-          name: zone?.name || score.zone_id,
-          risk_level: score.risk_level as SeverityLevel,
-          score: score.score,
-          computed_at: score.computed_at,
-          boundary_json: zone?.boundary_json || null,
-          population_est: zone?.population_est || 0,
-        };
-      });
+      const [scores, zones] =
+        await Promise.all([
+          getRiskScores(),
+          getZones(),
+        ]);
+
+      const merged: LiveRiskZone[] =
+        scores.map((score) => {
+          const zone = zones.find(
+            (z) => z.id === score.zone_id
+          );
+
+          return {
+            id: score.id,
+            zone_id: score.zone_id,
+            name:
+              zone?.name ||
+              score.zone_id,
+            risk_level:
+              score.risk_level as SeverityLevel,
+            score: score.score,
+            computed_at:
+              score.computed_at,
+            boundary_json:
+              zone?.boundary_json ||
+              null,
+            population_est:
+              zone?.population_est ||
+              0,
+          };
+        });
+
       return merged;
     },
+
     refetchInterval: 30000,
   });
+
   const riskZones = liveRiskZones ?? [];
 
-  // ── Live resources query ───────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // RESOURCES
+  // ───────────────────────────────────────────────────────────────────────────
+
   const {
     data: liveResources,
     isLoading: isLoadingResources,
@@ -234,161 +389,578 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   } = useQuery({
     queryKey: ['resources'],
     queryFn: getResources,
-    refetchInterval: 60000, // Refresh every minute; also invalidated by resource.updated WS
+    refetchInterval: 30000,
   });
+
   const resources = liveResources ?? [];
 
-  // ── Zone pressure query: fetches zones + demands in parallel ───────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // ZONE PRESSURE
+  // ───────────────────────────────────────────────────────────────────────────
+
   const {
     data: liveZonePressure,
     isLoading: isLoadingPressure,
     isError: isErrorPressure,
   } = useQuery({
     queryKey: ['zone_pressure'],
+
     queryFn: async () => {
       const zones = await getZones();
-      if (!zones || zones.length === 0) return [];
 
-      // Fetch all demands in parallel; individual failures set demandMap entries to null
-      const demandMap = new Map<string, ZoneDemandResponse>();
-      const demandResults = await Promise.allSettled(
-        zones.map(z => getZoneDemand(z.id))
-      );
-      demandResults.forEach((result, idx) => {
-        if (result.status === 'fulfilled') {
-          demandMap.set(zones[idx].id, result.value);
+      if (!zones || zones.length === 0) {
+        return [];
+      }
+
+      const demandMap =
+        new Map<string, ZoneDemandResponse>();
+
+      const demandResults =
+        await Promise.allSettled(
+          zones.map((z) =>
+            getZoneDemand(z.id)
+          )
+        );
+
+      demandResults.forEach(
+        (result, idx) => {
+          if (
+            result.status === 'fulfilled'
+          ) {
+            demandMap.set(
+              zones[idx].id,
+              result.value
+            );
+          }
         }
-        // On rejection: zone stays missing from map — treated as no demand data
-      });
+      );
 
-      // At this point resources may not yet be fetched, use queryClient cache
       const cachedResources =
-        queryClient.getQueryData<Resource[]>(['resources']) ?? [];
+        queryClient.getQueryData<
+          Resource[]
+        >(['resources']) ?? [];
 
-      return buildPressureModels(zones, cachedResources, demandMap);
+      return buildPressureModels(
+        zones,
+        cachedResources,
+        demandMap
+      );
     },
-    enabled: !isLoadingResources, // wait for resources to be available
+
+    enabled: !isLoadingResources,
     staleTime: 60000,
   });
-  const zonePressure = liveZonePressure ?? [];
 
-  const [dispatches, setDispatches] = useState<Dispatch[]>(mockDispatches);
-  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
-  const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
-  const [isCrisisMode, setIsCrisisMode] = useState<boolean>(false);
+  const zonePressure =
+    liveZonePressure ?? [];
 
-  // Set initial selected incident once data loads
+  // ───────────────────────────────────────────────────────────────────────────
+  // LOCAL STATE
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const [dispatches, setDispatches] =
+    useState<Dispatch[]>([]);
+
+  const [
+    selectedIncidentId,
+    setSelectedIncidentId,
+  ] = useState<string | null>(null);
+
+  const [
+    selectedZoneId,
+    setSelectedZoneId,
+  ] = useState<string | null>(null);
+
+  const [
+    isCrisisMode,
+    setIsCrisisMode,
+  ] = useState<boolean>(false);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // LOAD DISPATCHES FROM BACKEND
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const refreshDispatches =
+    async () => {
+      try {
+        console.log(
+          '[OfficerContext] Loading dispatches...'
+        );
+
+        const backendDispatches =
+          await getDispatches();
+
+        console.log(
+          '[OfficerContext] Backend dispatches:',
+          backendDispatches
+        );
+
+        setDispatches(
+          backendDispatches ?? []
+        );
+
+        return backendDispatches ?? [];
+      } catch (error) {
+        console.error(
+          '[OfficerContext] Failed to load dispatches:',
+          error
+        );
+
+        return [];
+      }
+    };
+
+  // Initial load
   useEffect(() => {
-    if (incidents.length > 0 && !selectedIncidentId) {
-      setSelectedIncidentId(incidents[0].id);
+    refreshDispatches();
+  }, []);
+
+  // Keep Officer dispatch queue synchronized
+  useEffect(() => {
+    const interval =
+      setInterval(() => {
+        refreshDispatches();
+      }, 10000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // INITIAL INCIDENT
+  // ───────────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (
+      incidents.length > 0 &&
+      !selectedIncidentId
+    ) {
+      setSelectedIncidentId(
+        incidents[0].id
+      );
     }
-  }, [incidents, selectedIncidentId]);
+  }, [
+    incidents,
+    selectedIncidentId,
+  ]);
 
-  // ── WebSocket Integration ──────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────
+  // WEBSOCKET
+  // ───────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_API_BASE_URL
-      ? import.meta.env.VITE_API_BASE_URL.replace('http', 'ws') + '/ws/dashboard'
-      : 'ws://localhost:8000/ws/dashboard';
+    const wsUrl =
+      import.meta.env.VITE_API_BASE_URL
+        ? import.meta.env.VITE_API_BASE_URL
+            .replace('http', 'ws') +
+          '/ws/dashboard'
+        : 'ws://localhost:8000/ws/dashboard';
 
     let ws: WebSocket;
-    let reconnectTimer: NodeJS.Timeout;
+    let reconnectTimer: ReturnType<
+      typeof setTimeout
+    >;
 
     const connectWs = () => {
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!token) return;
-      const url = `${wsUrl}?token=${encodeURIComponent(token)}`;
+      const token =
+        typeof localStorage !==
+        'undefined'
+          ? localStorage.getItem(
+              'token'
+            )
+          : null;
+
+      if (!token) {
+        console.warn(
+          '[OfficerContext] No authentication token found for WebSocket.'
+        );
+        return;
+      }
+
+      const url =
+        `${wsUrl}?token=${encodeURIComponent(
+          token
+        )}`;
+
+      console.log(
+        '[OfficerContext] Connecting WebSocket:',
+        url
+      );
+
       ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        console.log(
+          '[OfficerContext] WebSocket connected.'
+        );
+      };
 
       ws.onmessage = (event) => {
         try {
-          if (event.data.startsWith('ACK:')) return;
-          const data = JSON.parse(event.data);
+          if (
+            typeof event.data ===
+              'string' &&
+            event.data.startsWith(
+              'ACK:'
+            )
+          ) {
+            return;
+          }
 
-          if (data.type === 'incident.created' || data.type === 'incident.verified') {
-            const payload = data.payload;
-            queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
-              if (!old) return old;
-              const exists = old.some(i => i.id === payload.id);
-              if (exists) {
-                const updated = old.map(i => i.id === payload.id ? { ...i, ...payload } : i);
-                return updated.sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
-              } else {
-                queryClient.invalidateQueries({ queryKey: ['incidents'] });
+          const data =
+            JSON.parse(event.data);
+
+          console.log(
+            '[OfficerContext] WS event:',
+            data
+          );
+
+          // INCIDENT EVENTS
+          if (
+            data.type ===
+              'incident.created' ||
+            data.type ===
+              'incident.verified'
+          ) {
+            const payload =
+              data.payload;
+
+            queryClient.setQueryData<
+              Incident[]
+            >(
+              ['incidents'],
+              (old) => {
+                if (!old) {
+                  return old;
+                }
+
+                const exists =
+                  old.some(
+                    (i) =>
+                      i.id ===
+                      payload.id
+                  );
+
+                if (exists) {
+                  return old
+                    .map((i) =>
+                      i.id ===
+                      payload.id
+                        ? {
+                            ...i,
+                            ...payload,
+                          }
+                        : i
+                    )
+                    .sort(
+                      (a, b) =>
+                        (b.priority_score ??
+                          0) -
+                        (a.priority_score ??
+                          0)
+                    );
+                }
+
+                queryClient.invalidateQueries(
+                  {
+                    queryKey: [
+                      'incidents',
+                    ],
+                  }
+                );
+
                 return old;
               }
-            });
+            );
           }
 
-          // resource.updated (broadcast from dispatch.py when resource changes)
-          if (data.type === 'resource.updated') {
-            queryClient.invalidateQueries({ queryKey: ['resources'] });
-            // Also invalidate zone_pressure since supply side changed
-            queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
+          // RESOURCE EVENTS
+          if (
+            data.type ===
+            'resource.updated'
+          ) {
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  'resources',
+                ],
+              }
+            );
+
+            queryClient.invalidateQueries(
+              {
+                queryKey: [
+                  'zone_pressure',
+                ],
+              }
+            );
           }
-        } catch (e) {
-          console.error('WS Parse error', e);
+
+          // DISPATCH EVENTS
+          if (
+            data.type ===
+              'dispatch.created' ||
+            data.type ===
+              'dispatch.authorized' ||
+            data.type ===
+              'dispatch.status_changed'
+          ) {
+            refreshDispatches();
+          }
+        } catch (error) {
+          console.error(
+            '[OfficerContext] WebSocket parse error:',
+            error
+          );
         }
       };
 
-      ws.onclose = (event: CloseEvent) => {
-        if (event.code === 4401 || event.code === 4403) return;
-        reconnectTimer = setTimeout(connectWs, 5000);
+      ws.onerror = (error) => {
+        console.error(
+          '[OfficerContext] WebSocket error:',
+          error
+        );
+      };
+
+      ws.onclose = (
+        event: CloseEvent
+      ) => {
+        console.warn(
+          '[OfficerContext] WebSocket closed:',
+          event.code
+        );
+
+        if (
+          event.code === 4401 ||
+          event.code === 4403
+        ) {
+          return;
+        }
+
+        reconnectTimer =
+          setTimeout(
+            connectWs,
+            5000
+          );
       };
     };
 
     connectWs();
 
     return () => {
-      clearTimeout(reconnectTimer);
-      if (ws) ws.close();
+      clearTimeout(
+        reconnectTimer
+      );
+
+      if (ws) {
+        ws.close();
+      }
     };
   }, [queryClient]);
 
-  const updateIncidentStatus = (id: string, status: IncidentStatus) => {
-    queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
-      if (!old) return old;
-      return old.map(i => i.id === id ? { ...i, status } : i);
-    });
+  // ───────────────────────────────────────────────────────────────────────────
+  // UPDATE INCIDENT STATUS
+  // ───────────────────────────────────────────────────────────────────────────
+
+  const updateIncidentStatus = (
+    id: string,
+    status: IncidentStatus
+  ) => {
+    queryClient.setQueryData<
+      Incident[]
+    >(
+      ['incidents'],
+      (old) => {
+        if (!old) {
+          return old;
+        }
+
+        return old.map(
+          (incident) =>
+            incident.id === id
+              ? {
+                  ...incident,
+                  status,
+                }
+              : incident
+        );
+      }
+    );
   };
 
-  const createDispatch = (payload: CreateDispatchPayload): Dispatch => {
-    const newDispatch: Dispatch = {
-      id: `dsp-${Date.now().toString().slice(-4)}`,
-      incident_id: payload.incidentId,
-      assigned_user_id: payload.assignedUserId,
-      status: 'en_route' as DispatchStatus,
-      dispatched_at: new Date().toISOString(),
-      notes: payload.notes,
-    };
+  // ───────────────────────────────────────────────────────────────────────────
+  // CREATE DISPATCH
+  // ───────────────────────────────────────────────────────────────────────────
 
-    setDispatches((prev) => [newDispatch, ...prev]);
-    updateIncidentStatus(payload.incidentId, 'dispatched');
+  const createDispatch = async (
+    payload: CreateDispatchPayload
+  ): Promise<Dispatch | null> => {
+    try {
+      console.log(
+        '======================================'
+      );
 
-    return newDispatch;
+      console.log(
+        '[OfficerContext] CREATE DISPATCH'
+      );
+
+      console.log(
+        'Incident:',
+        payload.incidentId
+      );
+
+      console.log(
+        'Assigned User:',
+        payload.assignedUserId
+      );
+
+      console.log(
+        'Resource:',
+        payload.resourceId
+      );
+
+      console.log(
+        'Notes:',
+        payload.notes
+      );
+
+      console.log(
+        '======================================'
+      );
+
+      // Build the backend request.
+      const requestBody: {
+        incident_id: string;
+        assigned_user_id: string;
+        resource_id?: string;
+        notes?: string;
+      } = {
+        incident_id:
+          payload.incidentId,
+
+        assigned_user_id:
+          payload.assignedUserId,
+
+        notes:
+          payload.notes,
+      };
+
+      // Only send resource_id when one exists.
+      if (payload.resourceId) {
+        requestBody.resource_id =
+          payload.resourceId;
+      }
+
+      console.log(
+        '[OfficerContext] POST /dispatches body:',
+        requestBody
+      );
+
+      // ACTUAL BACKEND CALL
+      const createdDispatch =
+        await createDispatchApi(
+          requestBody
+        );
+
+      console.log(
+        '[OfficerContext] Backend response:',
+        createdDispatch
+      );
+
+      if (!createdDispatch) {
+        console.error(
+          '[OfficerContext] Backend returned no dispatch.'
+        );
+
+        return null;
+      }
+
+      // Add backend-created dispatch immediately.
+      setDispatches(
+        (previous) => [
+          createdDispatch,
+          ...previous.filter(
+            (dispatch) =>
+              dispatch.id !==
+              createdDispatch.id
+          ),
+        ]
+      );
+
+      // Update incident locally.
+      updateIncidentStatus(
+        payload.incidentId,
+        'dispatched'
+      );
+
+      // Refresh from backend.
+      await refreshDispatches();
+
+      console.log(
+        '[OfficerContext] Dispatch successfully created:',
+        createdDispatch.id
+      );
+
+      return createdDispatch;
+    } catch (error) {
+      console.error(
+        '======================================'
+      );
+
+      console.error(
+        '[OfficerContext] DISPATCH CREATION FAILED'
+      );
+
+      console.error(error);
+
+      console.error(
+        '======================================'
+      );
+
+      return null;
+    }
   };
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // PROVIDER
+  // ───────────────────────────────────────────────────────────────────────────
 
   return (
     <OfficerContext.Provider
       value={{
         incidents,
+
         isLoadingIncidents,
         isErrorIncidents,
+
         riskZones,
+
         isLoadingRisk,
         isErrorRisk,
+
         resources,
+
         isLoadingResources,
         isErrorResources,
+
         zonePressure,
+
         isLoadingPressure,
         isErrorPressure,
+
         dispatches,
+
         selectedIncidentId,
         setSelectedIncidentId,
+
         selectedZoneId,
         setSelectedZoneId,
+
         updateIncidentStatus,
+
         createDispatch,
+
         isCrisisMode,
         setIsCrisisMode,
       }}
@@ -398,10 +970,20 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 };
 
-export const useOfficerContext = (): OfficerContextType => {
-  const context = useContext(OfficerContext);
-  if (!context) {
-    throw new Error('useOfficerContext must be used within an OfficerProvider');
-  }
-  return context;
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// HOOK
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const useOfficerContext =
+  (): OfficerContextType => {
+    const context =
+      useContext(OfficerContext);
+
+    if (!context) {
+      throw new Error(
+        'useOfficerContext must be used within an OfficerProvider'
+      );
+    }
+
+    return context;
+  };

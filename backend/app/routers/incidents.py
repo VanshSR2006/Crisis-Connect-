@@ -5,12 +5,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from pydantic import BaseModel, ConfigDict, field_serializer
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session 
 
 from ..database import get_db
 from ..models import Incident, User
 from ..core.security import require_officer
-from ..services.priority_service import calculate_response_priority
+from ..services.priority_service import calculate_response_priority 
+from ..services.credibility_service import calculate_incident_credibility
 from ..services.risk_service import get_zone_risk_snapshot
 from ..websocket.manager import manager
 
@@ -103,16 +104,23 @@ async def create_incident(
                 detail="Invalid reporter_id"
             )
 
-    # Calculate dynamic priority using zone risk
+    # Calculate dynamic risk using zone intelligence
     risk = get_zone_risk_snapshot(
         inc.zone_id,
         db
     )
 
+    # Automatically evaluate SOS credibility before saving
+    credibility = calculate_incident_credibility(
+        inc,
+        db
+    )
+
+    # Calculate priority using the credibility score
     priority = calculate_response_priority(
         risk_score=risk["risk_score"],
         severity=inc.severity,
-        credibility_score=1.0,
+        credibility_score=credibility["credibility_score"],
         vulnerability_index=risk["vulnerability_index"]
     )
 
@@ -126,8 +134,8 @@ async def create_incident(
         zone_id=inc.zone_id,
         reporter_id=reporter_id,
         status="reported",
-        review_state="unverified",
-        credibility_score=1.0,
+        review_state=credibility["review_state"],
+        credibility_score=credibility["credibility_score"],
         priority_score=priority
     )
 
@@ -144,7 +152,9 @@ async def create_incident(
             "category": new_inc.category,
             "severity": new_inc.severity,
             "status": new_inc.status,
-            "priority_score": new_inc.priority_score
+            "priority_score": new_inc.priority_score,
+            "credibility_score": new_inc.credibility_score,
+            "review_state": new_inc.review_state
         }
     )
 

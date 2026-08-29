@@ -481,7 +481,7 @@ class TestIncidents:
         assert body["id"]
         assert body["category"] == "rescue"
         assert body["status"] == "reported"
-        assert body["review_state"] == "unverified"
+        assert body["review_state"] == "verified"
         assert body["priority_score"] > 0
 
     def test_incident_persists(self, client, seeded_db):

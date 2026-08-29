@@ -44,7 +44,42 @@ def decode_access_token(token: str) -> Optional[dict]:
     except jwt.PyJWTError:
         return None
 
-def get_user_from_token(token: Optional[str], db: Session) -> Optional[User]:
+def get_user_from_token(
+    token: Optional[str],
+    db: Session
+) -> Optional[User]:
+    """Resolve a JWT to the authenticated DB user."""
+
+    if not token:
+        print("[AUTH DEBUG] No token")
+        return None
+
+    payload = decode_access_token(token)
+
+    print("[AUTH DEBUG] JWT payload:", payload)
+
+    if payload is None:
+        print("[AUTH DEBUG] JWT decode FAILED")
+        return None
+
+    user_id = payload.get("sub")
+
+    print("[AUTH DEBUG] User ID from token:", user_id)
+
+    if user_id is None:
+        print("[AUTH DEBUG] Token has no 'sub'")
+        return None
+
+    user = db.query(User).filter(User.id == user_id).first()
+
+    print(
+        "[AUTH DEBUG] Database user:",
+        user.id if user else None,
+        "Role:",
+        user.role if user else None,
+    )
+
+    return user
     """Resolve a JWT to the authenticated DB user. Shared by HTTP and WebSocket auth."""
     if not token:
         return None
