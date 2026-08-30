@@ -1,5 +1,5 @@
-from typing import List, Optional
-from datetime import datetime
+from typing import List, Optional, Any
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, ConfigDict
@@ -60,6 +60,9 @@ async def create_alert(
     db.commit()
     db.refresh(new_alert)
 
+    issued_at_dt: Any = new_alert.issued_at
+    issued_at_str = issued_at_dt.isoformat() if issued_at_dt is not None else datetime.now(timezone.utc).isoformat()
+
     # Broadcast structured event with full multilingual translation dictionary
     await manager.broadcast("alert.created", {
         "id": new_alert.id,
@@ -67,7 +70,7 @@ async def create_alert(
         "message_en": new_alert.message_en,
         "message_translated": new_alert.message_translated,
         "severity": new_alert.severity,
-        "issued_at": new_alert.issued_at.isoformat() if new_alert.issued_at else datetime.utcnow().isoformat()
+        "issued_at": issued_at_str
     })
 
     return new_alert

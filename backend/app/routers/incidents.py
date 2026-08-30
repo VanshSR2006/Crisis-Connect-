@@ -80,10 +80,13 @@ async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
     if reporter_id is not None:
         user = db.query(User).filter(User.id == reporter_id).first()
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid reporter_id"
-            )
+            if reporter_id.lower() in ("usr-guest", "guest", ""):
+                reporter_id = None
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid reporter_id"
+                )
 
     # Dynamic priority score calculation based on default factors
     priority = calculate_response_priority(
@@ -144,7 +147,7 @@ async def verify_incident(
     # Recalculate priority score with updated credibility
     incident.priority_score = calculate_response_priority(
         risk_score=0.8,  # Dynamic risk loading placeholder
-        severity=incident.severity,
+        severity=str(incident.severity),
         credibility_score=incident.credibility_score,
         vulnerability_index=0.7
     )

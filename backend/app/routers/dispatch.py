@@ -64,15 +64,16 @@ async def create_dispatch(
         if not resource:
             raise HTTPException(status_code=404, detail="Resource not found")
             
-        if resource.quantity_available <= 0:
+        res_qty = int(resource.quantity_available)
+        if res_qty <= 0:
             raise HTTPException(status_code=400, detail="Resource quantity is depleted")
             
         # Deduct quantity atomically
-        resource.quantity_available -= 1
-        if resource.quantity_available == 0:
-            resource.status = "depleted"
+        setattr(resource, "quantity_available", res_qty - 1)
+        if res_qty - 1 == 0:
+            setattr(resource, "status", "depleted")
         else:
-            resource.status = "dispatched"
+            setattr(resource, "status", "dispatched")
 
     # 3. Check if assigned user (volunteer) exists
     if d.assigned_user_id:
@@ -134,7 +135,7 @@ async def update_dispatch_status(
     if current_user.role in ("officer", "admin"):
         pass
     elif current_user.role == "volunteer":
-        if dispatch.assigned_user_id != current_user.id:
+        if str(dispatch.assigned_user_id) != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Operation not permitted. Volunteers may update only their assigned dispatches.",
