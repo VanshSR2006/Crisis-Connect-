@@ -3,7 +3,7 @@
     "crisis-connect-backend": {
       "root": ".",
       "framework": "vite",
-      "buildCommand": "pip install -r backend/requirements.txt"
+      "buildCommand": "pip install --break-system-packages -r backend/requirements.txt"
     }
   },
   "rewrites": [
