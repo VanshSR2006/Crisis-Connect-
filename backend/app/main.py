@@ -13,7 +13,7 @@ from .database import get_db
 from .websocket.manager import manager
 
 # Import routers
-from .routers import auth, incidents, resources, dispatch, zones, risk, sites, alerts, demo, users
+from .routers import auth, incidents, resources, dispatch, zones, risk, sites, alerts, demo, users, ai
 
 # Auto-create SQLite tables on startup in development mode
 if settings.DATABASE_URL.startswith("sqlite"):
@@ -39,7 +39,16 @@ app = FastAPI(
 )
 
 # CORS configuration
-allow_origins_list = ["http://localhost:3000", "http://127.0.0.1:3000"]
+allow_origins_list = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+]
 if settings.FRONTEND_ORIGINS:
     allow_origins_list.extend([origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()])
 if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
@@ -66,6 +75,8 @@ app.include_router(sites.router)
 app.include_router(alerts.router)
 app.include_router(demo.router)
 app.include_router(users.router)
+app.include_router(ai.router)
+app.include_router(ai.router, prefix="/api")
 
 # Health & Readiness split
 @app.get("/health", tags=["System Health"])

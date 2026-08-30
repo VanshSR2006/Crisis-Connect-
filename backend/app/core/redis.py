@@ -1,3 +1,4 @@
+from typing import Optional, Any
 import redis
 from ..core.config import settings
 
@@ -11,7 +12,7 @@ class RedisStub:
     def get(self, key: str):
         return self._data.get(key)
 
-    def set(self, key: str, value: str, ex: int = None):
+    def set(self, key: str, value: str, ex: Optional[int] = None):
         self._data[key] = str(value)
         return True
 
@@ -30,7 +31,7 @@ class RedisClientManager:
     Guarantees that a Redis failure in production environment fails fast.
     """
     def __init__(self):
-        self.client = None
+        self.client: Any = None
         self.is_stub = False
 
     def connect(self):
@@ -65,7 +66,7 @@ class RedisClientManager:
             self.connect()
         return self.client.get(key)
 
-    def set(self, key: str, value: str, ex: int = None):
+    def set(self, key: str, value: str, ex: Optional[int] = None):
         if not self.client:
             self.connect()
         return self.client.set(key, value, ex=ex)

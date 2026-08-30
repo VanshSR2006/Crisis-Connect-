@@ -15,8 +15,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CitizenProvider } from '@/lib/citizenContext';
-import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { useOfflineSync } from '@/lib/useOfflineSync';
+import { LanguageToggle } from '@/components/shared/LanguageToggle';
+import { FloatingAssistantRobot } from '@/components/assistant/FloatingAssistantRobot';
 
 export const CitizenLayoutContent: React.FC = () => {
   const navigate = useNavigate();
@@ -169,6 +170,9 @@ export const CitizenLayoutContent: React.FC = () => {
           })}
         </div>
       </nav>
+
+      {/* Floating AI Voice Assistant */}
+      <FloatingAssistantRobot />
     </div>
   );
 };

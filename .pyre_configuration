@@ -1,12 +1,11 @@
 {
-  "include": [
-    "backend"
-  ],
-  "extraPaths": [
+  "site_package_search_strategy": "all",
+  "search_path": [
     "backend",
     "C:/Users/Anish/AppData/Roaming/Python/Python314/site-packages",
     "C:/Python314/Lib/site-packages"
   ],
-  "pythonVersion": "3.14",
-  "pythonPlatform": "Windows"
+  "source_directories": [
+    "backend"
+  ]
 }

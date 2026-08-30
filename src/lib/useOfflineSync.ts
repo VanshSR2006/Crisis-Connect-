@@ -5,7 +5,7 @@ import {
   QueuedSosReport,
   isQueueFlushing,
 } from '@/lib/offlineQueue';
-import { createIncident } from '@/lib/api/incidents';
+import { createIncident, buildIncidentPayload } from '@/lib/api/incidents';
 
 import { getStoredUser } from '@/lib/auth';
 
@@ -43,8 +43,8 @@ export function useOfflineSync() {
     setIsSyncing(true);
     try {
       const result = await flushOfflineQueue(async (report: QueuedSosReport) => {
-        const payload = {
-          title: report.title || `Emergency ${report.category.toUpperCase()} Request`,
+        const payload = buildIncidentPayload({
+          title: report.title,
           category: report.category,
           severity: report.severity,
           description: report.description,
@@ -54,7 +54,7 @@ export function useOfflineSync() {
           reporter_id: report.reporter_id || userId,
           photo_base64: report.photo_base64,
           client_id: report.client_id || report.id,
-        };
+        });
 
         const res = await createIncident(payload, {
           idempotencyKey: report.client_id || report.id,
@@ -73,6 +73,17 @@ export function useOfflineSync() {
             );
           }
           return true;
+        }
+
+        // On failure: report remains in offline queue, notify failure listeners
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('sos-report-sync-failed', {
+              detail: {
+                clientId: report.client_id || report.id,
+              },
+            })
+          );
         }
         return false;
       }, userId);

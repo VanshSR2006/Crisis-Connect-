@@ -11,6 +11,7 @@ import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
 import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
 import { createDispatch as persistDispatch } from '@/lib/api/dispatches';
+import { realtimeClient } from '@/lib/api/websocket';
 
 // ── Exported Types ─────────────────────────────────────────────────────────────
 
@@ -288,61 +289,36 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // ── WebSocket Integration ──────────────────────────────────────────────────
   useEffect(() => {
-    const wsUrl = import.meta.env.VITE_API_BASE_URL
-      ? import.meta.env.VITE_API_BASE_URL.replace('http', 'ws') + '/ws/dashboard'
-      : 'ws://localhost:8000/ws/dashboard';
-
-    let ws: WebSocket;
-    let reconnectTimer: NodeJS.Timeout;
-
-    const connectWs = () => {
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
-      if (!token) return;
-      const url = `${wsUrl}?token=${encodeURIComponent(token)}`;
-      ws = new WebSocket(url);
-
-      ws.onmessage = (event) => {
-        try {
-          if (event.data.startsWith('ACK:')) return;
-          const data = JSON.parse(event.data);
-
-          if (data.type === 'incident.created' || data.type === 'incident.verified' || data.type === 'incident.updated') {
-            const payload = data.payload;
-            queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
-              if (!old) return old;
-              const exists = old.some(i => i.id === payload.id);
-              if (exists) {
-                const updated = old.map(i => i.id === payload.id ? { ...i, ...payload } : i);
-                return updated.sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
-              } else {
-                queryClient.invalidateQueries({ queryKey: ['incidents'] });
-                return old;
-              }
-            });
-          }
-
-          // resource.updated (broadcast from dispatch.py when resource changes)
-          if (data.type === 'resource.updated') {
-            queryClient.invalidateQueries({ queryKey: ['resources'] });
-            // Also invalidate zone_pressure since supply side changed
-            queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
-          }
-        } catch (e) {
-          console.error('WS Parse error', e);
+    const handleIncidentEvent = (payload: any) => {
+      if (!payload) return;
+      queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
+        if (!old) return old;
+        const exists = old.some(i => i.id === payload.id);
+        if (exists) {
+          const updated = old.map(i => i.id === payload.id ? { ...i, ...payload } : i);
+          return updated.sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['incidents'] });
+          return old;
         }
-      };
-
-      ws.onclose = (event: CloseEvent) => {
-        if (event.code === 4401 || event.code === 4403) return;
-        reconnectTimer = setTimeout(connectWs, 5000);
-      };
+      });
     };
 
-    connectWs();
+    const handleResourceUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+      queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
+    };
+
+    const unsubCreated = realtimeClient.subscribe('incident.created', handleIncidentEvent);
+    const unsubVerified = realtimeClient.subscribe('incident.verified', handleIncidentEvent);
+    const unsubUpdated = realtimeClient.subscribe('incident.updated', handleIncidentEvent);
+    const unsubResource = realtimeClient.subscribe('resource.updated', handleResourceUpdated);
 
     return () => {
-      clearTimeout(reconnectTimer);
-      if (ws) ws.close();
+      unsubCreated();
+      unsubVerified();
+      unsubUpdated();
+      unsubResource();
     };
   }, [queryClient]);
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCitizenContext } from '@/lib/citizenContext';
 import { IncidentCategory } from '@/types';
-import { createIncident } from '@/lib/api/incidents';
+import { createIncident, buildIncidentPayload } from '@/lib/api/incidents';
 import { enqueueSosReport, getOfflineQueue } from '@/lib/offlineQueue';
 import { compressImage } from '@/lib/imageCompressor';
 import { getStoredUser } from '@/lib/auth';
@@ -66,7 +66,7 @@ export const SosReport: React.FC = () => {
       const customEvent = e as CustomEvent<{ clientId: string; backendIncident: any }>;
       if (customEvent.detail && submittedIncidentId) {
         const { clientId, backendIncident } = customEvent.detail;
-        if (clientId === submittedIncidentId || submittedIncidentId.startsWith('offline-')) {
+        if (clientId === submittedIncidentId) {
           setSubmittedIncidentId(backendIncident.id || (backendIncident as any)._id || clientId);
           setIsQueuedOffline(false);
           refreshIncidents();
@@ -74,9 +74,18 @@ export const SosReport: React.FC = () => {
       }
     };
 
+    const handleReportSyncFailed = (e: Event) => {
+      const customEvent = e as CustomEvent<{ clientId: string }>;
+      if (customEvent.detail && submittedIncidentId && customEvent.detail.clientId === submittedIncidentId) {
+        setIsQueuedOffline(true);
+      }
+    };
+
     window.addEventListener('sos-report-synced', handleReportSynced);
+    window.addEventListener('sos-report-sync-failed', handleReportSyncFailed);
     return () => {
       window.removeEventListener('sos-report-synced', handleReportSynced);
+      window.removeEventListener('sos-report-sync-failed', handleReportSyncFailed);
     };
   }, [submittedIncidentId, refreshIncidents]);
 
@@ -159,29 +168,20 @@ export const SosReport: React.FC = () => {
       return;
     }
 
-    // UPDATED PAYLOAD FOR BACKEND INTEGRATION
-    const payload: Record<string, any> = {
+    // Standardized payload helper
+    const payload = buildIncidentPayload({
       title: `Emergency ${category.toUpperCase()} Request`,
       category,
       severity: 'critical',
       description: sosDescription,
-      reporter_id: realReporterId,
-
-      // Both Flat and Nested Location formats included for schema safety
       lat,
       lng,
-      location: {
-        lat,
-        lng,
-        address: locationName,
-        type: 'Point',
-        coordinates: [lng, lat], // GeoJSON Standard
-      },
-
+      locationName,
       zone_id: zoneId,
+      reporter_id: realReporterId,
       photo_base64: photoBase64,
       client_id: clientId,
-    };
+    });
 
 
     try {

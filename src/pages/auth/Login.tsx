@@ -21,11 +21,14 @@ import {
 } from 'lucide-react';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { EmergencySOSButton } from '@/components/shared/EmergencySOSButton';
+import { FloatingAssistantRobot } from '@/components/assistant/FloatingAssistantRobot';
 import { useAuth } from '@/lib/authContext';
 
 const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
-  'https://crisis-connect-api-dev.onrender.com';
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8000'
+    : 'https://crisis-connect-api-dev.onrender.com');
 
 type AuthMode = 'login' | 'signup';
 
@@ -526,6 +529,9 @@ export const Login: React.FC = () => {
           <span>RAPID RESPONSE PROTOCOL V1.0</span>
         </div>
       </footer>
+
+      {/* Floating AI Assistant Robot */}
+      <FloatingAssistantRobot />
     </div>
   );
 };

@@ -3,6 +3,7 @@
 # Model field changes affect the database schema and all API responses.
 import uuid
 from datetime import datetime, timezone
+from typing import Optional, Any
 from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database.base import Base
@@ -38,136 +39,136 @@ class User(Base):
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
     name: Mapped[str] = mapped_column(String, nullable=False)
-    phone: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    email: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
-    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
+    password_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String, nullable=False) # citizen | volunteer | officer | admin
     language_pref: Mapped[str] = mapped_column(String, default="en")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Zone(Base):
     __tablename__ = "zones"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    name = Column(String, nullable=False)
-    district = Column(String, nullable=True)
-    boundary_json = Column(Text, nullable=True) # GeoJSON polygon string
-    population_est = Column(Integer, default=0)
-    geom = Column(Geometry('POLYGON', 4326), nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    district: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    boundary_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # GeoJSON polygon string
+    population_est: Mapped[int] = mapped_column(Integer, default=0)
+    geom: Mapped[Any] = mapped_column(Geometry('POLYGON', 4326), nullable=True)
 
 class WeatherReading(Base):
     __tablename__ = "weather_readings"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    zone_id = Column(String, ForeignKey("zones.id"))
-    rainfall_mm = Column(Float, default=0.0)
-    river_level_m = Column(Float, default=0.0)
-    recorded_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    rainfall_mm: Mapped[float] = mapped_column(Float, default=0.0)
+    river_level_m: Mapped[float] = mapped_column(Float, default=0.0)
+    recorded_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class RiskScore(Base):
     __tablename__ = "risk_scores"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    zone_id = Column(String, ForeignKey("zones.id"))
-    risk_level = Column(String) # low | medium | high | critical
-    score = Column(Float, default=0.0)
-    computed_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    risk_level: Mapped[Optional[str]] = mapped_column(String, nullable=True) # low | medium | high | critical
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Incident(Base):
     __tablename__ = "incidents"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    reporter_id = Column(String, ForeignKey("users.id"), nullable=True)
-    zone_id = Column(String, ForeignKey("zones.id"), nullable=True)
-    title = Column(String, nullable=True)
-    description = Column(Text, nullable=True)
-    category = Column(String, nullable=False) # rescue | medical | food | shelter | water | other
-    severity = Column(String, nullable=False) # low | medium | high | critical
-    status = Column(String, default="reported") # reported | acknowledged | dispatched | resolved
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
-    geom = Column(Geometry('POINT', 4326), nullable=True)
-    credibility_score = Column(Float, default=1.0)
-    review_state = Column(String, default="unverified") # unverified | flagged | verified
-    priority_score = Column(Float, default=50.0)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    reporter_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), nullable=True)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    category: Mapped[str] = mapped_column(String, nullable=False) # rescue | medical | food | shelter | water | other
+    severity: Mapped[str] = mapped_column(String, nullable=False) # low | medium | high | critical
+    status: Mapped[str] = mapped_column(String, default="reported") # reported | acknowledged | dispatched | resolved
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    geom: Mapped[Any] = mapped_column(Geometry('POINT', 4326), nullable=True)
+    credibility_score: Mapped[float] = mapped_column(Float, default=1.0)
+    review_state: Mapped[str] = mapped_column(String, default="unverified") # unverified | flagged | verified
+    priority_score: Mapped[float] = mapped_column(Float, default=50.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Shelter(Base):
     __tablename__ = "shelters"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    name = Column(String, nullable=False)
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
-    capacity = Column(Integer, default=100)
-    current_occupancy = Column(Integer, default=0)
-    zone_id = Column(String, ForeignKey("zones.id"), nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    capacity: Mapped[int] = mapped_column(Integer, default=100)
+    current_occupancy: Mapped[int] = mapped_column(Integer, default=0)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
 
 class RescueSite(Base):
     __tablename__ = "rescue_sites"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    name = Column(String, nullable=False)
-    shelter_id = Column(String, ForeignKey("shelters.id"), nullable=True)
-    lat = Column(Float, nullable=False)
-    lng = Column(Float, nullable=False)
-    geom = Column(Geometry('POINT', 4326), nullable=True)
-    elevation_m = Column(Float, default=10.0)
-    predicted_flood_margin_m = Column(Float, default=2.0)
-    capacity = Column(Integer, default=500)
-    current_occupancy = Column(Integer, default=0)
-    access_status = Column(String, default="accessible") # accessible | limited | blocked
-    zone_id = Column(String, ForeignKey("zones.id"), nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    shelter_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("shelters.id"), nullable=True)
+    lat: Mapped[float] = mapped_column(Float, nullable=False)
+    lng: Mapped[float] = mapped_column(Float, nullable=False)
+    geom: Mapped[Any] = mapped_column(Geometry('POINT', 4326), nullable=True)
+    elevation_m: Mapped[float] = mapped_column(Float, default=10.0)
+    predicted_flood_margin_m: Mapped[float] = mapped_column(Float, default=2.0)
+    capacity: Mapped[int] = mapped_column(Integer, default=500)
+    current_occupancy: Mapped[int] = mapped_column(Integer, default=0)
+    access_status: Mapped[str] = mapped_column(String, default="accessible") # accessible | limited | blocked
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
 
 class Resource(Base):
     __tablename__ = "resources"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    name = Column(String, nullable=False)
-    type = Column(String, nullable=False) # boat | medical_kit | food_packet | vehicle | personnel
-    quantity_available = Column(Integer, default=10)
-    unit = Column(String, default="units")
-    zone_id = Column(String, ForeignKey("zones.id"), nullable=True)
-    status = Column(String, default="available") # available | reserved | dispatched | depleted
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    type: Mapped[str] = mapped_column(String, nullable=False) # boat | medical_kit | food_packet | vehicle | personnel
+    quantity_available: Mapped[int] = mapped_column(Integer, default=10)
+    unit: Mapped[str] = mapped_column(String, default="units")
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String, default="available") # available | reserved | dispatched | depleted
 
 class Dispatch(Base):
     __tablename__ = "dispatches"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    incident_id = Column(String, ForeignKey("incidents.id"))
-    resource_id = Column(String, ForeignKey("resources.id"), nullable=True)
-    assigned_user_id = Column(String, ForeignKey("users.id"), nullable=True)
-    status = Column(String, default="pending") # pending | en_route | on_site | completed
-    eta_minutes = Column(Integer, default=15)
-    notes = Column(Text, nullable=True)
-    dispatched_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    incident_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("incidents.id"), nullable=True)
+    resource_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("resources.id"), nullable=True)
+    assigned_user_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("users.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String, default="pending") # pending | en_route | on_site | completed
+    eta_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    dispatched_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Alert(Base):
     __tablename__ = "alerts"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    zone_id = Column(String, ForeignKey("zones.id"), nullable=True)
-    message_en = Column(Text, nullable=False)
-    message_translated = Column(JSON, nullable=True)
-    severity = Column(String, default="medium")
-    issued_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    message_en: Mapped[str] = mapped_column(Text, nullable=False)
+    message_translated: Mapped[Optional[Any]] = mapped_column(JSON, nullable=True)
+    severity: Mapped[str] = mapped_column(String, default="medium")
+    issued_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class PopulationProfile(Base):
     __tablename__ = "population_profiles"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    zone_id = Column(String, ForeignKey("zones.id"))
-    population_est = Column(Integer, default=1000)
-    households_est = Column(Integer, default=250)
-    vulnerability_index = Column(Float, default=0.5) # 0.0 to 1.0
-    updated_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    population_est: Mapped[int] = mapped_column(Integer, default=1000)
+    households_est: Mapped[int] = mapped_column(Integer, default=250)
+    vulnerability_index: Mapped[float] = mapped_column(Float, default=0.5) # 0.0 to 1.0
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class DemandForecast(Base):
     __tablename__ = "demand_forecasts"
 
-    id = Column(String, primary_key=True, default=generate_uuid)
-    zone_id = Column(String, ForeignKey("zones.id"))
-    resource_type = Column(String, nullable=False) # food | water | medical_kit | sanitation_kit
-    quantity_needed = Column(Integer, default=0)
-    confidence = Column(Float, default=0.85)
-    computed_at = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=generate_uuid)
+    zone_id: Mapped[Optional[str]] = mapped_column(String, ForeignKey("zones.id"), nullable=True)
+    resource_type: Mapped[str] = mapped_column(String, nullable=False) # food | water | medical_kit | sanitation_kit
+    quantity_needed: Mapped[int] = mapped_column(Integer, default=0)
+    confidence: Mapped[float] = mapped_column(Float, default=0.85)
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
