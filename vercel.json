@@ -1,8 +1,18 @@
 {
+  "services": {
+    "crisis-connect-backend": {
+      "root": ".",
+      "framework": "vite",
+      "buildCommand": "pip install -r backend/requirements.txt"
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/backend/api/$1"
+      "source": "/(.*)",
+      "destination": {
+        "type": "service",
+        "service": "crisis-connect-backend"
+      }
     }
   ]
 }
