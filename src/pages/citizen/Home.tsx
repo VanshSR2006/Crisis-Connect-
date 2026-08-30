@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCitizenContext } from '@/lib/citizenContext';
+import { GUEST_SOS_DESCRIPTION } from '@/lib/citizenContext';
+
 import { useLanguage } from '@/lib/languageContext';
 import { Button } from '@/components/ui/Button';
 import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
@@ -101,18 +103,31 @@ export const Home: React.FC = () => {
     .sort((a, b) => (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy))
     .slice(0, 3);
 
-  // Filter incidents created by current authenticated citizen from backend-confirmed data
-  const citizenIncidents = user?.id
-    ? incidents.filter((i) => i.reporter_id === user.id || i.reported_by_user_id === user.id)
+  // Filter incidents created by the currently authenticated citizen.
+  // Exclude guest SOS reports (reporter_id === 'usr-guest') and sessions without a real user ID.
+  const isRealUser = !!user?.id && user.id !== 'usr-guest';
+
+  const citizenIncidents = isRealUser
+    ? incidents.filter(
+        (i) =>
+          (i.reporter_id === user!.id || i.reported_by_user_id === user!.id) &&
+          i.reporter_id !== 'usr-guest' &&
+          i.description !== GUEST_SOS_DESCRIPTION
+      )
     : [];
 
   // Determine tracker incidents to display (only authenticated citizen's backend-confirmed incidents)
   // Always sorted in descending chronological order by created_at timestamp (newest → oldest)
   const rawTrackerIncidents = citizenIncidents.length > 0
     ? citizenIncidents
-    : activeIncident && (activeIncident.reporter_id === user?.id || activeIncident.reported_by_user_id === user?.id)
+    : isRealUser &&
+      activeIncident &&
+      (activeIncident.reporter_id === user!.id || activeIncident.reported_by_user_id === user!.id) &&
+      activeIncident.reporter_id !== 'usr-guest' &&
+      activeIncident.description !== GUEST_SOS_DESCRIPTION
     ? [activeIncident]
     : [];
+
 
   const trackerIncidents = [...rawTrackerIncidents].sort((a, b) => {
     const getTime = (dateStr?: string) => {

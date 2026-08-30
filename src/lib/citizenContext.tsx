@@ -7,6 +7,11 @@ import { getIncidents } from './api/incidents';
 import { realtimeClient } from './api/websocket';
 import { getStoredUser } from './auth';
 
+/** Identifies SOS panic alerts submitted from the pre-login Emergency SOS button.
+ *  These must never appear in the citizen home tracker. */
+export const GUEST_SOS_DESCRIPTION = 'Emergency SOS — panic alert triggered from login page';
+
+
 export type { LanguageCode };
 
 export type GeoStatus = 'idle' | 'detecting' | 'acquired' | 'denied' | 'unavailable' | 'timeout';
@@ -127,11 +132,20 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
         const storedUser = getStoredUser();
         const currentUserId = user?.id || storedUser?.id;
 
-        const userIncidents = currentUserId
+        // Only show tracker incidents for real authenticated users.
+        // Exclude guest SOS panic alerts (reporter_id === 'usr-guest') and
+        // sessions where the user has no real ID.
+        const isAuthenticated = !!currentUserId && currentUserId !== 'usr-guest';
+
+        const userIncidents = isAuthenticated
           ? backendList.filter(
-              (i) => i.reporter_id === currentUserId || i.reported_by_user_id === currentUserId
+              (i) =>
+                (i.reporter_id === currentUserId || i.reported_by_user_id === currentUserId) &&
+                i.reporter_id !== 'usr-guest' &&
+                i.description !== GUEST_SOS_DESCRIPTION
             )
           : [];
+
 
         if (userIncidents.length > 0) {
           const sorted = [...userIncidents].sort(
@@ -146,6 +160,7 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
       console.warn('[CitizenContext] Error fetching live incidents:', err);
     }
   }, [user?.id]);
+
 
 
 
