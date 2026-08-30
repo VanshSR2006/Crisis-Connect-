@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CitizenProvider } from '@/lib/citizenContext';
+import { useOfflineSync } from '@/lib/useOfflineSync';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
 import { FloatingAssistantRobot } from '@/components/assistant/FloatingAssistantRobot';
 
