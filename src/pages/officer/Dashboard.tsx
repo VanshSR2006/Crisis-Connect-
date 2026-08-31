@@ -66,12 +66,13 @@ export const Dashboard: React.FC = () => {
       icon: Users,
       valueColor: 'text-[#0f172a]',
       iconColor: 'text-emerald-600',
-      onClick: () => navigate('/officer/incidents'),
+      onClick: () => navigate('/officer/alerts'),
     },
   ];
 
   const quickNavLinks = [
     { label: t('officer.dashboard.liveGisMap'), path: '/officer/live-map', icon: MapIcon, desc: t('officer.dashboard.liveGisMapDesc') },
+    { label: 'Emergency Alerts', path: '/officer/alerts', icon: Users, desc: 'Issue & broadcast alerts' },
     { label: t('officer.dashboard.incidentList'), path: '/officer/incidents', icon: FileText, desc: t('officer.dashboard.incidentListDesc') },
     { label: t('officer.dashboard.dispatchCenter'), path: '/officer/dispatch', icon: Radio, desc: t('officer.dashboard.dispatchCenterDesc') },
     { label: t('officer.dashboard.riskHeatmap'), path: '/officer/risk-heatmap', icon: Activity, desc: t('officer.dashboard.riskHeatmapDesc') },

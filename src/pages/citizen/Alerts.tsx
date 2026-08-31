@@ -137,9 +137,10 @@ export const Alerts: React.FC = () => {
                 `EMERGENCY ALERT — ${alert.severity?.toUpperCase() || 'CRITICAL'}`;
 
               const message =
-                alert.message_translated?.[language] ||
-                alert.message_en ||
-                alert.message ||
+                (alert.message_translated && alert.message_translated[language] && alert.message_translated[language].trim()) ||
+                (alert.message_translated && alert.message_translated['en'] && alert.message_translated['en'].trim()) ||
+                (alert.message_en && alert.message_en.trim()) ||
+                (alert.message && alert.message.trim()) ||
                 'Emergency notification issued for your zone. Follow safety guidelines.';
 
               const zone = alert.zone_id || alert.target_zone_id || 'All Zones';

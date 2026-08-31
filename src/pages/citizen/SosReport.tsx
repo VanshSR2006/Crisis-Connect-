@@ -19,7 +19,6 @@ import {
   Utensils,
   Home as ShelterIcon,
   Camera,
-  Mic,
   MapPin,
   CheckCircle2,
   PhoneCall,
@@ -51,7 +50,6 @@ export const SosReport: React.FC = () => {
   const [description, setDescription] = useState<string>('');
   const [locationName, setLocationName] = useState<string>('');
   const [attachedPhoto, setAttachedPhoto] = useState<File | null>(null);
-  const [hasVoiceNote, setHasVoiceNote] = useState<boolean>(false);
   const [submittedIncidentId, setSubmittedIncidentId] = useState<string | null>(null);
   const [isQueuedOffline, setIsQueuedOffline] = useState<boolean>(false);
 
@@ -97,16 +95,10 @@ export const SosReport: React.FC = () => {
     { key: 'water', labelKey: 'citizen.sosReport.drinkingWater', icon: LifeBuoy, color: 'text-cyan-600' },
   ];
 
-
-
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedPhoto(e.target.files[0]);
     }
-  };
-
-  const toggleVoiceNote = () => {
-    setHasVoiceNote((prev) => !prev);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -493,30 +485,13 @@ export const SosReport: React.FC = () => {
             {t('citizen.sosReport.attachMedia')}
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className={`border border-dashed border-[#c6c6cd] hover:border-[#2563eb] rounded p-3 text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-colors bg-[#f6f3f5] ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}>
-              <Camera className="h-5 w-5 text-[#45464d]" />
-              <span className="text-xs font-semibold text-[#1b1b1d]">
-                {attachedPhoto ? attachedPhoto.name : t('citizen.sosReport.takeAttachPhoto')}
-              </span>
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={isSubmitting} className="hidden" />
-            </label>
-
-            <button
-              type="button"
-              onClick={toggleVoiceNote}
-              disabled={isSubmitting}
-              className={`border border-dashed rounded p-3 text-center flex flex-col items-center justify-center gap-1.5 transition-colors ${hasVoiceNote
-                ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
-                : 'border-[#c6c6cd] hover:border-[#2563eb] bg-[#f6f3f5] text-[#1b1b1d]'
-                } ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}
-            >
-              <Mic className={`h-5 w-5 ${hasVoiceNote ? 'text-emerald-600' : 'text-[#45464d]'}`} />
-              <span className="text-xs font-semibold">
-                {hasVoiceNote ? t('citizen.sosReport.voiceNoteAttached') : t('citizen.sosReport.recordVoiceNote')}
-              </span>
-            </button>
-          </div>
+          <label className={`w-full border border-dashed border-[#c6c6cd] hover:border-[#2563eb] rounded p-4 text-center cursor-pointer flex flex-col items-center justify-center gap-1.5 transition-colors bg-[#f6f3f5] ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}>
+            <Camera className="h-6 w-6 text-[#45464d]" />
+            <span className="text-xs font-semibold text-[#1b1b1d]">
+              {attachedPhoto ? attachedPhoto.name : t('citizen.sosReport.takeAttachPhoto')}
+            </span>
+            <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={isSubmitting} className="hidden" />
+          </label>
         </div>
 
         {/* Submit Button */}

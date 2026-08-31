@@ -446,8 +446,6 @@ export const Login: React.FC = () => {
                   >
                     <option value="en">English</option>
                     <option value="hi">Hindi (हिन्दी)</option>
-                    <option value="as">Assamese (অসমীয়া)</option>
-                    <option value="bn">Bengali (বাংলা)</option>
                     <option value="ka">Kannada (ಕನ್ನಡ)</option>
                   </select>
                 </div>

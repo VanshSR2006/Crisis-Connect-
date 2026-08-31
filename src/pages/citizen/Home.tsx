@@ -158,7 +158,11 @@ export const Home: React.FC = () => {
               {criticalAlerts[0].title_translated?.[language] || criticalAlerts[0].title || `EMERGENCY ALERT — ${criticalAlerts[0].severity?.toUpperCase() || 'CRITICAL'}`}
             </p>
             <p className="text-xs text-red-100 mt-0.5 line-clamp-2">
-              {criticalAlerts[0].message_translated?.[language] || criticalAlerts[0].message_en || criticalAlerts[0].message}
+              {(criticalAlerts[0].message_translated && criticalAlerts[0].message_translated[language] && criticalAlerts[0].message_translated[language].trim()) ||
+                (criticalAlerts[0].message_translated && criticalAlerts[0].message_translated['en'] && criticalAlerts[0].message_translated['en'].trim()) ||
+                (criticalAlerts[0].message_en && criticalAlerts[0].message_en.trim()) ||
+                (criticalAlerts[0].message && criticalAlerts[0].message.trim()) ||
+                'Emergency notification issued.'}
             </p>
           </div>
           <span className="text-[10px] font-semibold text-red-200 whitespace-nowrap flex-shrink-0 mt-0.5">

@@ -16,6 +16,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 
+import { getZones, ZoneResponse } from '@/lib/api/zones';
+
 interface CreateAlertModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,6 +31,7 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  const [zonesList, setZonesList] = useState<{ id: string; name: string }[]>([]);
   const [targetZoneId, setTargetZoneId] = useState<string>('z-silchar');
   const [severity, setSeverity] = useState<SeverityLevel>('high');
   const [messageEn, setMessageEn] = useState<string>('');
@@ -40,7 +43,34 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
-  // Update translation previews dynamically as officer types English message
+  // Load real zones from backend API on mount
+  useEffect(() => {
+    async function loadZones() {
+      try {
+        const fetched = await getZones();
+        if (fetched && fetched.length > 0) {
+          const list = fetched.map((z) => ({
+            id: z.id,
+            name: `${z.name}${z.district ? ` (${z.district})` : ''}`,
+          }));
+          setZonesList(list);
+          setTargetZoneId(list[0].id);
+          return;
+        }
+      } catch (err) {
+        console.warn('[CreateAlertModal] Could not fetch backend zones, using defaults:', err);
+      }
+      const fallbackList = [
+        { id: 'z-silchar', name: 'Silchar Urban Sector 4 (z-silchar)' },
+        ...mockZones.map((z) => ({ id: z.id, name: z.name })),
+      ];
+      setZonesList(fallbackList);
+      setTargetZoneId(fallbackList[0].id);
+    }
+    loadZones();
+  }, []);
+
+  // Update translation fields dynamically as officer types English message
   useEffect(() => {
     if (messageEn.trim()) {
       const payload = generateMultilingualAlertPayload(messageEn);
@@ -67,14 +97,19 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
 
     try {
       const payload = generateMultilingualAlertPayload(messageEn);
+      const finalHi = translatedHi.trim() || payload.hi || messageEn.trim();
+      const finalKa = translatedKa.trim() || payload.ka || messageEn.trim();
+
+      const msgTrans: Record<string, string> = {
+        en: messageEn.trim(),
+        hi: finalHi,
+        ka: finalKa,
+      };
+
       const res = await createAlert({
         zone_id: targetZoneId,
         message_en: messageEn.trim(),
-        message_translated: {
-          en: messageEn.trim(),
-          hi: payload.hi,
-          ka: payload.ka,
-        },
+        message_translated: msgTrans,
         severity,
       });
 
@@ -83,6 +118,8 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
         setTimeout(() => {
           setIsSuccess(false);
           setMessageEn('');
+          setTranslatedHi('');
+          setTranslatedKa('');
           onAlertCreated?.();
           onClose();
         }, 1200);
@@ -96,11 +133,6 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
       setIsSubmitting(false);
     }
   };
-
-  const zonesList = [
-    { id: 'z-silchar', name: 'Assam Silchar Basin (Default)' },
-    ...mockZones.map((z) => ({ id: z.id, name: z.name })),
-  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
@@ -211,29 +243,39 @@ export const CreateAlertModal: React.FC<CreateAlertModalProps> = ({
             />
           </div>
 
-          {/* Live Translation Preview */}
+          {/* Multilingual Translation Inputs / Previews */}
           <div className="bg-slate-50 border border-slate-200 rounded p-3 space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-200 pb-1.5">
               <Globe className="h-4 w-4 text-[#2563eb]" />
-              <span>Automated Translation Previews</span>
+              <span>Multilingual Alert Content (EN / HI / KA)</span>
             </div>
 
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Hindi (HI):
-              </span>
-              <p className="text-xs text-slate-900 font-medium bg-white p-2 rounded border border-slate-200 mt-0.5 min-h-[32px]">
-                {translatedHi || <span className="text-slate-400 italic">Type message above for live preview...</span>}
-              </p>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Hindi Translation (HI):
+              </label>
+              <input
+                type="text"
+                value={translatedHi}
+                onChange={(e) => setTranslatedHi(e.target.value)}
+                placeholder="Auto-generated or enter Hindi translation (e.g. आपके क्षेत्र में भारी बारिश की संभावना है।)"
+                disabled={isSubmitting}
+                className="w-full text-xs p-2 border border-slate-300 rounded bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+              />
             </div>
 
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Kannada (KA):
-              </span>
-              <p className="text-xs text-slate-900 font-medium bg-white p-2 rounded border border-slate-200 mt-0.5 min-h-[32px]">
-                {translatedKa || <span className="text-slate-400 italic">Type message above for live preview...</span>}
-              </p>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                Kannada Translation (KA):
+              </label>
+              <input
+                type="text"
+                value={translatedKa}
+                onChange={(e) => setTranslatedKa(e.target.value)}
+                placeholder="Auto-generated or enter Kannada translation (e.g. ನಿಮ್ಮ ಪ್ರದೇಶದಲ್ಲಿ ಭಾರಿ ಮಳೆಯಾಗುವ ಸಾಧ್ಯತೆಯಿದೆ.)"
+                disabled={isSubmitting}
+                className="w-full text-xs p-2 border border-slate-300 rounded bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#2563eb]"
+              />
             </div>
           </div>
 

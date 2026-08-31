@@ -28,6 +28,7 @@ export const OfficerLayoutContent: React.FC = () => {
     { to: '/officer/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { to: '/officer/live-map', label: t('nav.liveMap'), icon: Map },
     { to: '/officer/incidents', label: t('nav.incidents'), icon: AlertTriangle },
+    { to: '/officer/alerts', label: t('nav.alerts', 'Emergency Alerts'), icon: BellRing },
     { to: '/officer/dispatch', label: t('nav.dispatch'), icon: Radio },
     { to: '/officer/risk-heatmap', label: t('nav.riskHeatmap'), icon: Activity },
     { to: '/officer/statistics', label: t('nav.analytics'), icon: BarChart3 },

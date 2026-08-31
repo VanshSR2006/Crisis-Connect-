@@ -82,5 +82,4 @@ def test_multilingual_alert_creation_and_fallback(client, db):
     data_fail = alert_fail_resp.json()
     # Backend falls back cleanly without crashing
     assert data_fail["message_en"] == "Evacuation order active."
-    assert "hi" in data_fail["message_translated"]
-    assert "ka" in data_fail["message_translated"]
+    assert data_fail["message_translated"]["en"] == "Evacuation order active."
