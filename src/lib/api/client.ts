@@ -1,13 +1,5 @@
 // TEAM OWNERSHIP: MEMBER 3 — BACKEND + DATABASE + SECURITY + REALTIME
 // Base API client. All frontend API calls must go through apiFetch().
-// Coordinate before modifying outside this workstream.
-
-/**
- * src/lib/api/client.ts
- * Thin wrapper around fetch that adds base URL, auth header, and JSON handling.
- * Returns typed data or null on network error/fallback.
- * Only a 401 authentication failure clears stored auth and redirects to /login.
- */
 
 import { clearAuth, getStoredToken } from '@/lib/auth';
 
@@ -16,48 +8,103 @@ export interface ApiError extends Error {
 }
 
 const BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
+  (typeof import.meta !== 'undefined' && import.meta.env
+    ? import.meta.env.VITE_API_BASE_URL
+    : undefined) ||
   'https://crisis-connect-api-dev.onrender.com';
 
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T | null> {
-  const url = BASE_URL ? `${BASE_URL}${endpoint}` : '';
+): Promise<T> {
+  const url = `${BASE_URL.replace(/\/$/, '')}${endpoint}`;
+
   const token = getStoredToken();
+
   const headers: HeadersInit = {
+    Accept: 'application/json',
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers ?? {}),
   };
 
-  const config: RequestInit = {
-    ...options,
-    headers,
-  };
-
   try {
-    const response = await fetch(url, config);
+    console.log(
+      '[API] Request:',
+      options.method || 'GET',
+      url
+    );
+
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    const contentType =
+      response.headers.get('content-type') || '';
+
+    let data: any = null;
+
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      data = text ? { detail: text } : null;
+    }
+
+    console.log(
+      '[API] Response:',
+      response.status,
+      url
+    );
+
     if (!response.ok) {
-      const error: ApiError = new Error(`API error ${response.status}`);
+      const detail =
+        data?.detail ||
+        `Request failed with status ${response.status}`;
+
+      const error = new Error(
+        typeof detail === 'string'
+          ? detail
+          : JSON.stringify(detail)
+      ) as ApiError;
+
       error.status = response.status;
+
+      // Only clear an existing session when an authenticated
+      // request receives a 401.
+      if (response.status === 401 && token) {
+        console.warn(
+          `[apiFetch] Authentication expired/invalid on ${endpoint}`
+        );
+
+        clearAuth();
+
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+      }
+
       throw error;
     }
-    const data = (await response.json()) as T;
-    return data;
-  } catch (e) {
-    const apiErr = e as ApiError;
-    // Auth errors: clear stored credentials and force re-login
-    if (apiErr.status === 401) {
-      console.warn(`[apiFetch] Auth error ${apiErr.status} on ${endpoint} — clearing session.`);
-      clearAuth();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-      return null;
+
+    return data as T;
+  } catch (error) {
+    const apiError = error as ApiError;
+
+    // Preserve HTTP errors such as 401, 403 and 422.
+    if (apiError.status) {
+      throw apiError;
     }
-    // Network error or backend unreachable – return null so caller handles error
-    console.warn(`API fetch failed [${url}]:`, e);
-    return null;
+
+    console.error(
+      '[API] Network error:',
+      url,
+      error
+    );
+
+    throw new Error(
+      'Unable to connect to the Crisis Connect API.'
+    );
   }
 }
