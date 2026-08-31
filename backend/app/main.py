@@ -37,26 +37,35 @@ from .routers import (
 )
 
 
-# Auto-create SQLite tables on startup in development mode
+# ---------------------------------------------------------------------------
+# Database initialization
+# ---------------------------------------------------------------------------
+
 if settings.DATABASE_URL.startswith("sqlite"):
     from .database import Base, engine
 
     Base.metadata.create_all(bind=engine)
 
 
+# ---------------------------------------------------------------------------
+# Application lifespan
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events using the modern lifespan pattern."""
+    """Startup and shutdown events."""
 
-    # Startup
     settings.validate()
     redis_client.connect()
 
     yield
 
-    # Shutdown
-    # Add cleanup here if needed
+    # Cleanup can be added here if required.
 
+
+# ---------------------------------------------------------------------------
+# FastAPI application
+# ---------------------------------------------------------------------------
 
 app = FastAPI(
     title="Crisis Connect Backend API",
@@ -70,20 +79,19 @@ app = FastAPI(
 # CORS
 # ---------------------------------------------------------------------------
 
-# Frontend origins that are always allowed.
-# The Vercel production URL is explicitly included here so the deployed
-# frontend can communicate with the Render backend.
+# Explicit frontend origins.
 allow_origins_list = [
+    # Local development
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 
-    # Vercel production frontend
+    # Production Vercel frontend
     "https://crisis-connect-opal.vercel.app",
 ]
 
-# Add additional origins configured through the backend environment.
+# Add origins configured in Render environment variables.
 if settings.FRONTEND_ORIGINS:
     allow_origins_list.extend(
         [
@@ -93,13 +101,13 @@ if settings.FRONTEND_ORIGINS:
         ]
     )
 
-# Add the singular configured frontend origin if present.
+# Add singular frontend origin if configured.
 if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
     allow_origins_list.append(
         settings.FRONTEND_ORIGIN.strip().rstrip("/")
     )
 
-# Remove duplicates and empty values.
+# Remove duplicates and empty strings.
 allow_origins_list = list(
     {
         origin
@@ -111,6 +119,10 @@ allow_origins_list = list(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins_list,
+
+    # Also allow Vercel preview/deployment URLs.
+    allow_origin_regex=r"https://crisis-connect-[a-z0-9-]+\.vercel\.app",
+
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -118,7 +130,7 @@ app.add_middleware(
 
 
 # ---------------------------------------------------------------------------
-# Routers
+# API Routers
 # ---------------------------------------------------------------------------
 
 app.include_router(auth.router)
@@ -148,6 +160,10 @@ def health_check():
         "environment": settings.ENVIRONMENT,
     }
 
+
+# ---------------------------------------------------------------------------
+# Readiness
+# ---------------------------------------------------------------------------
 
 @app.get("/ready", tags=["System Health"])
 def readiness_check(
@@ -298,7 +314,6 @@ async def websocket_dashboard_endpoint(
 
     try:
         while True:
-            # Keep connection alive and acknowledge messages
             data = await websocket.receive_text()
 
             await websocket.send_text(
@@ -318,7 +333,7 @@ async def websocket_dashboard_endpoint(
 
 
 # ---------------------------------------------------------------------------
-# Global Exception Handlers
+# Global Exception Handler
 # ---------------------------------------------------------------------------
 
 @app.exception_handler(Exception)
@@ -345,6 +360,10 @@ async def global_exception_handler(
         },
     )
 
+
+# ---------------------------------------------------------------------------
+# HTTP Exception Handler
+# ---------------------------------------------------------------------------
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(
