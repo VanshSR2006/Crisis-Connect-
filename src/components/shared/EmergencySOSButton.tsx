@@ -62,19 +62,45 @@ export const EmergencySOSButton: React.FC = () => {
         client_id: clientId,
       });
 
+      const maxAttempts = 3;
+      const baseDelayMs = 1000;
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
       if (navigator.onLine) {
-        try {
-          const res = await createIncident(payload, { idempotencyKey: clientId });
-          if (res && (res.id || (res as any)._id)) {
-            setStatus('sent');
-            return;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            console.log(`[EmergencySOSButton] Attempting online SOS dispatch (attempt ${attempt}/${maxAttempts})...`);
+
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
+
+            const res = await createIncident(payload, {
+              idempotencyKey: clientId,
+              ...(controller ? { signal: controller.signal } : {}),
+            });
+
+            if (timeoutId) clearTimeout(timeoutId);
+
+            if (res && (res.id || (res as any)._id)) {
+              console.log(`[EmergencySOSButton] SOS successfully delivered to backend on attempt ${attempt}`);
+              setStatus('sent');
+              return;
+            }
+          } catch (err) {
+            console.warn(`[EmergencySOSButton] Attempt ${attempt}/${maxAttempts} failed:`, err);
           }
-        } catch (err) {
-          console.warn('[EmergencySOSButton] Incident creation online failed, queueing offline:', err);
+
+          // If attempt failed and device is still online, wait briefly with backoff before next retry
+          if (attempt < maxAttempts && navigator.onLine) {
+            const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
+            console.log(`[EmergencySOSButton] Weak/unstable network detected. Retrying in ${backoffMs}ms...`);
+            await sleep(backoffMs);
+          }
         }
       }
 
-      // If offline or POST /incidents failed, push into existing offline queue
+      // If offline or POST /incidents failed after all retries, push into existing offline queue
+      console.warn('[EmergencySOSButton] All online attempts failed or device offline. Enqueueing to offline queue.');
       enqueueSosReport(
         {
           id: clientId,

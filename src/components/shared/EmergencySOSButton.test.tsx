@@ -124,4 +124,51 @@ describe('EmergencySOSButton', () => {
 
     expect(await screen.findByText(/Emergency SOS/i)).toBeDefined();
   });
+
+  it('retries on weak network and succeeds on attempt 2 with identical idempotencyKey', async () => {
+    const createIncidentSpy = vi
+      .spyOn(incidentsApi, 'createIncident')
+      .mockRejectedValueOnce(new Error('Network timeout on 3G'))
+      .mockResolvedValueOnce({ id: 'inc-weak-success-2' } as any);
+
+    render(<EmergencySOSButton />);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(
+      () => {
+        expect(createIncidentSpy).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 4000 }
+    );
+
+    // Verify both attempts shared the exact same idempotencyKey (preventing duplicate creation)
+    const firstCallKey = createIncidentSpy.mock.calls[0][1]?.idempotencyKey;
+    const secondCallKey = createIncidentSpy.mock.calls[1][1]?.idempotencyKey;
+    expect(firstCallKey).toBeDefined();
+    expect(firstCallKey).toEqual(secondCallKey);
+
+    expect(await screen.findByText(/Emergency distress signal sent/i)).toBeDefined();
+  });
+
+  it('falls back to offline queue after all 3 weak network retries fail', async () => {
+    const createIncidentSpy = vi
+      .spyOn(incidentsApi, 'createIncident')
+      .mockRejectedValue(new Error('Persistent high-loss network drop'));
+    const enqueueSpy = vi.spyOn(offlineQueue, 'enqueueSosReport');
+
+    render(<EmergencySOSButton />);
+
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(
+      () => {
+        expect(createIncidentSpy).toHaveBeenCalledTimes(3);
+        expect(enqueueSpy).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 8000 }
+    );
+
+    expect(await screen.findByText(/Queued — will send when connected/i)).toBeDefined();
+  });
 });

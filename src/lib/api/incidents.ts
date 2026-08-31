@@ -68,7 +68,7 @@ export function buildIncidentPayload(options: IncidentPayloadOptions): Record<st
  */
 export async function createIncident(
   newIncident: Omit<Incident, 'id'> | Record<string, any>,
-  options?: { idempotencyKey?: string }
+  options?: { idempotencyKey?: string; signal?: AbortSignal }
 ): Promise<Incident | null> {
   try {
     const payload = { ...newIncident };
@@ -112,6 +112,7 @@ export async function createIncident(
           : {}),
       },
       body: JSON.stringify(payload),
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
 
     return data;

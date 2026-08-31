@@ -4,6 +4,7 @@ from typing import Dict, Any, Optional
 import httpx
 from fastapi import HTTPException, status
 from ..core.config import settings
+from .ai_knowledge import build_system_prompt, CRISIS_CONNECT_KNOWLEDGE_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +31,8 @@ SARVAM_STT_LANGUAGE_CODES = {
     "ka": "kn-IN",
 }
 
-SYSTEM_PROMPT_TEMPLATE = """You are the official voice and chat AI assistant for Crisis Connect, an integrated emergency operations and disaster response intelligence platform.
+SYSTEM_PROMPT_TEMPLATE = build_system_prompt("{language_name}")
 
-Your mission:
-1. Help citizens, officers, and volunteers understand and use Crisis Connect.
-2. Explain key features clearly:
-   - Emergency SOS: One-touch emergency distress reporting with GPS location and offline queue resilience.
-   - Citizen Portal: Report incidents, find nearest relief shelters, view real-time warnings and disaster alerts.
-   - Officer Command: GIS live maps, resource dispatch, triage, risk heatmap.
-   - Volunteer Hub: View allocated relief tasks, coordinate resource delivery.
-   - Login / Signup Guidance: Citizens register using their mobile phone number; officers and volunteers log in with their email.
-3. CRITICAL SAFETY RULE: You are an informational assistant only. You cannot directly dispatch rescue teams, create incident tickets, or call emergency numbers.
-   - If the user describes an immediate or life-threatening emergency (e.g. trapped, injured, rising floodwaters, medical distress), you MUST urgently and clearly instruct them to click/tap the red "Emergency SOS" button located on the screen.
-4. Voice Optimization: Keep your answers concise, clear, reassuring, and direct (under 3-4 sentences when possible) so that your response sounds natural when spoken aloud.
-5. Strict Language Requirement:
-   - The user has selected or asked in {language_name}.
-   - You MUST reply entirely in {language_name}.
-   - If the target language is Hindi (हिन्दी), reply completely in Hindi script (हिन्दी).
-   - If the target language is Kannada (ಕನ್ನಡ), reply completely in Kannada script (ಕನ್ನಡ).
-   - If the target language is English, reply in English.
-   - Always match the user's requested or spoken language ({language_name}) accurately.
-"""
 
 
 def detect_language(message: str, fallback_language: str = "en") -> str:
@@ -122,7 +104,7 @@ class SarvamService:
         lang_code = detect_language(message, fallback_language=language.lower() if language else "en")
         language_name = LANGUAGE_NAMES.get(lang_code, "English")
 
-        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(language_name=language_name)
+        system_prompt = build_system_prompt(language_name=language_name)
 
         headers = {
             "Content-Type": "application/json",

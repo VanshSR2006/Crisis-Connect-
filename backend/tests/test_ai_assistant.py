@@ -324,3 +324,122 @@ def test_text_to_speech_validation_empty_text():
     )
     assert response.status_code == 422
 
+
+def test_ai_system_prompt_includes_crisis_connect_knowledge():
+    """Test that Sarvam service includes Crisis Connect master plan knowledge in system prompt."""
+    from app.services.sarvam_service import sarvam_service
+
+    mock_sarvam_response = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Crisis Connect manages emergency response, flood risk analysis, and role-based workflows.",
+                }
+            }
+        ]
+    }
+    mock_resp = httpx.Response(200, json=mock_sarvam_response, request=httpx.Request("POST", "https://api.sarvam.ai/v1/chat/completions"))
+
+    with patch.object(settings, "SARVAM_API_KEY", "test-mock-key"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        response = client.post(
+            "/ai/assistant",
+            json={"message": "What is Crisis Connect?", "language": "en"},
+        )
+        assert response.status_code == 200
+
+        call_payload = mock_post.call_args[1]["json"]
+        system_content = call_payload["messages"][0]["content"]
+
+        # Check essential knowledge sections
+        assert "CRISIS CONNECT PLATFORM KNOWLEDGE BASE" in system_content
+        assert "CITIZEN:" in system_content
+        assert "OFFICER:" in system_content
+        assert "VOLUNTEER:" in system_content
+        assert "10-STEP END-TO-END DISASTER RESPONSE WORKFLOW" in system_content
+        assert "Flood Risk Engine" in system_content
+        assert "STATIC KNOWLEDGE VS LIVE DATA GUARD" in system_content
+        assert "CRITICAL SAFETY & EMERGENCY BEHAVIOR" in system_content
+
+
+def test_ai_system_prompt_distinguishes_feature_status():
+    """Test that system prompt clearly delineates Implemented, Partial, and Planned features."""
+    from app.services.sarvam_service import sarvam_service
+
+    mock_sarvam_response = {
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "What-If simulation is a planned feature in Crisis Connect.",
+                }
+            }
+        ]
+    }
+    mock_resp = httpx.Response(200, json=mock_sarvam_response, request=httpx.Request("POST", "https://api.sarvam.ai/v1/chat/completions"))
+
+    with patch.object(settings, "SARVAM_API_KEY", "test-mock-key"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        response = client.post(
+            "/ai/assistant",
+            json={"message": "How does What-If simulation work?", "language": "en"},
+        )
+        assert response.status_code == 200
+
+        system_content = mock_post.call_args[1]["json"]["messages"][0]["content"]
+        assert "Fully Implemented: Emergency SOS" in system_content
+        assert "Partially Implemented: GIS Live Interactive Map" in system_content
+        assert "Planned / Not Started: What-If Simulation" in system_content
+
+
+def test_ai_system_prompt_multilingual_hindi_kannada():
+    """Test that Hindi and Kannada system prompts contain script instructions and knowledge."""
+    mock_sarvam_response = {
+        "choices": [{"message": {"role": "assistant", "content": "उत्तर"}}]
+    }
+    mock_resp = httpx.Response(200, json=mock_sarvam_response, request=httpx.Request("POST", "https://api.sarvam.ai/v1/chat/completions"))
+
+    with patch.object(settings, "SARVAM_API_KEY", "test-mock-key"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        # Hindi check
+        client.post("/ai/assistant", json={"message": "अधिकारी क्या कर सकते हैं?", "language": "hi"})
+        system_hi = mock_post.call_args[1]["json"]["messages"][0]["content"]
+        assert "Hindi (हिन्दी)" in system_hi
+        assert "CRISIS CONNECT PLATFORM KNOWLEDGE BASE" in system_hi
+
+        # Kannada check
+        client.post("/ai/assistant", json={"message": "ಸ್ವಯಂಸೇವಕರು ಏನು ಮಾಡಬಹುದು?", "language": "ka"})
+        system_ka = mock_post.call_args[1]["json"]["messages"][0]["content"]
+        assert "Kannada (ಕನ್ನಡ)" in system_ka
+        assert "CRISIS CONNECT PLATFORM KNOWLEDGE BASE" in system_ka
+
+
+def test_ai_system_prompt_knows_language_toggle_location():
+    """Test that system prompt includes top-right UI language toggle location knowledge."""
+    mock_sarvam_response = {
+        "choices": [{"message": {"role": "assistant", "content": "You can change language at top right."}}]
+    }
+    mock_resp = httpx.Response(200, json=mock_sarvam_response, request=httpx.Request("POST", "https://api.sarvam.ai/v1/chat/completions"))
+
+    with patch.object(settings, "SARVAM_API_KEY", "test-mock-key"), \
+         patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        client.post("/ai/assistant", json={"message": "can i change language in this website?", "language": "en"})
+        system_content = mock_post.call_args[1]["json"]["messages"][0]["content"]
+        assert "CRITICAL FEATURE - WEBSITE LANGUAGE SWITCHER (TOP RIGHT)" in system_content
+        assert "TOP RIGHT" in system_content
+        assert "Login page" in system_content
+        assert "Citizen portal" in system_content
+        assert "Officer command dashboard" in system_content
+        assert "Volunteer hub" in system_content
+
+
+
