@@ -70,28 +70,43 @@ app = FastAPI(
 # CORS
 # ---------------------------------------------------------------------------
 
+# Frontend origins that are always allowed.
+# The Vercel production URL is explicitly included here so the deployed
+# frontend can communicate with the Render backend.
 allow_origins_list = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+
+    # Vercel production frontend
+    "https://crisis-connect-opal.vercel.app",
 ]
 
+# Add additional origins configured through the backend environment.
 if settings.FRONTEND_ORIGINS:
     allow_origins_list.extend(
         [
-            origin.strip()
+            origin.strip().rstrip("/")
             for origin in settings.FRONTEND_ORIGINS.split(",")
             if origin.strip()
         ]
     )
 
+# Add the singular configured frontend origin if present.
 if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
     allow_origins_list.append(
-        settings.FRONTEND_ORIGIN.strip()
+        settings.FRONTEND_ORIGIN.strip().rstrip("/")
     )
 
-allow_origins_list = list(set(allow_origins_list))
+# Remove duplicates and empty values.
+allow_origins_list = list(
+    {
+        origin
+        for origin in allow_origins_list
+        if origin
+    }
+)
 
 app.add_middleware(
     CORSMiddleware,
