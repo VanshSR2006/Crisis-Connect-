@@ -1,5 +1,5 @@
 from typing import List, Literal, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -88,6 +88,15 @@ async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
                     detail="Invalid reporter_id"
                 )
 
+    # Deduplicate recent identical emergency SOS submissions within 15 seconds
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(seconds=15)
+    existing = db.query(Incident).filter(
+        Incident.description == inc.description,
+        Incident.created_at >= recent_cutoff
+    ).first()
+    if existing:
+        return existing
+
     # Dynamic priority score calculation based on default factors
     priority = calculate_response_priority(
         risk_score=0.8,
@@ -157,7 +166,7 @@ async def verify_incident(
     incident.priority_score = calculate_response_priority(
         risk_score=0.8,  # Dynamic risk loading placeholder
         severity=str(incident.severity),
-        credibility_score=incident.credibility_score,
+        credibility_score=req.credibility_score,
         vulnerability_index=0.7
     )
     

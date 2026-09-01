@@ -38,6 +38,7 @@ export const EmergencySOSButton: React.FC = () => {
   }, [refId]);
 
   const triggerSOS = () => {
+    if (status !== 'idle') return;
     setStatus('loading');
     const clientId = generateReferenceId();
     setRefId(clientId);
@@ -49,7 +50,12 @@ export const EmergencySOSButton: React.FC = () => {
     const user = getStoredUser();
     const realReporterId = user?.id || 'usr-guest';
 
+    let hasSubmitted = false;
+
     const submitEmergencySOS = async (lat: number, lng: number) => {
+      if (hasSubmitted) return;
+      hasSubmitted = true;
+
       const payload = buildIncidentPayload({
         title: 'Emergency SOS Report',
         description: 'Emergency SOS — panic alert triggered from login page',
