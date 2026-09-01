@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, Incident, Shelter, IncidentCategory, SeverityLevel, IncidentStatus } from '../types';
-import { mockUsers, mockIncidents, mockShelters } from '../mocks';
+import { mockUsers, mockShelters } from '../mocks';
 import { useLanguage } from './languageContext';
 import type { LanguageCode } from './i18n';
 import { getIncidents } from './api/incidents';

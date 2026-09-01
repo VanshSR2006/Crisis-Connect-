@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Dispatch, Incident, DispatchStatus } from '../types';
-import { mockIncidents } from '../mocks';
 import { getDispatches, updateDispatchStatus } from './api/dispatches';
 import { getIncidents } from './api/incidents';
 import { realtimeClient } from './api/websocket';
@@ -10,7 +9,7 @@ import { useAuth } from './authContext';
  * Enriched volunteer task type – combines a Dispatch with its Incident details.
  */
 export type VolunteerTask = Dispatch & {
-  incident: Incident;
+  incident: Incident | null;
 };
 
 export function getDispatchesForVolunteer(
@@ -18,6 +17,17 @@ export function getDispatchesForVolunteer(
   volunteerId: string
 ): Dispatch[] {
   return dispatches.filter((dispatch) => dispatch.assigned_user_id === volunteerId);
+}
+
+export function mergeDispatchesWithIncidents(
+  dispatches: Dispatch[],
+  incidents: Incident[]
+): VolunteerTask[] {
+  return dispatches.map((dispatch) => ({
+    ...dispatch,
+    // Keep the task visible without inventing operational incident data.
+    incident: incidents.find((incident) => incident.id === dispatch.incident_id) ?? null,
+  }));
 }
 
 interface VolunteerContextType {
@@ -65,31 +75,7 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
         backendDispatches || [],
         currentVolunteer.id
       );
-      const incidentsList = backendIncidents || [];
-
-      const merged: VolunteerTask[] = dispatchesList.map((dispatch) => {
-        const matchingInc = incidentsList.find((i) => i.id === dispatch.incident_id);
-        const fallbackInc: Incident = {
-          id: dispatch.incident_id,
-          title: `Emergency Incident #${dispatch.incident_id.slice(0, 6)}`,
-          category: 'rescue',
-          severity: 'critical',
-          description: dispatch.notes || 'Emergency response assigned.',
-          lat: 24.82,
-          lng: 92.79,
-          zone_id: 'z-silchar',
-          status: dispatch.status === 'completed' ? 'resolved' : dispatch.status === 'on_site' ? 'arrived' : 'dispatched',
-          priority_score: 85,
-          credibility_score: 1.0,
-          review_state: 'verified',
-          created_at: new Date().toISOString(),
-        };
-
-        return {
-          ...dispatch,
-          incident: matchingInc || fallbackInc,
-        };
-      });
+      const merged = mergeDispatchesWithIncidents(dispatchesList, backendIncidents || []);
 
       setTasks(merged);
       setError(null);
@@ -132,7 +118,7 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
               ? {
                   ...t,
                   status: 'on_site',
-                  incident: { ...t.incident, status: 'arrived' },
+                  incident: t.incident ? { ...t.incident, status: 'arrived' } : null,
                 }
               : t
           )
@@ -165,7 +151,7 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
               ? {
                   ...t,
                   status: 'completed',
-                  incident: { ...t.incident, status: 'resolved' },
+                  incident: t.incident ? { ...t.incident, status: 'resolved' } : null,
                 }
               : t
           )

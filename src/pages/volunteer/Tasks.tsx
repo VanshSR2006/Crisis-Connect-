@@ -120,7 +120,7 @@ export const Tasks: React.FC = () => {
                         </span>
                       </div>
                       <h4 className="text-xs font-bold text-[#1b1b1d] mt-1">
-                        {task.incident?.title || `Emergency ${task.incident?.category || 'Rescue'} Request`}
+                        {task.incident?.title || 'Incident details unavailable'}
                       </h4>
                     </div>
 
@@ -142,11 +142,13 @@ export const Tasks: React.FC = () => {
                     <p className="text-xs text-[#45464d] flex items-center gap-1.5">
                       <MapPin className="h-3.5 w-3.5 text-[#2563eb] flex-shrink-0" />
                       <span className="font-semibold text-[#1b1b1d]">
-                        LAT: {task.incident?.lat?.toFixed(4) || '24.8200'} · LNG: {task.incident?.lng?.toFixed(4) || '92.7900'} ({task.incident?.zone_id || 'z-silchar'})
+                        {task.incident
+                          ? `LAT: ${task.incident.lat.toFixed(4)} · LNG: ${task.incident.lng.toFixed(4)} (${task.incident.zone_id})`
+                          : 'Location unavailable'}
                       </span>
                     </p>
                     <p className="text-[12px] text-[#45464d] leading-relaxed bg-[#f6f3f5] p-2 rounded border border-[#e5e5eb]">
-                      {task.incident?.description || task.notes || 'Emergency assistance requested.'}
+                      {task.incident?.description || task.notes || 'Incident details unavailable.'}
                     </p>
                   </div>
 
