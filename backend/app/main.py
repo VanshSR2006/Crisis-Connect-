@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+
 from typing import Optional
 
 from fastapi import (
@@ -9,8 +10,10 @@ from fastapi import (
     HTTPException,
     status,
 )
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -20,6 +23,7 @@ from .core.security import (
     DASHBOARD_WS_ALLOWED_ROLES,
     get_user_from_token,
 )
+
 from .database import get_db
 from .websocket.manager import manager
 
@@ -54,12 +58,9 @@ if settings.DATABASE_URL.startswith("sqlite"):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
-
     settings.validate()
     redis_client.connect()
-
     yield
-
     # Cleanup can be added here if required.
 
 
@@ -102,7 +103,10 @@ if settings.FRONTEND_ORIGINS:
     )
 
 # Add singular frontend origin if configured.
-if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
+if (
+    settings.FRONTEND_ORIGIN
+    and settings.FRONTEND_ORIGIN != "*"
+):
     allow_origins_list.append(
         settings.FRONTEND_ORIGIN.strip().rstrip("/")
     )
@@ -120,8 +124,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins_list,
 
-    # Also allow Vercel preview/deployment URLs.
-    allow_origin_regex=r"https://crisis-connect-[a-z0-9-]+\.vercel\.app",
+    # Allow Vercel production and preview deployment URLs.
+    allow_origin_regex=r"https://.*\.vercel\.app",
 
     allow_credentials=True,
     allow_methods=["*"],
@@ -172,14 +176,12 @@ def readiness_check(
     """
     Readiness probe: verifies database and Redis connections.
     """
-
     details = {}
 
     # Database
     try:
         db.execute(text("SELECT 1"))
         details["database"] = "connected"
-
     except Exception as e:
         details["database"] = f"failed: {str(e)}"
 
@@ -236,6 +238,7 @@ def _websocket_bearer_token(
 ) -> Optional[str]:
     """
     Read JWT from:
+
     1. ?token=... used by browser WebSocket clients
     2. Authorization: Bearer ... used by clients/tests
     """
