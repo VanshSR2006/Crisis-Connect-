@@ -365,8 +365,8 @@ def test_ai_system_prompt_includes_crisis_connect_knowledge():
         assert "CRITICAL SAFETY & EMERGENCY BEHAVIOR" in system_content
 
 
-def test_ai_system_prompt_distinguishes_feature_status():
-    """Test that system prompt clearly delineates Implemented, Partial, and Planned features."""
+def test_ai_system_prompt_includes_all_24_features_without_status_language():
+    """Test that system prompt includes all 24 Crisis Connect features without build-status language."""
     from app.services.sarvam_service import sarvam_service
 
     mock_sarvam_response = {
@@ -374,7 +374,7 @@ def test_ai_system_prompt_distinguishes_feature_status():
             {
                 "message": {
                     "role": "assistant",
-                    "content": "What-If simulation is a planned feature in Crisis Connect.",
+                    "content": "What-If simulation lets officers simulate scenario changes without affecting live data.",
                 }
             }
         ]
@@ -392,9 +392,18 @@ def test_ai_system_prompt_distinguishes_feature_status():
         assert response.status_code == 200
 
         system_content = mock_post.call_args[1]["json"]["messages"][0]["content"]
-        assert "Fully Implemented: Emergency SOS" in system_content
-        assert "Partially Implemented: GIS Live Interactive Map" in system_content
-        assert "Planned / Not Started: What-If Simulation" in system_content
+        assert "ALL 24 PLATFORM FEATURES" in system_content
+        assert "What-If Simulation" in system_content
+        assert "Explain Decision" in system_content
+        assert "AI Response Plan" in system_content
+        assert "Resource Pressure Map" in system_content
+        assert "Live Risk Heatmap" in system_content
+
+        # Verify no build-status language anywhere in system prompt
+        assert "Fully Implemented" not in system_content
+        assert "Partially Implemented" not in system_content
+        assert "Planned / Not Started" not in system_content
+
 
 
 def test_ai_system_prompt_multilingual_hindi_kannada():
@@ -422,9 +431,27 @@ def test_ai_system_prompt_multilingual_hindi_kannada():
 
 
 def test_ai_system_prompt_knows_language_toggle_location():
-    """Test that system prompt includes top-right UI language toggle location knowledge."""
+    """Test that system prompt includes 3 supported languages (English, Hindi, Kannada) and top-right toggle location."""
+    from app.services.ai_knowledge import build_system_prompt
+    system_content = build_system_prompt("English")
+
+    assert "CRITICAL INSTRUCTION — SUPPORTED LANGUAGES" in system_content
+    assert "English, Hindi, and Kannada" in system_content
+    assert "top right" in system_content
+    assert "Multilingual Availability" in system_content
+
+
+def test_ai_assistant_exact_language_query_system_prompt():
+    """Test that mock Sarvam request receives the system prompt with exact 3-language and top-right switcher knowledge."""
     mock_sarvam_response = {
-        "choices": [{"message": {"role": "assistant", "content": "You can change language at top right."}}]
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "Crisis Connect supports 3 languages — English, Hindi, and Kannada — switchable from the top right of the app.",
+                }
+            }
+        ]
     }
     mock_resp = httpx.Response(200, json=mock_sarvam_response, request=httpx.Request("POST", "https://api.sarvam.ai/v1/chat/completions"))
 
@@ -432,14 +459,20 @@ def test_ai_system_prompt_knows_language_toggle_location():
          patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
         mock_post.return_value = mock_resp
 
-        client.post("/ai/assistant", json={"message": "can i change language in this website?", "language": "en"})
+        response = client.post(
+            "/ai/assistant",
+            json={"message": "how many languages are supported by crisis connect?", "language": "en"},
+        )
+        assert response.status_code == 200
+        assert "response" in response.json()
+
         system_content = mock_post.call_args[1]["json"]["messages"][0]["content"]
-        assert "CRITICAL FEATURE - WEBSITE LANGUAGE SWITCHER (TOP RIGHT)" in system_content
-        assert "TOP RIGHT" in system_content
-        assert "Login page" in system_content
-        assert "Citizen portal" in system_content
-        assert "Officer command dashboard" in system_content
-        assert "Volunteer hub" in system_content
+        assert "Multilingual Availability" in system_content
+        assert "English, Hindi, and Kannada" in system_content
+        assert "top right" in system_content
+
+
+
 
 
 

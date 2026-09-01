@@ -60,7 +60,7 @@ class IncidentResponse(BaseModel):
 
 @router.get("", response_model=List[IncidentResponse])
 def list_incidents(db: Session = Depends(get_db)):
-    return db.query(Incident).order_by(Incident.priority_score.desc()).all()
+    return db.query(Incident).order_by(Incident.created_at.desc(), Incident.priority_score.desc()).all()
 
 @router.post("", response_model=IncidentResponse)
 async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
@@ -114,13 +114,22 @@ async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
     db.refresh(new_inc)
 
     # Broadcast structured event
+    created_at_str = new_inc.created_at.isoformat().replace('+00:00', 'Z') if new_inc.created_at else datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
     await manager.broadcast("incident.created", {
         "id": new_inc.id,
         "title": new_inc.title,
         "category": new_inc.category,
         "severity": new_inc.severity,
         "status": new_inc.status,
-        "priority_score": new_inc.priority_score
+        "priority_score": new_inc.priority_score,
+        "description": new_inc.description,
+        "lat": new_inc.lat,
+        "lng": new_inc.lng,
+        "zone_id": new_inc.zone_id,
+        "reporter_id": new_inc.reporter_id,
+        "review_state": new_inc.review_state,
+        "credibility_score": new_inc.credibility_score,
+        "created_at": created_at_str
     })
     return new_inc
 

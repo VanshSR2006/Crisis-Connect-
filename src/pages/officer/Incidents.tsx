@@ -37,16 +37,23 @@ export const Incidents: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const filteredIncidents = incidents.filter((i) => {
-    const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
-    const matchesSeverity = severityFilter === 'all' || i.severity === severityFilter;
-    const matchesSearch =
-      i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (i.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      i.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (i.zone_id || '').toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSeverity && matchesSearch;
-  });
+  const filteredIncidents = incidents
+    .filter((i) => {
+      const matchesStatus = statusFilter === 'all' || i.status === statusFilter;
+      const matchesSeverity = severityFilter === 'all' || i.severity === severityFilter;
+      const matchesSearch =
+        i.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (i.description || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        i.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (i.zone_id || '').toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesStatus && matchesSeverity && matchesSearch;
+    })
+    .sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.priority_score ?? 0) - (a.priority_score ?? 0);
+    });
 
   const selectedIncident = incidents.find((i) => i.id === selectedIncidentId) || (filteredIncidents.length > 0 ? filteredIncidents[0] : null);
 
@@ -208,7 +215,7 @@ export const Incidents: React.FC = () => {
                     </p>
 
                     <div className="flex items-center justify-between text-[10px] font-semibold text-[#76777d] border-t border-[#f0edef] pt-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-mono text-[#0f172a]">ID: {incident.id.slice(-6)}</span>
                         <span>·</span>
                         <span className="uppercase text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">
@@ -220,7 +227,15 @@ export const Incidents: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      <span className="font-mono">{incident.zone_id}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {incident.created_at && (
+                          <span className="inline-flex items-center gap-1 font-mono text-[#45464d]">
+                            <Clock className="h-3 w-3 text-[#76777d]" />
+                            {formatDate(incident.created_at)}
+                          </span>
+                        )}
+                        <span className="font-mono">{incident.zone_id}</span>
+                      </div>
                     </div>
                   </div>
                 );
