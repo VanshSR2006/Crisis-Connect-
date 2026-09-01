@@ -50,51 +50,70 @@ export const Shelters: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4">
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('citizen.shelters.title')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {totalOpen} {t('citizen.shelters.openShelters')} · {totalBedsFree} {t('citizen.shelters.bedsAvailable')}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="bg-white border border-[#c6c6cd] rounded px-3 py-1.5 text-center shadow-sm">
-            <span className="block text-lg font-bold text-[#0f172a]">{totalBedsFree}</span>
-            <span className="text-[10px] font-semibold text-[#45464d] uppercase tracking-[0.05em]">
-              {t('common.bedsFree')}
-            </span>
+    <div className="space-y-5">
+      {/* ── Page Header with Shelter Background Image ──────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        {/* Background Image related to shelters */}
+        <img
+          src="/shelter_header_bg.jpg"
+          alt="Emergency Evacuation Shelter"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        {/* Soft Dark Gradient Overlay so shelter image remains clearly visible while text is crisp */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/75 via-slate-950/45 to-slate-950/60 pointer-events-none" />
+
+        {/* Header Content Overlay */}
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>EMERGENCY RELIEF NETWORK</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              {t('citizen.shelters.title')}
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs flex items-center gap-2">
+              <span>{totalOpen} {t('citizen.shelters.openShelters')}</span>
+              <span>•</span>
+              <span className="text-emerald-400 font-bold">{totalBedsFree} {t('citizen.shelters.bedsAvailable')}</span>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg">
+              <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">{totalBedsFree}</span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                {t('common.bedsFree')}
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ── Search & Filter Controls ──────────────────────── */}
-      <div className="flex flex-col sm:flex-row gap-2">
+      <div className="flex flex-col sm:flex-row gap-3">
         {/* Search input */}
         <div className="relative flex-1">
-          <Search className="h-4 w-4 text-[#76777d] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={t('citizen.shelters.searchPlaceholder')}
-            className="w-full text-xs pl-9 pr-3 py-2 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+            className="w-full text-xs pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-blue-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] font-semibold"
           />
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-1 flex gap-0.5 shrink-0">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-1.5 flex gap-1 shrink-0 shadow-[inset_0_2px_5px_rgba(0,0,0,0.4)]">
           {(['all', 'open', 'full'] as const).map((opt) => (
             <button
               key={opt}
               onClick={() => setFilter(opt)}
-              className={`px-3 py-1 rounded text-[11px] font-semibold uppercase tracking-[0.05em] transition-colors ${
+              className={`px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all duration-200 ${
                 filter === opt
-                  ? 'bg-[#0f172a] text-white'
-                  : 'text-[#45464d] hover:bg-[#eae7e9]'
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-[0_4px_10px_rgba(37,99,235,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] border border-blue-400/40 -translate-y-0.5'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
               {t(`common.${opt}`)}
@@ -104,13 +123,13 @@ export const Shelters: React.FC = () => {
       </div>
 
       {/* ── Shelters Cards List ───────────────────────────── */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         {filteredShelters.length === 0 ? (
-          <div className="bg-white border border-[#c6c6cd] rounded p-8 text-center text-[#76777d]">
-            <p className="text-sm font-medium">{t('citizen.shelters.noShelters')}</p>
+          <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-10 text-center text-[#76777d] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
+            <p className="text-sm font-extrabold text-slate-800">{t('citizen.shelters.noShelters')}</p>
           </div>
         ) : (
-          filteredShelters.map((shelter, idx) => {
+          filteredShelters.map((shelter) => {
             const statusConfig = getStatusConfig(shelter.status);
             const StatusIcon = statusConfig.icon;
             const occupancyPct = Math.round((shelter.current_occupancy / shelter.capacity) * 100);
@@ -119,21 +138,21 @@ export const Shelters: React.FC = () => {
             return (
               <div
                 key={shelter.id}
-                className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm hover:border-[#76777d] transition-colors"
+                className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_20px_38px_-8px_rgba(0,0,0,0.18)] hover:-translate-y-1.5 hover:scale-[1.01] motion-reduce:hover:transform-none transition-all duration-200 ease-out"
               >
                 {/* Header */}
-                <div className="px-3.5 py-3 border-b border-[#f0edef] flex items-start justify-between gap-3">
+                <div className="px-4 py-3.5 border-b border-slate-200/80 flex items-start justify-between gap-3 bg-gradient-to-r from-slate-100/90 to-slate-50">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm font-bold text-[#1b1b1d] truncate">{shelter.name}</h3>
-                    <div className="flex items-center gap-1 mt-0.5 text-xs text-[#45464d]">
-                      <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-[#76777d]" />
+                    <h3 className="text-sm font-black text-[#1b1b1d] truncate drop-shadow-xs">{shelter.name}</h3>
+                    <div className="flex items-center gap-1 mt-0.5 text-xs font-semibold text-slate-600">
+                      <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-blue-600" />
                       <span className="truncate">{shelter.location_name}</span>
                     </div>
                   </div>
                   <span
-                    className={`flex items-center gap-1 px-2.5 py-0.5 rounded-sm text-[11px] font-bold uppercase tracking-wider flex-shrink-0 ${statusConfig.badgeClasses}`}
+                    className={`flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-extrabold uppercase tracking-wider flex-shrink-0 shadow-xs ${statusConfig.badgeClasses}`}
                   >
-                    <StatusIcon className="h-3 w-3" />
+                    <StatusIcon className="h-3.5 w-3.5" />
                     {statusConfig.label}
                   </span>
                 </div>

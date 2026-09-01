@@ -37,7 +37,7 @@ class DispatchResponse(BaseModel):
 
 @router.get("", response_model=List[DispatchResponse])
 def list_dispatches(db: Session = Depends(get_db)):
-    return db.query(Dispatch).all()
+    return db.query(Dispatch).order_by(Dispatch.dispatched_at.desc()).all()
 
 @router.post("", response_model=DispatchResponse)
 async def create_dispatch(

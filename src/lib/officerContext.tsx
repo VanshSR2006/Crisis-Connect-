@@ -307,14 +307,18 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.setQueryData<Incident[]>(['incidents'], (old) => {
         if (!old) return old;
         const exists = old.some(i => i.id === payload.id);
-        if (exists) {
-          const updated = old.map(i => i.id === payload.id ? { ...i, ...payload } : i);
-          return updated.sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0));
-        } else {
-          queryClient.invalidateQueries({ queryKey: ['incidents'] });
-          return old;
-        }
+        const updatedList = exists
+          ? old.map(i => i.id === payload.id ? { ...i, ...payload } : i)
+          : [payload as Incident, ...old];
+
+        return updatedList.sort((a, b) => {
+          const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          if (timeA !== timeB) return timeB - timeA;
+          return (b.priority_score ?? 0) - (a.priority_score ?? 0);
+        });
       });
+      queryClient.invalidateQueries({ queryKey: ['incidents'] });
     };
 
     const handleResourceUpdated = () => {

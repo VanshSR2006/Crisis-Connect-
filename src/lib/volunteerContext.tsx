@@ -77,6 +77,12 @@ export const VolunteerProvider: React.FC<{ children: ReactNode }> = ({ children 
       );
       const merged = mergeDispatchesWithIncidents(dispatchesList, backendIncidents || []);
 
+      merged.sort((a, b) => {
+        const timeA = a.dispatched_at ? new Date(a.dispatched_at).getTime() : (a.incident?.created_at ? new Date(a.incident.created_at).getTime() : 0);
+        const timeB = b.dispatched_at ? new Date(b.dispatched_at).getTime() : (b.incident?.created_at ? new Date(b.incident.created_at).getTime() : 0);
+        return timeB - timeA;
+      });
+
       setTasks(merged);
       setError(null);
     } catch (err) {

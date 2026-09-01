@@ -28,6 +28,7 @@ export const OfficerLayoutContent: React.FC = () => {
     { to: '/officer/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
     { to: '/officer/live-map', label: t('nav.liveMap'), icon: Map },
     { to: '/officer/incidents', label: t('nav.incidents'), icon: AlertTriangle },
+    { to: '/officer/alerts', label: t('nav.alerts', 'Emergency Alerts'), icon: BellRing },
     { to: '/officer/dispatch', label: t('nav.dispatch'), icon: Radio },
     { to: '/officer/risk-heatmap', label: t('nav.riskHeatmap'), icon: Activity },
     { to: '/officer/statistics', label: t('nav.analytics'), icon: BarChart3 },
@@ -59,9 +60,7 @@ export const OfficerLayoutContent: React.FC = () => {
         )}>
           {sidebarOpen && (
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-7 h-7 bg-[#0f172a] rounded flex items-center justify-center flex-shrink-0">
-                <ShieldAlert className="h-4 w-4 text-white" />
-              </div>
+              <img src="/logo.png" alt="CrisisConnect Logo" className="h-7 w-auto object-contain flex-shrink-0" />
               <div className="flex flex-col leading-tight">
                 <span className="font-black text-xs tracking-tight text-[#1b1b1d] uppercase whitespace-nowrap">
                   CrisisConnect
@@ -73,9 +72,7 @@ export const OfficerLayoutContent: React.FC = () => {
             </div>
           )}
           {!sidebarOpen && (
-            <div className="w-7 h-7 bg-[#0f172a] rounded flex items-center justify-center">
-              <ShieldAlert className="h-4 w-4 text-white" />
-            </div>
+            <img src="/logo.png" alt="CrisisConnect Logo" className="h-7 w-auto object-contain flex-shrink-0" />
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}

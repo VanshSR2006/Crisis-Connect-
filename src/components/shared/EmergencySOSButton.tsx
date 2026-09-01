@@ -38,6 +38,7 @@ export const EmergencySOSButton: React.FC = () => {
   }, [refId]);
 
   const triggerSOS = () => {
+    if (status !== 'idle') return;
     setStatus('loading');
     const clientId = generateReferenceId();
     setRefId(clientId);
@@ -49,7 +50,12 @@ export const EmergencySOSButton: React.FC = () => {
     const user = getStoredUser();
     const realReporterId = user?.id || 'usr-guest';
 
+    let hasSubmitted = false;
+
     const submitEmergencySOS = async (lat: number, lng: number) => {
+      if (hasSubmitted) return;
+      hasSubmitted = true;
+
       const payload = buildIncidentPayload({
         title: 'Emergency SOS Report',
         description: 'Emergency SOS — panic alert triggered from login page',
@@ -62,19 +68,45 @@ export const EmergencySOSButton: React.FC = () => {
         client_id: clientId,
       });
 
+      const maxAttempts = 3;
+      const baseDelayMs = 1000;
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
       if (navigator.onLine) {
-        try {
-          const res = await createIncident(payload, { idempotencyKey: clientId });
-          if (res && (res.id || (res as any)._id)) {
-            setStatus('sent');
-            return;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            console.log(`[EmergencySOSButton] Attempting online SOS dispatch (attempt ${attempt}/${maxAttempts})...`);
+
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
+
+            const res = await createIncident(payload, {
+              idempotencyKey: clientId,
+              ...(controller ? { signal: controller.signal } : {}),
+            });
+
+            if (timeoutId) clearTimeout(timeoutId);
+
+            if (res && (res.id || (res as any)._id)) {
+              console.log(`[EmergencySOSButton] SOS successfully delivered to backend on attempt ${attempt}`);
+              setStatus('sent');
+              return;
+            }
+          } catch (err) {
+            console.warn(`[EmergencySOSButton] Attempt ${attempt}/${maxAttempts} failed:`, err);
           }
-        } catch (err) {
-          console.warn('[EmergencySOSButton] Incident creation online failed, queueing offline:', err);
+
+          // If attempt failed and device is still online, wait briefly with backoff before next retry
+          if (attempt < maxAttempts && navigator.onLine) {
+            const backoffMs = baseDelayMs * Math.pow(2, attempt - 1);
+            console.log(`[EmergencySOSButton] Weak/unstable network detected. Retrying in ${backoffMs}ms...`);
+            await sleep(backoffMs);
+          }
         }
       }
 
-      // If offline or POST /incidents failed, push into existing offline queue
+      // If offline or POST /incidents failed after all retries, push into existing offline queue
+      console.warn('[EmergencySOSButton] All online attempts failed or device offline. Enqueueing to offline queue.');
       enqueueSosReport(
         {
           id: clientId,
@@ -188,11 +220,10 @@ export const EmergencySOSButton: React.FC = () => {
   return (
     <button
       onClick={triggerSOS}
-      className="w-full py-4 px-6 bg-red-600 hover:bg-red-700 active:scale-[0.99] hover:scale-[1.01] text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg shadow-red-200/80 border border-red-500 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer animate-pulse"
-      style={{ animationDuration: '3s' }}
+      className="w-full py-4 px-6 bg-gradient-to-r from-red-600 via-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-[0.99] hover:-translate-y-0.5 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_8px_25px_rgba(220,38,38,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] border border-red-500/80 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer"
     >
-      <ShieldAlert className="h-4.5 w-4.5" />
-      <span>{t('guestSos.buttonLabel', 'Emergency SOS (Distress Panic Alert)')}</span>
+      <ShieldAlert className="h-4.5 w-4.5 text-white drop-shadow-xs" />
+      <span className="drop-shadow-xs">{t('guestSos.buttonLabel', 'Emergency SOS (Distress Panic Alert)')}</span>
     </button>
   );
 };

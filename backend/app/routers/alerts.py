@@ -45,8 +45,7 @@ async def create_alert(
     Only authorized officers can issue alerts.
     """
     translations = a.message_translated or {
-        "hi": f"[Hindi Translation Placeholder] {a.message_en}",
-        "ka": f"[Kannada Translation Placeholder] {a.message_en}"
+        "en": a.message_en,
     }
 
     new_alert = Alert(
