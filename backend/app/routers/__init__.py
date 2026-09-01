@@ -1,5 +1,5 @@
 # backend/app/routers package
-from . import auth, incidents, resources, dispatch, zones, risk, sites, alerts, demo, users, ai
+from . import auth, incidents, resources, dispatch, zones, risk, sites, shelters, alerts, demo, users, ai
 
 __all__ = [
     "auth",
@@ -9,6 +9,7 @@ __all__ = [
     "zones",
     "risk",
     "sites",
+    "shelters",
     "alerts",
     "demo",
     "users",

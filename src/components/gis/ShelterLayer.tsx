@@ -1,8 +1,8 @@
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { Shelter } from '@/types';
-import { mockShelters } from '@/mocks';
+import { getShelters } from '@/lib/api/shelters';
 
 // Create a custom icon for shelters
 const shelterIcon = new L.Icon({
@@ -21,11 +21,13 @@ interface ShelterLayerProps {
 }
 
 export const ShelterLayer: React.FC<ShelterLayerProps> = ({ isVisible }) => {
-  if (!isVisible) return null;
+  const { data: shelters = [] } = useQuery({
+    queryKey: ['shelters'],
+    queryFn: getShelters,
+    staleTime: 60000,
+  });
 
-  // Use the legitimate demo shelter data directly since backend lacks a shelters API endpoint.
-  // This satisfies the requirement to use existing demo data isolated from production API logic.
-  const shelters: Shelter[] = mockShelters;
+  if (!isVisible) return null;
 
   return (
     <>

@@ -308,29 +308,37 @@ export const SosReport: React.FC = () => {
                 {t('citizen.sosReport.recommendedShelter')}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
-              {t('common.open')}
-            </span>
+            {nearestShelter && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                {t('common.open')}
+              </span>
+            )}
           </div>
 
-          <div>
-            <h3 className="text-sm font-bold text-[#1b1b1d]">{nearestShelter.name}</h3>
-            <p className="text-xs text-[#45464d] mt-0.5 flex items-center gap-1">
-              <MapPin className="h-3.5 w-3.5 text-[#76777d]" />
-              <span>{nearestShelter.location_name}</span>
-            </p>
-          </div>
+          {nearestShelter ? (
+            <>
+              <div>
+                <h3 className="text-sm font-bold text-[#1b1b1d]">{nearestShelter.name}</h3>
+                <p className="text-xs text-[#45464d] mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-[#76777d]" />
+                  <span>{nearestShelter.location_name}</span>
+                </p>
+              </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs bg-[#f6f3f5] p-2.5 rounded border border-[#c6c6cd]">
-            <div>
-              <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.capacity')}</span>
-              <strong className="text-[#1b1b1d]">{nearestShelter.capacity - nearestShelter.current_occupancy} {t('citizen.home.bedsFree')}</strong>
-            </div>
-            <div>
-              <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.emergencyLine')}</span>
-              <strong className="text-[#1b1b1d]">{nearestShelter.contact_number}</strong>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-2 text-xs bg-[#f6f3f5] p-2.5 rounded border border-[#c6c6cd]">
+                <div>
+                  <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.capacity')}</span>
+                  <strong className="text-[#1b1b1d]">{nearestShelter.capacity - nearestShelter.current_occupancy} {t('citizen.home.bedsFree')}</strong>
+                </div>
+                <div>
+                  <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.emergencyLine')}</span>
+                  <strong className="text-[#1b1b1d]">{nearestShelter.contact_number || '—'}</strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-[#76777d]">Shelter availability is currently unavailable.</p>
+          )}
         </div>
 
         {/* Action Buttons */}

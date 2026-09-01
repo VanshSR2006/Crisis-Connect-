@@ -521,7 +521,37 @@ class TestAuthorization:
 
 
 # ===========================================================================
-# 5. Incidents
+# 5. Shelters
+# ===========================================================================
+class TestShelters:
+    def test_list_shelters_uses_persisted_inventory(self, client, db):
+        from app.models import Shelter
+
+        db.add(Shelter(
+            id="shelter-test-1", name="Test Shelter", lat=24.82, lng=92.79,
+            capacity=100, current_occupancy=100, zone_id="z-test"
+        ))
+        db.commit()
+
+        response = client.get("/shelters")
+
+        assert response.status_code == 200
+        assert response.json() == [{
+            "id": "shelter-test-1",
+            "name": "Test Shelter",
+            "location_name": "Test Shelter",
+            "lat": 24.82,
+            "lng": 92.79,
+            "capacity": 100,
+            "current_occupancy": 100,
+            "status": "full",
+            "contact_number": "",
+            "zone_id": "z-test",
+        }]
+
+
+# ===========================================================================
+# 6. Incidents
 # ===========================================================================
 class TestIncidents:
     def test_create_incident(self, client, seeded_db):
