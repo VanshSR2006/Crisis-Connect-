@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useOfficerContext } from '@/lib/officerContext';
 import { mockAlerts } from '@/mocks';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
-import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
+import { OfficerMiniMap } from '@/components/officer/OfficerMiniMap';
 import {
   AlertTriangle,
   Radio,
@@ -180,8 +180,12 @@ export const Dashboard: React.FC = () => {
               {t('officer.dashboard.openInteractiveGis')} <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
-          <div className="flex-1">
-            <MapPlaceholder height="h-72" />
+          <div className="flex-1 relative">
+            <OfficerMiniMap 
+              incidents={incidents} 
+              riskZones={riskZones} 
+              onClickMap={() => navigate('/officer/live-map')} 
+            />
           </div>
         </div>
 

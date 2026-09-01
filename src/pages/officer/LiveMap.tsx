@@ -6,6 +6,7 @@ import { useOfficerContext } from '@/lib/officerContext';
 import { RiskLayer } from '@/components/gis/RiskLayer';
 import { ResourcePressureLayer } from '@/components/gis/ResourcePressureLayer';
 import { RescueSiteLayer } from '@/components/gis/RescueSiteLayer';
+import { ShelterLayer } from '@/components/gis/ShelterLayer';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { Button } from '@/components/ui/Button';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
@@ -320,8 +321,8 @@ export const LiveMap: React.FC = () => {
           <ErrorBoundary fallbackMessage="The map encountered an error.">
             <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={true} className="w-full h-full min-h-[480px]" zoomControl={false}>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
             {/* Center map controller */}
@@ -332,6 +333,9 @@ export const LiveMap: React.FC = () => {
 
             {/* Resource Pressure layer */}
             <ResourcePressureLayer isVisible={showResourcePressure} />
+
+            {/* Shelter layer */}
+            <ShelterLayer isVisible={showShelters} />
 
             {/* Rescue Site markers */}
             <RescueSiteLayer
