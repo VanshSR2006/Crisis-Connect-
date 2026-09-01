@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { User, Incident, Shelter, IncidentCategory, SeverityLevel, IncidentStatus } from '../types';
-import { mockUsers, mockIncidents, mockShelters } from '../mocks';
+import { mockUsers } from '../mocks';
 import { useLanguage } from './languageContext';
 import type { LanguageCode } from './i18n';
 import { getIncidents } from './api/incidents';
+import { getShelters } from './api/shelters';
 import { realtimeClient } from './api/websocket';
 import { getStoredUser } from './auth';
 
@@ -59,13 +61,15 @@ interface CitizenContextType {
   incidents: Incident[];
   activeIncident: Incident | null;
   shelters: Shelter[];
+  isLoadingShelters: boolean;
+  isErrorShelters: boolean;
   lat: number | null;
   lng: number | null;
   geoStatus: GeoStatus;
   detectLocation: () => void;
   addIncident: (payload: NewIncidentPayload) => Incident;
   updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
-  getNearestShelter: (lat?: number, lng?: number) => Shelter;
+  getNearestShelter: (lat?: number, lng?: number) => Shelter | null;
   setZoneId: (zoneId: string) => void;
   refreshIncidents: () => Promise<void>;
 }
@@ -77,6 +81,16 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [user, setUser] = useState<User>(getAuthenticatedCitizenUser);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
+  const {
+    data: liveShelters,
+    isLoading: isLoadingShelters,
+    isError: isErrorShelters,
+  } = useQuery({
+    queryKey: ['shelters'],
+    queryFn: getShelters,
+    staleTime: 60000,
+  });
+  const shelters = liveShelters ?? [];
 
   // Shared browser geolocation state
   const [lat, setLat] = useState<number | null>(null);
@@ -245,12 +259,20 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
     return newIncident;
   };
 
-  const getNearestShelter = (lat?: number, lng?: number): Shelter => {
-    const openShelters = mockShelters.filter((s) => s.status === 'open');
-    if (openShelters.length > 0) {
-      return openShelters[0];
-    }
-    return mockShelters[0];
+  const getNearestShelter = (lat?: number, lng?: number): Shelter | null => {
+    const candidates = shelters.filter((s) => s.status === 'open');
+    const availableShelters = candidates.length > 0 ? candidates : shelters;
+    if (availableShelters.length === 0) return null;
+
+    const targetLat = lat ?? null;
+    const targetLng = lng ?? null;
+    if (targetLat === null || targetLng === null) return availableShelters[0];
+
+    return availableShelters.reduce((nearest, shelter) => {
+      const nearestDistance = (nearest.lat - targetLat) ** 2 + (nearest.lng - targetLng) ** 2;
+      const shelterDistance = (shelter.lat - targetLat) ** 2 + (shelter.lng - targetLng) ** 2;
+      return shelterDistance < nearestDistance ? shelter : nearest;
+    });
   };
 
   return (
@@ -261,7 +283,9 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
         setLanguage,
         incidents,
         activeIncident,
-        shelters: mockShelters,
+        shelters,
+        isLoadingShelters,
+        isErrorShelters,
         lat,
         lng,
         geoStatus,

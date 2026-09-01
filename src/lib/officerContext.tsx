@@ -10,8 +10,9 @@ import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
 import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
-import { createDispatch as persistDispatch } from '@/lib/api/dispatches';
+import { getDispatches, createDispatch as persistDispatch } from '@/lib/api/dispatches';
 import { realtimeClient } from '@/lib/api/websocket';
+import { normalizeRiskScore } from '@/lib/utils/risk';
 
 // ── Exported Types ─────────────────────────────────────────────────────────────
 
@@ -177,6 +178,8 @@ interface OfficerContextType {
   isErrorPressure: boolean;
 
   dispatches: Dispatch[];
+  isLoadingDispatches: boolean;
+  isErrorDispatches: boolean;
 
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
@@ -217,7 +220,7 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           zone_id: score.zone_id,
           name: zone?.name || score.zone_id,
           risk_level: score.risk_level as SeverityLevel,
-          score: score.score,
+          score: normalizeRiskScore(score.score),
           computed_at: score.computed_at,
           boundary_json: zone?.boundary_json || null,
           population_est: zone?.population_est || 0,
@@ -275,7 +278,17 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   });
   const zonePressure = liveZonePressure ?? [];
 
-  const [dispatches, setDispatches] = useState<Dispatch[]>(mockDispatches);
+  // ── Dispatches query (Issue 1 fix) ─────────────────────────────────────────
+  const {
+    data: liveDispatches,
+    isLoading: isLoadingDispatches,
+    isError: isErrorDispatches,
+  } = useQuery({
+    queryKey: ['dispatches'],
+    queryFn: getDispatches,
+  });
+  const dispatches = liveDispatches ?? [];
+
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [isCrisisMode, setIsCrisisMode] = useState<boolean>(false);
@@ -313,16 +326,24 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
     };
 
+    const handleDispatchEvent = () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatches'] });
+    };
+
     const unsubCreated = realtimeClient.subscribe('incident.created', handleIncidentEvent);
     const unsubVerified = realtimeClient.subscribe('incident.verified', handleIncidentEvent);
     const unsubUpdated = realtimeClient.subscribe('incident.updated', handleIncidentEvent);
     const unsubResource = realtimeClient.subscribe('resource.updated', handleResourceUpdated);
+    const unsubDispatchAuth = realtimeClient.subscribe('dispatch.authorized', handleDispatchEvent);
+    const unsubDispatchStatus = realtimeClient.subscribe('dispatch.status_changed', handleDispatchEvent);
 
     return () => {
       unsubCreated();
       unsubVerified();
       unsubUpdated();
       unsubResource();
+      unsubDispatchAuth();
+      unsubDispatchStatus();
     };
   }, [queryClient]);
 
@@ -348,7 +369,7 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
     if (!newDispatch) return null;
 
-    setDispatches((prev) => [newDispatch, ...prev]);
+    await queryClient.invalidateQueries({ queryKey: ['dispatches'] });
     // The dispatch endpoint commits Incident.status = "dispatched". Refetch it
     // instead of manufacturing a frontend-only incident status.
     await queryClient.invalidateQueries({ queryKey: ['incidents'] });
@@ -371,6 +392,8 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         isLoadingPressure,
         isErrorPressure,
         dispatches,
+        isLoadingDispatches,
+        isErrorDispatches,
         selectedIncidentId,
         setSelectedIncidentId,
         selectedZoneId,

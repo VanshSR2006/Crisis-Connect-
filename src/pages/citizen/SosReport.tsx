@@ -305,29 +305,37 @@ export const SosReport: React.FC = () => {
                 {t('citizen.sosReport.recommendedShelter')}
               </span>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 font-mono">
-              {t('common.open')}
-            </span>
+            {nearestShelter && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded border border-emerald-300">
+                {t('common.open')}
+              </span>
+            )}
           </div>
 
-          <div>
-            <h3 className="text-sm font-black text-slate-900">{nearestShelter.name}</h3>
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1 font-medium">
-              <MapPin className="h-3.5 w-3.5 text-slate-400" />
-              <span>{nearestShelter.location_name}</span>
-            </p>
-          </div>
+          {nearestShelter ? (
+            <>
+              <div>
+                <h3 className="text-sm font-bold text-[#1b1b1d]">{nearestShelter.name}</h3>
+                <p className="text-xs text-[#45464d] mt-0.5 flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-[#76777d]" />
+                  <span>{nearestShelter.location_name}</span>
+                </p>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div>
-              <span className="text-slate-500 text-[10px] uppercase font-bold block">{t('citizen.sosReport.capacity')}</span>
-              <strong className="text-slate-900 font-mono">{nearestShelter.capacity - nearestShelter.current_occupancy} {t('citizen.home.bedsFree')}</strong>
-            </div>
-            <div>
-              <span className="text-slate-500 text-[10px] uppercase font-bold block">{t('citizen.sosReport.emergencyLine')}</span>
-              <strong className="text-slate-900 font-mono">{nearestShelter.contact_number}</strong>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-2 text-xs bg-[#f6f3f5] p-2.5 rounded border border-[#c6c6cd]">
+                <div>
+                  <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.capacity')}</span>
+                  <strong className="text-[#1b1b1d]">{nearestShelter.capacity - nearestShelter.current_occupancy} {t('citizen.home.bedsFree')}</strong>
+                </div>
+                <div>
+                  <span className="text-[#76777d] text-[10px] block">{t('citizen.sosReport.emergencyLine')}</span>
+                  <strong className="text-[#1b1b1d]">{nearestShelter.contact_number || '—'}</strong>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-[#76777d]">Shelter availability is currently unavailable.</p>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -422,11 +430,10 @@ export const SosReport: React.FC = () => {
                 <div
                   key={cat.key}
                   onClick={() => !isSubmitting && setCategory(cat.key)}
-                  className={`cursor-pointer transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between border ${
-                    isSelected
+                  className={`cursor-pointer transition-all duration-200 rounded-2xl p-4 flex flex-col justify-between border ${isSelected
                       ? 'border-blue-600 bg-blue-50/70 ring-2 ring-blue-600 shadow-md scale-[1.01]'
                       : 'border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-xs hover:shadow-md hover:-translate-y-0.5'
-                  } ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}
+                    } ${isSubmitting ? 'opacity-60 pointer-events-none' : ''}`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className={`p-2.5 rounded-xl border ${getCategoryBadgeStyles()}`}>

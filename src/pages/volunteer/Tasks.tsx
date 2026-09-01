@@ -120,112 +120,118 @@ export const Tasks: React.FC = () => {
               const isOnSite = statusStr === 'on_site' || statusStr === 'arrived';
               const isActionLoading = activeActionTaskId === task.id;
 
-            return (
-              <div
-                key={task.id}
-                className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_45px_-10px_rgba(0,0,0,0.22)] hover:-translate-y-1.5 hover:scale-[1.01] motion-reduce:hover:transform-none transition-all duration-200 ease-out space-y-3.5"
-              >
-                {/* Header Row: Field Order # & Raised Status Badge */}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-sm font-black text-[#1b1b1d] tracking-wide drop-shadow-xs">
-                        {t('volunteer.tasks.fieldOrder')} #{task.id.slice(0, 8)}
-                      </span>
-                      <span className="text-[10px] font-mono font-extrabold bg-blue-50 text-blue-900 border border-blue-300 px-2 py-0.5 rounded-lg shadow-xs">
-                        Inc: {task.incident_id.slice(0, 8)}
-                      </span>
+              return (
+                <div
+                  key={task.id}
+                  className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.12),0_4px_10px_-2px_rgba(0,0,0,0.06)] hover:shadow-[0_22px_45px_-10px_rgba(0,0,0,0.22)] hover:-translate-y-1.5 hover:scale-[1.01] motion-reduce:hover:transform-none transition-all duration-200 ease-out space-y-3.5"
+                >
+                  {/* Header Row: Field Order # & Raised Status Badge */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm font-black text-[#1b1b1d] tracking-wide drop-shadow-xs">
+                          {t('volunteer.tasks.fieldOrder')} #{task.id.slice(0, 8)}
+                        </span>
+                        <span className="text-[10px] font-mono font-extrabold bg-blue-50 text-blue-900 border border-blue-300 px-2 py-0.5 rounded-lg shadow-xs">
+                          Inc: {task.incident_id.slice(0, 8)}
+                        </span>
+                      </div>
+                      <h4 className="text-xs font-black text-slate-800 mt-1">
+                        {task.incident?.title || `Emergency ${task.incident?.category || 'Rescue'} Request`}
+                      </h4>
                     </div>
-                    <h4 className="text-xs font-black text-slate-800 mt-1">
-                      {task.incident?.title || `Emergency ${task.incident?.category || 'Rescue'} Request`}
-                    </h4>
+
+                    <span
+                      className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex-shrink-0 shadow-xs border ${isCompleted
+                          ? 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-emerald-900/10'
+                          : isOnSite
+                            ? 'bg-blue-100 text-blue-900 border-blue-300 shadow-blue-900/10'
+                            : 'bg-amber-100 text-amber-900 border-amber-300 shadow-amber-900/10'
+                        }`}
+                    >
+                      {isCompleted ? 'Resolved' : isOnSite ? 'Arrived On Site' : 'En Route / Assigned'}
+                    </span>
                   </div>
 
-                  <span
-                    className={`px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider flex-shrink-0 shadow-xs border ${
-                      isCompleted
-                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300 shadow-emerald-900/10'
-                        : isOnSite
-                        ? 'bg-blue-100 text-blue-900 border-blue-300 shadow-blue-900/10'
-                        : 'bg-amber-100 text-amber-900 border-amber-300 shadow-amber-900/10'
-                    }`}
-                  >
-                    {isCompleted ? 'Resolved' : isOnSite ? 'Arrived On Site' : 'En Route / Assigned'}
+                  {/* Location & Details */}
+                  <div className="space-y-1 mb-3">
+                    <p className="text-xs text-[#45464d] flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-[#2563eb] flex-shrink-0" />
+                      <span className="font-semibold text-[#1b1b1d]">
+                        {task.incident
+                          ? `LAT: ${task.incident.lat.toFixed(4)} · LNG: ${task.incident.lng.toFixed(4)} (${task.incident.zone_id})`
+                          : 'Location unavailable'}
+                      </span>
+                    </p>
+                    <p className="text-[12px] text-[#45464d] leading-relaxed bg-[#f6f3f5] p-2 rounded border border-[#e5e5eb]">
+                      {task.incident?.description || task.notes || 'Incident details unavailable.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Description Box — Recessed Area with Inset Shadow Depth */ }
+              <p className="text-xs font-extrabold text-slate-900 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
+                {task.incident?.description || task.notes || 'Emergency assistance requested.'}
+              </p>
+
+              {/* Bottom Footer: Unit Assignment & 3D Tactile Buttons */ }
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-200/80">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-bold">
+                  <Clock className="h-3.5 w-3.5 text-slate-500" />
+                  <span>
+                    {t('volunteer.tasks.assignedToUnit')}: <strong className="text-slate-900">{task.assigned_user_id || 'Unassigned'}</strong>
                   </span>
                 </div>
 
-                {/* Location Row — Elevated Info Strip */}
-                <div className="bg-slate-100/90 p-2.5 rounded-xl border border-slate-200 flex items-center justify-between text-xs font-semibold text-slate-700 shadow-xs">
-                  <div className="flex items-center gap-1.5">
-                    <MapPin className="h-3.5 w-3.5 text-[#2563eb] flex-shrink-0" />
-                    <span className="font-extrabold text-slate-900 font-mono">
-                      LAT: {task.incident?.lat?.toFixed(4) || '24.8200'} · LNG: {task.incident?.lng?.toFixed(4) || '92.7900'} ({task.incident?.zone_id || 'z-silchar'})
+                <div className="flex items-center gap-2">
+                  {!isCompleted && !isOnSite && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isActionLoading}
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs h-9 px-4 font-black uppercase tracking-wider flex items-center gap-2 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] hover:-translate-y-0.5 active:translate-y-0.5 motion-reduce:hover:transform-none transition-all duration-150 border border-blue-400/30"
+                      onClick={() => markArrived(task.id)}
+                    >
+                      {isActionLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Navigation className="h-3.5 w-3.5" />
+                      )}
+                      <span>{isActionLoading ? 'Updating...' : 'Mark Arrived on Scene'}</span>
+                    </Button>
+                  )}
+
+                  {!isCompleted && isOnSite && (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isActionLoading}
+                      className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs h-9 px-4 font-black uppercase tracking-wider flex items-center gap-2 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] hover:-translate-y-0.5 active:translate-y-0.5 motion-reduce:hover:transform-none transition-all duration-150 border border-emerald-400/40"
+                      onClick={() => markResolved(task.id)}
+                    >
+                      {isActionLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle className="h-3.5 w-3.5" />
+                      )}
+                      <span>{isActionLoading ? 'Updating...' : 'Mark Mission Resolved'}</span>
+                    </Button>
+                  )}
+
+                  {isCompleted && (
+                    <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 shadow-xs">
+                      <Check className="h-4 w-4 text-emerald-700" />
+                      Mission Complete
                     </span>
-                  </div>
-                </div>
-
-                {/* Description Box — Recessed Area with Inset Shadow Depth */}
-                <p className="text-xs font-extrabold text-slate-900 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
-                  {task.incident?.description || task.notes || 'Emergency assistance requested.'}
-                </p>
-
-                {/* Bottom Footer: Unit Assignment & 3D Tactile Buttons */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2.5 border-t border-slate-200/80">
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-600 font-bold">
-                    <Clock className="h-3.5 w-3.5 text-slate-500" />
-                    <span>
-                      {t('volunteer.tasks.assignedToUnit')}: <strong className="text-slate-900">{task.assigned_user_id || 'Unassigned'}</strong>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {!isCompleted && !isOnSite && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={isActionLoading}
-                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-xs h-9 px-4 font-black uppercase tracking-wider flex items-center gap-2 rounded-xl shadow-[0_4px_12px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.4)] hover:-translate-y-0.5 active:translate-y-0.5 motion-reduce:hover:transform-none transition-all duration-150 border border-blue-400/30"
-                        onClick={() => markArrived(task.id)}
-                      >
-                        {isActionLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Navigation className="h-3.5 w-3.5" />
-                        )}
-                        <span>{isActionLoading ? 'Updating...' : 'Mark Arrived on Scene'}</span>
-                      </Button>
-                    )}
-
-                    {!isCompleted && isOnSite && (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={isActionLoading}
-                        className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs h-9 px-4 font-black uppercase tracking-wider flex items-center gap-2 rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] hover:-translate-y-0.5 active:translate-y-0.5 motion-reduce:hover:transform-none transition-all duration-150 border border-emerald-400/40"
-                        onClick={() => markResolved(task.id)}
-                      >
-                        {isActionLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <CheckCircle className="h-3.5 w-3.5" />
-                        )}
-                        <span>{isActionLoading ? 'Updating...' : 'Mark Mission Resolved'}</span>
-                      </Button>
-                    )}
-
-                    {isCompleted && (
-                      <span className="text-xs font-black text-emerald-800 bg-emerald-100/90 px-3 py-1.5 rounded-xl border border-emerald-300 flex items-center gap-1.5 shadow-xs">
-                        <Check className="h-4 w-4 text-emerald-700" />
-                        Mission Complete
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
-            );
+              </div>
+      );
           })}
-        </div>
-      )}
     </div>
+  )
+}
+    </div >
   );
 };

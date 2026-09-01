@@ -1,7 +1,8 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { useOfficerContext } from '@/lib/officerContext';
-import { mockShelters } from '@/mocks';
+import { getShelters } from '@/lib/api/shelters';
 import {
   BarChart3,
   ShieldCheck,
@@ -27,6 +28,11 @@ import {
 export const Statistics: React.FC = () => {
   const { t } = useTranslation();
   const { incidents, resources, riskZones, isLoadingResources } = useOfficerContext();
+  const { data: shelters = [], isLoading: isLoadingShelters, isError: isErrorShelters } = useQuery({
+    queryKey: ['shelters'],
+    queryFn: getShelters,
+    staleTime: 60000,
+  });
   const highestRiskZone = riskZones.length > 0
     ? riskZones.reduce((prev, current) => (prev.score > current.score ? prev : current))
     : null;
@@ -36,15 +42,35 @@ export const Statistics: React.FC = () => {
 
   const totalResourcesQty = resources.reduce((acc, r) => acc + (r.quantity ?? 0), 0);
 
-  // Time-series data for Incidents vs Response Latency Trend (Over 24h timeline)
-  const timeSeriesData = [
-    { time: '12:00', incidents: 2, responseTimeMin: 18.5, dispatchedUnits: 1 },
-    { time: '14:00', incidents: 4, responseTimeMin: 16.2, dispatchedUnits: 3 },
-    { time: '16:00', incidents: 7, responseTimeMin: 15.0, dispatchedUnits: 5 },
-    { time: '18:00', incidents: 12, responseTimeMin: 14.2, dispatchedUnits: 8 },
-    { time: '20:00', incidents: 9, responseTimeMin: 12.8, dispatchedUnits: 7 },
-    { time: '22:00', incidents: 5, responseTimeMin: 11.5, dispatchedUnits: 4 },
-  ];
+  // Group incidents dynamically for the trend chart
+  const calculateDynamicTimeSeries = () => {
+    if (!incidents || incidents.length === 0) return [];
+
+    // Simple grouping by hour
+    const buckets: Record<string, { incidentCount: number; dispatches: number }> = {};
+
+    incidents.forEach(inc => {
+      if (!inc.created_at) return;
+      try {
+        const date = new Date(inc.created_at);
+        // Format to HH:00
+        const hour = date.getHours().toString().padStart(2, '0');
+        const key = `${hour}:00`;
+        if (!buckets[key]) buckets[key] = { incidentCount: 0, dispatches: 0 };
+        buckets[key].incidentCount++;
+      } catch (e) {}
+    });
+
+    return Object.keys(buckets).sort().map(key => ({
+      time: key,
+      incidents: buckets[key].incidentCount,
+      responseTimeMin: 15.0, // Backend doesn't have explicit historical response time tracked yet
+      dispatchedUnits: buckets[key].dispatches
+    }));
+  };
+
+  const timeSeriesData = calculateDynamicTimeSeries();
+  const hasEnoughDataForTrend = timeSeriesData.length >= 2;
 
   // Resource Allocation chart — use actual quantity from live data
   const resourceChartData = resources.map(r => {
@@ -150,37 +176,46 @@ export const Statistics: React.FC = () => {
             <span className="text-[10px] font-mono text-slate-400">{t('officer.statistics.liveSlaMonitor')}</span>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeSeriesData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="left" stroke="#38bdf8" tick={{ fontSize: 11 }} />
-                <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '4px', fontSize: '12px', color: '#fff' }}
-                />
-                <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="incidents"
-                  name={t('officer.statistics.incidentsReported')}
-                  stroke="#38bdf8"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: '#38bdf8' }}
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="responseTimeMin"
-                  name={t('officer.statistics.responseLatencyMin')}
-                  stroke="#f43f5e"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: '#f43f5e' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div className="h-64 w-full flex items-center justify-center">
+            {hasEnoughDataForTrend ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={timeSeriesData} margin={{ top: 10, right: 20, left: -10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="time" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="left" stroke="#38bdf8" tick={{ fontSize: 11 }} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#f43f5e" tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '4px', fontSize: '12px', color: '#fff' }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="incidents"
+                    name={t('officer.statistics.incidentsReported')}
+                    stroke="#38bdf8"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#38bdf8' }}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="responseTimeMin"
+                    name={t('officer.statistics.responseLatencyMin')}
+                    stroke="#f43f5e"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: '#f43f5e' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-center px-4">
+                <div className="text-[13px] font-semibold text-slate-200 mb-1">Waiting for telemetry</div>
+                <p className="text-[11px] text-slate-400">
+                  Historical trend data will appear as operational records accumulate.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -269,17 +304,23 @@ export const Statistics: React.FC = () => {
           </div>
         </div>
 
-        {/* Shelter Capacity Distribution - keeps mockShelters (not in Phase 4 scope) */}
+        {/* Shelter Capacity Distribution */}
         <div className="bg-white border border-[#c6c6cd] rounded p-4 space-y-3 shadow-sm">
           <div className="border-b border-[#c6c6cd] pb-2 flex items-center justify-between">
             <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
               {t('officer.statistics.evacuationCampCapacity')}
             </span>
-            <span className="text-[11px] text-[#76777d] font-mono">{mockShelters.length} {t('officer.statistics.camps')}</span>
+            <span className="text-[11px] text-[#76777d] font-mono">{shelters.length} {t('officer.statistics.camps')}</span>
           </div>
 
           <div className="space-y-3 text-[12px]">
-            {mockShelters.map((s) => {
+            {isLoadingShelters ? (
+              <p className="text-[#76777d]">Loading shelters...</p>
+            ) : isErrorShelters ? (
+              <p className="text-red-600">Unable to load shelters.</p>
+            ) : shelters.length === 0 ? (
+              <p className="text-[#76777d]">No shelter data available.</p>
+            ) : shelters.map((s) => {
               const pct = Math.round((s.current_occupancy / s.capacity) * 100);
               return (
                 <div key={s.id}>

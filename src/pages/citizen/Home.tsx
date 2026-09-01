@@ -6,7 +6,7 @@ import { GUEST_SOS_DESCRIPTION } from '@/lib/citizenContext';
 
 import { useLanguage } from '@/lib/languageContext';
 import { Button } from '@/components/ui/Button';
-import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
+import { CitizenLocationMap } from '@/components/citizen/CitizenLocationMap';
 import { StatusStepper } from '@/components/shared/StatusStepper';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { LanguageToggle } from '@/components/shared/LanguageToggle';
@@ -147,27 +147,6 @@ export const Home: React.FC = () => {
       unsubAlert();
     };
   }, [fetchAlerts]);
-
-  const getMapCoordinatesText = () => {
-    if (geoStatus === 'detecting') {
-      return 'Detecting GPS location...';
-    }
-    if (geoStatus === 'acquired' && lat !== null && lng !== null) {
-      const latDir = lat >= 0 ? 'N' : 'S';
-      const lngDir = lng >= 0 ? 'E' : 'W';
-      return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(lng).toFixed(4)}° ${lngDir}`;
-    }
-    if (geoStatus === 'denied') {
-      return 'GPS Permission Denied';
-    }
-    if (geoStatus === 'timeout') {
-      return 'GPS Location Timeout';
-    }
-    if (geoStatus === 'unavailable') {
-      return 'GPS Location Unavailable';
-    }
-    return 'Detecting GPS location...';
-  };
 
   // Find critical or high alerts
   const activeAlertsSource = alerts.length > 0 ? alerts : mockAlerts;
@@ -413,7 +392,11 @@ export const Home: React.FC = () => {
             {geoStatus === 'acquired' ? t('citizen.home.gpsActive') : geoStatus === 'detecting' ? 'Detecting...' : 'GPS: ' + geoStatus.toUpperCase()}
           </span>
         </div>
-        <MapPlaceholder height="h-48" centerCoordinates={getMapCoordinatesText()} />
+        <CitizenLocationMap
+          incident={activeIncident}
+          userLocation={lat !== null && lng !== null ? [lat, lng] : null}
+          height="h-48"
+        />
       </div>
 
 
