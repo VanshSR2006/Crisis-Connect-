@@ -8,7 +8,7 @@ import {
 import { useOfficerContext } from '@/lib/officerContext';
 import { mockAlerts } from '@/mocks';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
-import { MapPlaceholder } from '@/components/shared/MapPlaceholder';
+import { OfficerMiniMap } from '@/components/officer/OfficerMiniMap';
 import {
   AlertTriangle,
   Radio,
@@ -135,8 +135,7 @@ export const Dashboard: React.FC = () => {
       icon: Users,
       valueColor: 'text-[#0f172a]',
       iconColor: 'text-emerald-600',
-      onClick: () =>
-        navigate('/officer/incidents'),
+onClick: () => navigate('/officer/alerts'),
     },
   ];
 
@@ -145,41 +144,37 @@ export const Dashboard: React.FC = () => {
       label: t('officer.dashboard.liveGisMap'),
       path: '/officer/live-map',
       icon: MapIcon,
-      desc: t(
-        'officer.dashboard.liveGisMapDesc'
-      ),
+      desc: t('officer.dashboard.liveGisMapDesc'),
+    },
+    {
+      label: 'Emergency Alerts',
+      path: '/officer/alerts',
+      icon: Users,
+      desc: 'Issue & broadcast alerts',
     },
     {
       label: t('officer.dashboard.incidentList'),
       path: '/officer/incidents',
       icon: FileText,
-      desc: t(
-        'officer.dashboard.incidentListDesc'
-      ),
+      desc: t('officer.dashboard.incidentListDesc'),
     },
     {
       label: t('officer.dashboard.dispatchCenter'),
       path: '/officer/dispatch',
       icon: Radio,
-      desc: t(
-        'officer.dashboard.dispatchCenterDesc'
-      ),
+      desc: t('officer.dashboard.dispatchCenterDesc'),
     },
     {
       label: t('officer.dashboard.riskHeatmap'),
       path: '/officer/risk-heatmap',
       icon: Activity,
-      desc: t(
-        'officer.dashboard.riskHeatmapDesc'
-      ),
+      desc: t('officer.dashboard.riskHeatmapDesc'),
     },
     {
       label: t('officer.dashboard.analytics'),
       path: '/officer/statistics',
       icon: BarChart3,
-      desc: t(
-        'officer.dashboard.analyticsDesc'
-      ),
+      desc: t('officer.dashboard.analyticsDesc'),
     },
   ];
 
@@ -550,9 +545,12 @@ export const Dashboard: React.FC = () => {
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
-
-          <div className="flex-1">
-            <MapPlaceholder height="h-72" />
+          <div className="flex-1 relative">
+            <OfficerMiniMap
+              incidents={incidents}
+              riskZones={riskZones}
+              onClickMap={() => navigate('/officer/live-map')}
+            />
           </div>
         </div>
 

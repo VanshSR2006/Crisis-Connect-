@@ -1,0 +1,11 @@
+{
+  "site_package_search_strategy": "all",
+  "search_path": [
+    "backend",
+    "C:/Users/Anish/AppData/Roaming/Python/Python314/site-packages",
+    "C:/Python314/Lib/site-packages"
+  ],
+  "source_directories": [
+    "backend"
+  ]
+}

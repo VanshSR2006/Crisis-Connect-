@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiFetch } from '@/lib/api/client';
 import { getStoredSession, storeAuth } from '@/lib/auth';
+import { updateIncidentStatus } from '@/lib/api/incidents';
+import { createDispatch } from '@/lib/api/dispatches';
+import { getVolunteers } from '@/lib/api/users';
 
 const fetchMock = vi.fn();
 
@@ -18,6 +21,64 @@ describe('apiFetch authentication handling', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/dispatches'),
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }) })
+    );
+  });
+
+  it('sends an officer status transition to the incident API', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'incident-1', status: 'acknowledged' }),
+    });
+
+    await updateIncidentStatus('incident-1', 'acknowledged');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/incidents/incident-1/status'),
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'acknowledged' }),
+        headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }),
+      })
+    );
+  });
+
+  it('sends the selected volunteer ID when creating a dispatch', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'dispatch-1' }) });
+
+    await createDispatch({
+      incident_id: 'incident-1',
+      resource_id: 'resource-1',
+      assigned_user_id: 'real-volunteer-id',
+      notes: 'Field response',
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/dispatches'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          incident_id: 'incident-1',
+          resource_id: 'resource-1',
+          assigned_user_id: 'real-volunteer-id',
+          notes: 'Field response',
+        }),
+        headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }),
+      })
+    );
+  });
+
+  it('loads the real volunteer roster for the selector', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => [{ id: 'real-volunteer-id', name: 'Volunteer', email: 'v@example.test' }],
+    });
+
+    await expect(getVolunteers()).resolves.toEqual([
+      { id: 'real-volunteer-id', name: 'Volunteer', email: 'v@example.test' },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/users?role=volunteer'),
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer valid-jwt' }) })
     );
   });

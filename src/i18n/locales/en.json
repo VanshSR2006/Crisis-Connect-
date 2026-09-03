@@ -128,7 +128,7 @@
       "returnHome": "Return to Citizen Home",
       "reportAnother": "Report Another Incident",
       "responseTeamAssigned": "Response Team Assigned within 3–5 min",
-      "attachMedia": "3. Attach Photo / Voice Note (Optional)",
+      "attachMedia": "3. Attach Photo (Optional)",
       "takeAttachPhoto": "Take/Attach Photo",
       "recordVoiceNote": "Record Voice Note",
       "voiceNoteAttached": "Voice Note Attached",
@@ -385,5 +385,27 @@
       "reserved": "Reserved",
       "depleted": "Depleted"
     }
+  },
+  "assistant": {
+    "title": "Crisis Assistant",
+    "online": "Online",
+    "placeholder": "Ask something or tap the mic...",
+    "send": "Send",
+    "thinking": "Thinking...",
+    "listening": "Listening...",
+    "speaking": "Speaking...",
+    "startListening": "Start Voice Recording",
+    "stopListening": "Stop Listening",
+    "stopSpeaking": "Stop Voice",
+    "playVoice": "Play Voice",
+    "error": "I'm having trouble connecting right now.",
+    "aiError": "I'm having trouble connecting right now.",
+    "micDenied": "Microphone access was denied. You can type your question instead.",
+    "sttError": "I couldn't understand that. Please try again.",
+    "ttsError": "I couldn't play the voice response. You can still read my answer here.",
+    "welcome": "Hi! I'm the Crisis Connect assistant. I can help you understand the platform, Emergency SOS, login, and basic emergency guidance.",
+    "close": "Close assistant",
+    "open": "Open AI Assistant",
+    "ariaLabel": "Crisis Connect AI Assistant"
   }
 }

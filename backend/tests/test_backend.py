@@ -257,6 +257,62 @@ def test_dispatch_create_does_not_default_to_a_demo_volunteer():
 
     assert DispatchCreate(incident_id="inc-1").assigned_user_id is None
 
+
+def test_officer_can_list_real_volunteers_only(client, seeded_db, officer_token):
+    response = client.get(
+        "/users?role=volunteer",
+        headers={"Authorization": f"Bearer {officer_token}"},
+    )
+    assert response.status_code == 200
+    assert response.json() == [{
+        "id": "usr-volunteer-1",
+        "name": "Volunteer Test",
+        "email": "volunteer.test@crisisconnect.org",
+    }]
+
+
+def test_citizen_cannot_list_volunteers(client, seeded_db, citizen_token):
+    response = client.get(
+        "/users?role=volunteer",
+        headers={"Authorization": f"Bearer {citizen_token}"},
+    )
+    assert response.status_code == 403
+
+
+def test_officer_status_updates_persist_for_citizen_refresh(client, seeded_db, officer_token):
+    created = client.post("/incidents", json={
+        "title": "Citizen SOS",
+        "category": "rescue",
+        "severity": "high",
+        "description": "Needs assistance",
+        "lat": 24.82,
+        "lng": 92.79,
+        "reporter_id": "usr-citizen-1",
+    })
+    assert created.status_code == 200
+    incident_id = created.json()["id"]
+    assert created.json()["status"] == "reported"
+
+    headers = {"Authorization": f"Bearer {officer_token}"}
+    acknowledged = client.patch(
+        f"/incidents/{incident_id}/status",
+        json={"status": "acknowledged"},
+        headers=headers,
+    )
+    assert acknowledged.status_code == 200
+    assert acknowledged.json()["status"] == "acknowledged"
+    refreshed = client.get("/incidents")
+    assert next(i for i in refreshed.json() if i["id"] == incident_id)["status"] == "acknowledged"
+
+    resolved = client.patch(
+        f"/incidents/{incident_id}/status",
+        json={"status": "resolved"},
+        headers=headers,
+    )
+    assert resolved.status_code == 200
+    refreshed = client.get("/incidents")
+    assert next(i for i in refreshed.json() if i["id"] == incident_id)["status"] == "resolved"
+
 class TestSignup:
     def test_citizen_signup_and_login_with_phone(self, client):
         # Signup
@@ -465,7 +521,37 @@ class TestAuthorization:
 
 
 # ===========================================================================
-# 5. Incidents
+# 5. Shelters
+# ===========================================================================
+class TestShelters:
+    def test_list_shelters_uses_persisted_inventory(self, client, db):
+        from app.models import Shelter
+
+        db.add(Shelter(
+            id="shelter-test-1", name="Test Shelter", lat=24.82, lng=92.79,
+            capacity=100, current_occupancy=100, zone_id="z-test"
+        ))
+        db.commit()
+
+        response = client.get("/shelters")
+
+        assert response.status_code == 200
+        assert response.json() == [{
+            "id": "shelter-test-1",
+            "name": "Test Shelter",
+            "location_name": "Test Shelter",
+            "lat": 24.82,
+            "lng": 92.79,
+            "capacity": 100,
+            "current_occupancy": 100,
+            "status": "full",
+            "contact_number": "",
+            "zone_id": "z-test",
+        }]
+
+
+# ===========================================================================
+# 6. Incidents
 # ===========================================================================
 class TestIncidents:
     def test_create_incident(self, client, seeded_db):

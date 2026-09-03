@@ -4,7 +4,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
 import {
   Incident,
   Dispatch,
@@ -14,11 +13,19 @@ import {
   SeverityLevel,
 } from '@/types';
 
-import { getIncidents } from '@/lib/api/incidents';
+import { mockDispatches } from '@/mocks';
+
+import {
+  getIncidents,
+  updateIncidentStatus as persistIncidentStatus,
+} from '@/lib/api/incidents';
 import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
 import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
+import { getDispatches, createDispatch as persistDispatch } from '@/lib/api/dispatches';
+import { realtimeClient } from '@/lib/api/websocket';
+import { normalizeRiskScore } from '@/lib/utils/risk';
 
 import {
   getDispatches,
@@ -248,6 +255,7 @@ function buildPressureModels(
 interface CreateDispatchPayload {
   incidentId: string;
   assignedUserId: string;
+  resourceId?: string;
   notes: string;
 
   // Optional resource selected by officer
@@ -276,6 +284,8 @@ interface OfficerContextType {
   isErrorPressure: boolean;
 
   dispatches: Dispatch[];
+  isLoadingDispatches: boolean;
+  isErrorDispatches: boolean;
 
   selectedIncidentId: string | null;
   setSelectedIncidentId: (id: string | null) => void;
@@ -285,8 +295,8 @@ interface OfficerContextType {
 
   updateIncidentStatus: (
     id: string,
-    status: IncidentStatus
-  ) => void;
+    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
+  ) => Promise<void>;
 
   createDispatch: (
     payload: CreateDispatchPayload
@@ -338,38 +348,14 @@ export const OfficerProvider: React.FC<{
     queryKey: ['risk_zones'],
 
     queryFn: async () => {
-      const [scores, zones] =
-        await Promise.all([
-          getRiskScores(),
-          getZones(),
-        ]);
+  updateIncidentStatus: (
+    id: string,
+    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
+  ) => Promise<void>;
 
-      const merged: LiveRiskZone[] =
-        scores.map((score) => {
-          const zone = zones.find(
-            (z) => z.id === score.zone_id
-          );
-
-          return {
-            id: score.id,
-            zone_id: score.zone_id,
-            name:
-              zone?.name ||
-              score.zone_id,
-            risk_level:
-              score.risk_level as SeverityLevel,
-            score: score.score,
-            computed_at:
-              score.computed_at,
-            boundary_json:
-              zone?.boundary_json ||
-              null,
-            population_est:
-              zone?.population_est ||
-              0,
-          };
-        });
-
+  createDispatch: (
+    payload: CreateDispatchPayload
+  ) => Promise<Dispatch | null>;
       return merged;
     },
 
@@ -453,6 +439,27 @@ export const OfficerProvider: React.FC<{
 
   const zonePressure =
     liveZonePressure ?? [];
+
+  // ── Dispatches query (Issue 1 fix) ─────────────────────────────────────────
+  const {
+    data: liveDispatches,
+    isLoading: isLoadingDispatches,
+    isError: isErrorDispatches,
+  } = useQuery({
+    queryKey: ['dispatches'],
+    queryFn: getDispatches,
+  });
+
+  const dispatches = liveDispatches ?? [];
+
+  const [selectedIncidentId, setSelectedIncidentId] =
+    useState<string | null>(null);
+
+  const [selectedZoneId, setSelectedZoneId] =
+    useState<string | null>(null);
+
+  const [isCrisisMode, setIsCrisisMode] =
+    useState<boolean>(false);
 
   // ───────────────────────────────────────────────────────────────────────────
   // LOCAL STATE
@@ -550,25 +557,65 @@ export const OfficerProvider: React.FC<{
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    const handleIncidentEvent = (payload: any) => {
+      if (!payload) return;
+
+      queryClient.setQueryData<Incident[]>(
+        ['incidents'],
+        (old) => {
+          if (!old) return old;
+
+          const exists = old.some(
+            (i) => i.id === payload.id
+          );
+
+          const updatedList = exists
+            ? old.map((i) =>
+                i.id === payload.id
+                  ? { ...i, ...payload }
+                  : i
+              )
+            : [payload as Incident, ...old];
+
+          return updatedList.sort((a, b) => {
+            const timeA = a.created_at
+              ? new Date(a.created_at).getTime()
+              : 0;
+            const timeB = b.created_at
+              ? new Date(b.created_at).getTime()
+              : 0;
+
+            if (timeA !== timeB) {
+              return timeB - timeA;
+            }
+
+            return (
+              (b.priority_score ?? 0) -
+              (a.priority_score ?? 0)
+            );
+          });
+        }
+      );
+
+      queryClient.invalidateQueries({
+        queryKey: ['incidents'],
+      });
+    };
+
     const wsUrl =
       import.meta.env.VITE_API_BASE_URL
         ? import.meta.env.VITE_API_BASE_URL
-            .replace('http', 'ws') +
+            .replace(/^http/, 'ws') +
           '/ws/dashboard'
         : 'ws://localhost:8000/ws/dashboard';
 
     let ws: WebSocket;
-    let reconnectTimer: ReturnType<
-      typeof setTimeout
-    >;
+    let reconnectTimer: ReturnType<typeof setTimeout>;
 
     const connectWs = () => {
       const token =
-        typeof localStorage !==
-        'undefined'
-          ? localStorage.getItem(
-              'token'
-            )
+        typeof localStorage !== 'undefined'
+          ? localStorage.getItem('token')
           : null;
 
       if (!token) {
@@ -579,9 +626,7 @@ export const OfficerProvider: React.FC<{
       }
 
       const url =
-        `${wsUrl}?token=${encodeURIComponent(
-          token
-        )}`;
+        `${wsUrl}?token=${encodeURIComponent(token)}`;
 
       console.log(
         '[OfficerContext] Connecting WebSocket:',
@@ -599,17 +644,13 @@ export const OfficerProvider: React.FC<{
       ws.onmessage = (event) => {
         try {
           if (
-            typeof event.data ===
-              'string' &&
-            event.data.startsWith(
-              'ACK:'
-            )
+            typeof event.data === 'string' &&
+            event.data.startsWith('ACK:')
           ) {
             return;
           }
 
-          const data =
-            JSON.parse(event.data);
+          const data = JSON.parse(event.data);
 
           console.log(
             '[OfficerContext] WS event:',
@@ -618,93 +659,28 @@ export const OfficerProvider: React.FC<{
 
           // INCIDENT EVENTS
           if (
-            data.type ===
-              'incident.created' ||
-            data.type ===
-              'incident.verified'
+            data.type === 'incident.created' ||
+            data.type === 'incident.verified'
           ) {
-            const payload =
-              data.payload;
-
-            queryClient.setQueryData<
-              Incident[]
-            >(
-              ['incidents'],
-              (old) => {
-                if (!old) {
-                  return old;
-                }
-
-                const exists =
-                  old.some(
-                    (i) =>
-                      i.id ===
-                      payload.id
-                  );
-
-                if (exists) {
-                  return old
-                    .map((i) =>
-                      i.id ===
-                      payload.id
-                        ? {
-                            ...i,
-                            ...payload,
-                          }
-                        : i
-                    )
-                    .sort(
-                      (a, b) =>
-                        (b.priority_score ??
-                          0) -
-                        (a.priority_score ??
-                          0)
-                    );
-                }
-
-                queryClient.invalidateQueries(
-                  {
-                    queryKey: [
-                      'incidents',
-                    ],
-                  }
-                );
-
-                return old;
-              }
-            );
+            handleIncidentEvent(data.payload);
           }
 
           // RESOURCE EVENTS
-          if (
-            data.type ===
-            'resource.updated'
-          ) {
-            queryClient.invalidateQueries(
-              {
-                queryKey: [
-                  'resources',
-                ],
-              }
-            );
+          if (data.type === 'resource.updated') {
+            queryClient.invalidateQueries({
+              queryKey: ['resources'],
+            });
 
-            queryClient.invalidateQueries(
-              {
-                queryKey: [
-                  'zone_pressure',
-                ],
-              }
-            );
+            queryClient.invalidateQueries({
+              queryKey: ['zone_pressure'],
+            });
           }
 
           // DISPATCH EVENTS
           if (
-            data.type ===
-              'dispatch.created' ||
-            data.type ===
-              'dispatch.authorized' ||
-            data.type ===
-              'dispatch.status_changed'
+            data.type === 'dispatch.created' ||
+            data.type === 'dispatch.authorized' ||
+            data.type === 'dispatch.status_changed'
           ) {
             refreshDispatches();
           }
@@ -723,9 +699,7 @@ export const OfficerProvider: React.FC<{
         );
       };
 
-      ws.onclose = (
-        event: CloseEvent
-      ) => {
+      ws.onclose = (event: CloseEvent) => {
         console.warn(
           '[OfficerContext] WebSocket closed:',
           event.code
@@ -738,188 +712,82 @@ export const OfficerProvider: React.FC<{
           return;
         }
 
-        reconnectTimer =
-          setTimeout(
-            connectWs,
-            5000
-          );
+        reconnectTimer = setTimeout(
+          connectWs,
+          5000
+        );
       };
     };
 
-    connectWs();
+    const handleResourceUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['resources'] });
+      queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
+    };
+
+    const handleDispatchEvent = () => {
+      queryClient.invalidateQueries({ queryKey: ['dispatches'] });
+    };
+
+    const unsubCreated = realtimeClient.subscribe('incident.created', handleIncidentEvent);
+    const unsubVerified = realtimeClient.subscribe('incident.verified', handleIncidentEvent);
+    const unsubUpdated = realtimeClient.subscribe('incident.updated', handleIncidentEvent);
+    const unsubResource = realtimeClient.subscribe('resource.updated', handleResourceUpdated);
+    const unsubDispatchAuth = realtimeClient.subscribe('dispatch.authorized', handleDispatchEvent);
+    const unsubDispatchStatus = realtimeClient.subscribe('dispatch.status_changed', handleDispatchEvent);
 
     return () => {
-      clearTimeout(
-        reconnectTimer
-      );
-
-      if (ws) {
-        ws.close();
-      }
+      unsubCreated();
+      unsubVerified();
+      unsubUpdated();
+      unsubResource();
+      unsubDispatchAuth();
+      unsubDispatchStatus();
     };
   }, [queryClient]);
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // UPDATE INCIDENT STATUS
-  // ───────────────────────────────────────────────────────────────────────────
-
-  const updateIncidentStatus = (
+  const updateIncidentStatus = async (
     id: string,
-    status: IncidentStatus
+    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
   ) => {
-    queryClient.setQueryData<
-      Incident[]
-    >(
+    const updatedIncident = await persistIncidentStatus(id, status);
+
+    if (!updatedIncident) return;
+
+    queryClient.setQueryData<Incident[]>(
       ['incidents'],
       (old) => {
-        if (!old) {
-          return old;
-        }
+        if (!old) return old;
 
-        return old.map(
-          (incident) =>
-            incident.id === id
-              ? {
-                  ...incident,
-                  status,
-                }
-              : incident
+        return old.map((incident) =>
+          incident.id === id
+            ? updatedIncident
+            : incident
         );
       }
     );
   };
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // CREATE DISPATCH
-  // ───────────────────────────────────────────────────────────────────────────
-
   const createDispatch = async (
     payload: CreateDispatchPayload
   ): Promise<Dispatch | null> => {
-    try {
-      console.log(
-        '======================================'
-      );
+    const newDispatch = await persistDispatch({
+      incident_id: payload.incidentId,
+      resource_id: payload.resourceId,
+      assigned_user_id: payload.assignedUserId,
+      notes: payload.notes,
+    });
 
-      console.log(
-        '[OfficerContext] CREATE DISPATCH'
-      );
+    if (!newDispatch) return null;
 
-      console.log(
-        'Incident:',
-        payload.incidentId
-      );
+    await queryClient.invalidateQueries({
+      queryKey: ['dispatches'],
+    });
 
-      console.log(
-        'Assigned User:',
-        payload.assignedUserId
-      );
+    await queryClient.invalidateQueries({
+      queryKey: ['incidents'],
+    });
 
-      console.log(
-        'Resource:',
-        payload.resourceId
-      );
-
-      console.log(
-        'Notes:',
-        payload.notes
-      );
-
-      console.log(
-        '======================================'
-      );
-
-      // Build the backend request.
-      const requestBody: {
-        incident_id: string;
-        assigned_user_id: string;
-        resource_id?: string;
-        notes?: string;
-      } = {
-        incident_id:
-          payload.incidentId,
-
-        assigned_user_id:
-          payload.assignedUserId,
-
-        notes:
-          payload.notes,
-      };
-
-      // Only send resource_id when one exists.
-      if (payload.resourceId) {
-        requestBody.resource_id =
-          payload.resourceId;
-      }
-
-      console.log(
-        '[OfficerContext] POST /dispatches body:',
-        requestBody
-      );
-
-      // ACTUAL BACKEND CALL
-      const createdDispatch =
-        await createDispatchApi(
-          requestBody
-        );
-
-      console.log(
-        '[OfficerContext] Backend response:',
-        createdDispatch
-      );
-
-      if (!createdDispatch) {
-        console.error(
-          '[OfficerContext] Backend returned no dispatch.'
-        );
-
-        return null;
-      }
-
-      // Add backend-created dispatch immediately.
-      setDispatches(
-        (previous) => [
-          createdDispatch,
-          ...previous.filter(
-            (dispatch) =>
-              dispatch.id !==
-              createdDispatch.id
-          ),
-        ]
-      );
-
-      // Update incident locally.
-      updateIncidentStatus(
-        payload.incidentId,
-        'dispatched'
-      );
-
-      // Refresh from backend.
-      await refreshDispatches();
-
-      console.log(
-        '[OfficerContext] Dispatch successfully created:',
-        createdDispatch.id
-      );
-
-      return createdDispatch;
-    } catch (error) {
-      console.error(
-        '======================================'
-      );
-
-      console.error(
-        '[OfficerContext] DISPATCH CREATION FAILED'
-      );
-
-      console.error(error);
-
-      console.error(
-        '======================================'
-      );
-
-      return null;
-    }
+    return newDispatch;
   };
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -950,7 +818,8 @@ export const OfficerProvider: React.FC<{
         isErrorPressure,
 
         dispatches,
-
+        isLoadingDispatches,
+        isErrorDispatches,
         selectedIncidentId,
         setSelectedIncidentId,
 

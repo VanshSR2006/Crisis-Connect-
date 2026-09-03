@@ -1,8 +1,12 @@
 {
-  "venvPath": ".",
-  "venv": ".venv",
+  "include": [
+    "backend"
+  ],
   "extraPaths": [
     "backend",
-    "backend/app"
-  ]
+    "C:/Users/Anish/AppData/Roaming/Python/Python314/site-packages",
+    "C:/Python314/Lib/site-packages"
+  ],
+  "pythonVersion": "3.14",
+  "pythonPlatform": "Windows"
 }

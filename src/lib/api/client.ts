@@ -7,24 +7,52 @@ export interface ApiError extends Error {
   status?: number;
 }
 
+const isLocalhost =
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const envApiUrl =
+  typeof import.meta !== 'undefined' && import.meta.env
+    ? import.meta.env.VITE_API_BASE_URL
+    : undefined;
+
 const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env
     ? import.meta.env.VITE_API_BASE_URL
     : undefined) ||
-  'https://crisis-connect-api-dev.onrender.com';
+  (envApiUrl && envApiUrl.trim() !== ''
+    ? envApiUrl
+    : isLocalhost
+    ? 'http://localhost:8000'
+    : 'https://crisis-connect-api-dev.onrender.com');
 
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
-): Promise<T> {
-  const url = `${BASE_URL.replace(/\/$/, '')}${endpoint}`;
+): Promise<T | null> {
+  const baseUrlClean = (BASE_URL || '').replace(/\/+$/, '');
+  const endpointClean = endpoint.startsWith('/')
+    ? endpoint
+    : `/${endpoint}`;
+
+  const url = baseUrlClean
+    ? `${baseUrlClean}${endpointClean}`
+    : endpointClean;
 
   const token = getStoredToken();
 
+  const isFormData =
+    typeof FormData !== 'undefined' &&
+    options.body instanceof FormData;
+
   const headers: HeadersInit = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(!isFormData && {
+      'Content-Type': 'application/json',
+    }),
+    ...(token && {
+      Authorization: `Bearer ${token}`,
+    }),
     ...(options.headers ?? {}),
   };
 

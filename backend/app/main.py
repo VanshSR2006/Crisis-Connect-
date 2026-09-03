@@ -36,8 +36,11 @@ from .routers import (
     zones,
     risk,
     sites,
+    shelters,
     alerts,
     demo,
+    users,
+    ai,
 )
 
 
@@ -75,6 +78,60 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ---------------------------------------------------------------------------
+# CORS
+# ---------------------------------------------------------------------------
+
+# Explicit frontend origins.
+allow_origins_list = [
+    # Local development
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+
+    # Production Vercel frontend
+    "https://crisis-connect-opal.vercel.app",
+]
+
+# Add origins configured in Render environment variables.
+if settings.FRONTEND_ORIGINS:
+    allow_origins_list.extend(
+        [
+            origin.strip().rstrip("/")
+            for origin in settings.FRONTEND_ORIGINS.split(",")
+            if origin.strip()
+        ]
+    )
+
+# Add singular frontend origin if configured.
+if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
+    allow_origins_list.append(
+        settings.FRONTEND_ORIGIN.strip().rstrip("/")
+    )
+
+# Remove duplicates and empty strings.
+allow_origins_list = list(
+    {
+        origin
+        for origin in allow_origins_list
+        if origin
+    }
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins_list,
+    # Allow Vercel production and preview deployment URLs.
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ---------------------------------------------------------------------------
 # CORS
@@ -144,8 +201,12 @@ app.include_router(dispatch.router)
 app.include_router(zones.router)
 app.include_router(risk.router)
 app.include_router(sites.router)
+app.include_router(shelters.router)
 app.include_router(alerts.router)
 app.include_router(demo.router)
+app.include_router(users.router)
+app.include_router(ai.router)
+app.include_router(ai.router, prefix="/api")
 
 
 # ---------------------------------------------------------------------------

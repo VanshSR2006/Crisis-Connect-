@@ -30,6 +30,7 @@ import { Incidents } from '@/pages/officer/Incidents';
 import { Dispatch } from '@/pages/officer/Dispatch';
 import { RiskHeatmap } from '@/pages/officer/RiskHeatmap';
 import { Statistics } from '@/pages/officer/Statistics';
+import { Alerts as OfficerAlerts } from '@/pages/officer/Alerts';
 
 // Volunteer Pages
 import { Tasks as VolunteerTasks } from '@/pages/volunteer/Tasks';
@@ -120,6 +121,10 @@ export const router = createBrowserRouter([
           {
             path: 'statistics',
             element: <Statistics />,
+          },
+          {
+            path: 'alerts',
+            element: <OfficerAlerts />,
           },
         ],
       },

@@ -8,6 +8,24 @@ interface RiskLayerProps {
   isVisible: boolean;
 }
 
+function isCoordinateArray(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) return false;
+  if (typeof value[0] === 'number') {
+    return value.length >= 2 && Number.isFinite(value[0]) && Number.isFinite(value[1]);
+  }
+  return value.every(isCoordinateArray);
+}
+
+function isRenderableGeoJson(value: unknown): value is { type: string } {
+  if (!value || typeof value !== 'object' || !('type' in value)) return false;
+  const geoJson = value as { type: string; coordinates?: unknown; geometry?: unknown; features?: unknown };
+  if (geoJson.type === 'Feature') return isRenderableGeoJson(geoJson.geometry);
+  if (geoJson.type === 'FeatureCollection') {
+    return Array.isArray(geoJson.features) && geoJson.features.length > 0 && geoJson.features.every(isRenderableGeoJson);
+  }
+  return ['Polygon', 'MultiPolygon'].includes(geoJson.type) && isCoordinateArray(geoJson.coordinates);
+}
+
 export const RiskLayer: React.FC<RiskLayerProps> = ({ isVisible }) => {
   const { riskZones, selectedZoneId, setSelectedZoneId } = useOfficerContext();
   const map = useMap();
@@ -43,6 +61,10 @@ export const RiskLayer: React.FC<RiskLayerProps> = ({ isVisible }) => {
       .map(zone => {
         try {
           const feature = JSON.parse(zone.boundary_json!);
+          if (!isRenderableGeoJson(feature)) {
+            console.warn(`Invalid GeoJSON boundary for zone ${zone.zone_id}`);
+            return null;
+          }
           return { zone, feature };
         } catch (e) {
           console.warn(`Invalid geometry for zone ${zone.zone_id}`);

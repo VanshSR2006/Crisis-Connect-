@@ -25,7 +25,9 @@ class RealtimeClient {
   private getWsUrl(): string {
     const apiBase =
       (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_BASE_URL : undefined) ??
-      'https://crisis-connect-api-dev.onrender.com';
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:8000'
+        : 'https://crisis-connect-api-dev.onrender.com');
     const wsBase = apiBase.replace(/^http/, 'ws');
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
     const base = `${wsBase}/ws/dashboard`;

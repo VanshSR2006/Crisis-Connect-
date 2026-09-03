@@ -43,7 +43,7 @@ class DispatchResponse(BaseModel):
 
 @router.get("", response_model=List[DispatchResponse])
 def list_dispatches(db: Session = Depends(get_db)):
-    return db.query(Dispatch).all()
+    return db.query(Dispatch).order_by(Dispatch.dispatched_at.desc()).all()
 
 
 @router.post("", response_model=DispatchResponse)
@@ -106,7 +106,7 @@ async def create_dispatch(
         if resource.quantity_available == 0:
             resource.status = "depleted"
         else:
-            resource.status = "dispatched"
+            setattr(resource, "status", "dispatched")
 
     # 3. Check if assigned user (volunteer) exists
     if d.assigned_user_id:
@@ -200,7 +200,7 @@ async def update_dispatch_status(
         pass
 
     elif current_user.role == "volunteer":
-        if dispatch.assigned_user_id != current_user.id:
+        if str(dispatch.assigned_user_id) != str(current_user.id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=(

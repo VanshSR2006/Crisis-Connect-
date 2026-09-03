@@ -41,11 +41,12 @@ def calculate_risk(input_data: RiskCalcInput):
     """
     Evaluates flood risk probability using Logistic Regression.
     """
+    soil_sat = input_data.soil_saturation if input_data.soil_saturation is not None else 0.5
     return calculate_flood_risk(
         rainfall_mm=input_data.rainfall_mm,
         river_level_m=input_data.river_level_m,
         elevation_m=input_data.elevation_m,
-        soil_saturation=input_data.soil_saturation
+        soil_saturation=soil_sat
     )
 
 
