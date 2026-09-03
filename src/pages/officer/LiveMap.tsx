@@ -143,6 +143,10 @@ export const LiveMap: React.FC = () => {
   const displaySites: (RescueSite | RankedRescueSite)[] =
     rankingEnabled && rankedSites !== undefined ? rankedSites : allRescueSites;
 
+  // Rankings are recommendations for the detail panel. The map remains an
+  // inventory view, so an empty regional ranking never removes known sites.
+  const mapSites = allRescueSites;
+
   const selectedSite = selectedSiteId
     ? displaySites.find(s => s.id === selectedSiteId) ?? null
     : null;
@@ -157,10 +161,25 @@ export const LiveMap: React.FC = () => {
   // ── Handle site selection (list or map) ────────────────────────────────────
   const handleSiteSelect = (id: string) => {
     setSelectedSiteId(id);
-    const site = displaySites.find(s => s.id === id);
+    const site = displaySites.find(s => s.id === id) ?? allRescueSites.find(s => s.id === id);
     if (site && site.lat && site.lng) {
       setMapCenterOverride([site.lat, site.lng]);
     }
+    setDetailMode('sites');
+  };
+
+  const focusRescueSiteInventory = () => {
+    const sitesWithCoordinates = allRescueSites.filter(
+      site => Number.isFinite(site.lat) && Number.isFinite(site.lng) && site.lat !== 0 && site.lng !== 0
+    );
+    if (sitesWithCoordinates.length === 0) return;
+
+    const center: [number, number] = [
+      sitesWithCoordinates.reduce((sum, site) => sum + site.lat, 0) / sitesWithCoordinates.length,
+      sitesWithCoordinates.reduce((sum, site) => sum + site.lng, 0) / sitesWithCoordinates.length,
+    ];
+    setSelectedSiteId(null);
+    setMapCenterOverride(center);
     setDetailMode('sites');
   };
 
@@ -356,7 +375,7 @@ export const LiveMap: React.FC = () => {
             {/* Rescue Site markers */}
             <RescueSiteLayer
               isVisible={showRescueSites}
-              sites={displaySites}
+              sites={mapSites}
               selectedSiteId={selectedSiteId}
               onSiteClick={handleSiteSelect}
             />
@@ -574,6 +593,14 @@ export const LiveMap: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {allRescueSites.length > 0 && (
+                      <button
+                        onClick={focusRescueSiteInventory}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-900 border border-emerald-300 rounded px-1.5 py-0.5"
+                      >
+                        Show on Map
+                      </button>
+                    )}
                     {rankingEnabled ? (
                       <button
                         onClick={() => {
@@ -644,8 +671,12 @@ export const LiveMap: React.FC = () => {
                     <ShieldCheck className="h-6 w-6 mx-auto text-slate-400" />
                     <p className="font-semibold text-[#1b1b1d]">No suitable sites within 200 km.</p>
                     <p className="text-[11px]">All available sites are outside the regional response radius.</p>
+                    <p className="text-[11px]">The full rescue-site inventory remains visible on the map.</p>
                     <button
-                      onClick={() => setRankingEnabled(false)}
+                      onClick={() => {
+                        setRankingEnabled(false);
+                        focusRescueSiteInventory();
+                      }}
                       className="text-xs text-blue-600 hover:underline pt-1 block mx-auto"
                     >
                       View All Pan-India Sites
