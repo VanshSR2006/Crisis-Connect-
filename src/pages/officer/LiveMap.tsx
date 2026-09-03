@@ -24,7 +24,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import { rankRescueSites, RankedRescueSite } from '@/lib/api/rescueSites';
+import { getRescueSites, rankRescueSites, RescueSite, RankedRescueSite } from '@/lib/api/rescueSites';
 import { ActionBar } from '@/components/officer/ActionBar';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
@@ -106,6 +106,17 @@ export const LiveMap: React.FC = () => {
     setMapCenterOverride(null);
   }, [selectedIncidentId]);
 
+  // ── All Rescue Sites inventory query ───────────────────────────────────────
+  const {
+    data: allRescueSites = [],
+    isLoading: isLoadingAllSites,
+    isError: isErrorAllSites,
+  } = useQuery<RescueSite[]>({
+    queryKey: ['rescue-sites-inventory'],
+    queryFn: getRescueSites,
+    staleTime: 60000,
+  });
+
   // ── Rescue-site ranking query ──────────────────────────────────────────────
   const {
     data: rankedSites,
@@ -113,7 +124,7 @@ export const LiveMap: React.FC = () => {
     isError: isErrorSites,
     refetch: refetchSites,
   } = useQuery<RankedRescueSite[]>({
-    queryKey: ['rescue-sites', selectedIncidentId],
+    queryKey: ['rescue-sites-ranking', selectedIncidentId],
     queryFn: () => {
       if (!selectedIncident?.lat || !selectedIncident?.lng) {
         throw new Error('Incident has no coordinates');
@@ -128,8 +139,13 @@ export const LiveMap: React.FC = () => {
     retry: 1,
   });
 
-  const sites = rankedSites ?? [];
-  const selectedSite = selectedSiteId ? sites.find(s => s.id === selectedSiteId) ?? null : null;
+  // If ranking active and has results, use rankedSites; otherwise display full inventory
+  const displaySites: (RescueSite | RankedRescueSite)[] =
+    rankingEnabled && rankedSites !== undefined ? rankedSites : allRescueSites;
+
+  const selectedSite = selectedSiteId
+    ? displaySites.find(s => s.id === selectedSiteId) ?? null
+    : null;
 
   // ── Switch to Sites tab when ranking results arrive ────────────────────────
   useEffect(() => {
@@ -141,7 +157,7 @@ export const LiveMap: React.FC = () => {
   // ── Handle site selection (list or map) ────────────────────────────────────
   const handleSiteSelect = (id: string) => {
     setSelectedSiteId(id);
-    const site = sites.find(s => s.id === id);
+    const site = displaySites.find(s => s.id === id);
     if (site && site.lat && site.lng) {
       setMapCenterOverride([site.lat, site.lng]);
     }
@@ -340,7 +356,7 @@ export const LiveMap: React.FC = () => {
             {/* Rescue Site markers */}
             <RescueSiteLayer
               isVisible={showRescueSites}
-              sites={sites}
+              sites={displaySites}
               selectedSiteId={selectedSiteId}
               onSiteClick={handleSiteSelect}
             />
@@ -548,48 +564,71 @@ export const LiveMap: React.FC = () => {
                 {/* Header with trigger/retry */}
                 <div className="flex items-center justify-between border-b border-[#f0edef] pb-2">
                   <div>
-                    <h3 className="text-xs font-bold text-[#1b1b1d] uppercase tracking-wider">Rescue Site Ranking</h3>
-                    {selectedIncident && (
-                      <p className="text-[10px] text-[#76777d] mt-0.5 truncate">For: {selectedIncident.title || selectedIncident.id}</p>
+                    <h3 className="text-xs font-bold text-[#1b1b1d] uppercase tracking-wider">
+                      {rankingEnabled ? 'Rescue Site Ranking' : 'Rescue Sites Inventory'}
+                    </h3>
+                    <p className="text-[10px] text-[#76777d] mt-0.5 truncate">
+                      {rankingEnabled && selectedIncident
+                        ? `Ranked for: ${selectedIncident.title || selectedIncident.id}`
+                        : `${allRescueSites.length} Candidate Sites Active`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {rankingEnabled ? (
+                      <button
+                        onClick={() => {
+                          setRankingEnabled(false);
+                          setSelectedSiteId(null);
+                        }}
+                        className="text-[10px] text-slate-600 hover:text-slate-900 border border-slate-300 rounded px-1.5 py-0.5"
+                      >
+                        All Sites
+                      </button>
+                    ) : (
+                      selectedIncident?.lat && selectedIncident?.lng && (
+                        <button
+                          onClick={() => setRankingEnabled(true)}
+                          className="text-[10px] bg-emerald-600 text-white rounded px-2 py-0.5 font-bold hover:bg-emerald-700"
+                        >
+                          Rank Nearby
+                        </button>
+                      )
+                    )}
+                    {rankingEnabled && (
+                      <button
+                        onClick={() => refetchSites()}
+                        className="text-[10px] text-[#2563eb] hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </button>
                     )}
                   </div>
-                  {rankingEnabled && (
-                    <button
-                      onClick={() => refetchSites()}
-                      className="text-[10px] text-[#2563eb] hover:underline flex items-center gap-1"
-                    >
-                      <RefreshCw className="h-3 w-3" /> Retry
-                    </button>
-                  )}
                 </div>
 
-                {/* Not yet triggered */}
-                {!rankingEnabled && (
-                  <div className="text-center py-8 text-[#76777d] text-xs space-y-3">
-                    <ShieldCheck className="h-8 w-8 mx-auto text-emerald-500" />
-                    <p className="font-semibold text-[#1b1b1d]">No site rankings yet</p>
-                    <p>Select an incident and click "Find Safe Rescue Sites"</p>
-                    {selectedIncident?.lat && (
-                      <Button
-                        variant="primary"
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white py-2 font-bold text-xs uppercase tracking-wider mx-auto"
-                        onClick={() => setRankingEnabled(true)}
-                      >
-                        Find Rescue Sites
-                      </Button>
-                    )}
+                {/* Loading state for general inventory */}
+                {!rankingEnabled && isLoadingAllSites && (
+                  <div className="text-center py-8 text-[#76777d] text-xs space-y-2">
+                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p>Loading rescue sites inventory...</p>
                   </div>
                 )}
 
-                {/* Loading */}
+                {/* Error state for general inventory */}
+                {!rankingEnabled && isErrorAllSites && !isLoadingAllSites && (
+                  <div className="text-center py-6 space-y-2">
+                    <p className="text-xs text-red-600 font-semibold">Unable to load rescue sites inventory.</p>
+                  </div>
+                )}
+
+                {/* Ranking loading */}
                 {rankingEnabled && isLoadingSites && (
                   <div className="text-center py-8 text-[#76777d] text-xs space-y-2">
                     <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p>Finding suitable rescue sites...</p>
+                    <p>Finding and ranking suitable rescue sites...</p>
                   </div>
                 )}
 
-                {/* Error */}
+                {/* Ranking error */}
                 {rankingEnabled && isErrorSites && !isLoadingSites && (
                   <div className="text-center py-6 space-y-3">
                     <p className="text-xs text-red-600 font-semibold">Unable to load rescue-site recommendations.</p>
@@ -599,25 +638,35 @@ export const LiveMap: React.FC = () => {
                   </div>
                 )}
 
-                {/* Empty */}
-                {rankingEnabled && !isLoadingSites && !isErrorSites && sites.length === 0 && (
-                  <div className="text-center py-6 text-[#76777d] text-xs space-y-1">
+                {/* Ranking empty */}
+                {rankingEnabled && !isLoadingSites && !isErrorSites && displaySites.length === 0 && (
+                  <div className="text-center py-6 text-[#76777d] text-xs space-y-2">
                     <ShieldCheck className="h-6 w-6 mx-auto text-slate-400" />
-                    <p className="font-semibold text-[#1b1b1d]">No suitable rescue sites found for this incident.</p>
+                    <p className="font-semibold text-[#1b1b1d]">No suitable sites within 200 km.</p>
+                    <p className="text-[11px]">All available sites are outside the regional response radius.</p>
+                    <button
+                      onClick={() => setRankingEnabled(false)}
+                      className="text-xs text-blue-600 hover:underline pt-1 block mx-auto"
+                    >
+                      View All Pan-India Sites
+                    </button>
                   </div>
                 )}
 
-                {/* Results */}
-                {rankingEnabled && !isLoadingSites && !isErrorSites && sites.length > 0 && (
+                {/* Listing: Works for both unranked overview and ranked results */}
+                {(!rankingEnabled || (!isLoadingSites && !isErrorSites)) && displaySites.length > 0 && (
                   <div className="space-y-2">
-                    {sites.map((site, idx) => {
+                    {displaySites.map((site, idx) => {
                       const isSelected = selectedSiteId === site.id;
                       const aCfg = accessConfig[site.access_status] ?? accessConfig.accessible;
+                      const ranked = 'suitability_score' in site;
+                      const rankedSite = ranked ? (site as RankedRescueSite) : null;
+
                       return (
                         <div
                           key={site.id}
                           onClick={() => handleSiteSelect(site.id)}
-                          className={`p-3 rounded border cursor-pointer transition-all ${
+                          className={`p-2.5 rounded border cursor-pointer transition-all ${
                             isSelected
                               ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-300'
                               : 'bg-[#f6f3f5] border-[#c6c6cd] hover:border-emerald-300'
@@ -626,16 +675,26 @@ export const LiveMap: React.FC = () => {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2 min-w-0">
                               <span className={`flex-shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center ${
-                                idx === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                                ranked && idx === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
                               }`}>
-                                {idx + 1}
+                                {ranked ? idx + 1 : <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />}
                               </span>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-[#1b1b1d] truncate">{site.name}</p>
                                 <p className="text-[10px] text-[#76777d] mt-0.5">
-                                  Score: <strong className="text-emerald-700">{site.suitability_score.toFixed(2)}</strong>
-                                  {' · '}
-                                  {site.distance_km.toFixed(1)} km
+                                  {rankedSite ? (
+                                    <>
+                                      Score: <strong className="text-emerald-700">{rankedSite.suitability_score.toFixed(1)}</strong>
+                                      {' · '}
+                                      {rankedSite.distance_km.toFixed(1)} km away
+                                    </>
+                                  ) : (
+                                    <>
+                                      Elev: <strong>{site.elevation_m}m</strong>
+                                      {' · '}
+                                      Cap: <strong>{site.capacity - site.current_occupancy}/{site.capacity}</strong> free
+                                    </>
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -648,11 +707,11 @@ export const LiveMap: React.FC = () => {
                             <div className="mt-2.5 pt-2 border-t border-emerald-200 grid grid-cols-2 gap-1.5 text-[10px]">
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Capacity</span>
-                                <strong className="text-[#0f172a]">{site.capacity}</strong>
+                                <strong className="text-[#0f172a]">{site.capacity} beds</strong>
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Available</span>
-                                <strong className="text-emerald-700">{site.available_capacity}</strong>
+                                <strong className="text-emerald-700">{site.capacity - site.current_occupancy} spots</strong>
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Elevation</span>
@@ -660,14 +719,17 @@ export const LiveMap: React.FC = () => {
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Flood Margin</span>
-                                <strong className="text-[#0f172a]">{site.predicted_flood_margin_m} m</strong>
+                                <strong className={site.predicted_flood_margin_m > 0 ? 'text-emerald-700' : 'text-red-700'}>
+                                  {site.predicted_flood_margin_m > 0 ? `+${site.predicted_flood_margin_m} m` : `${site.predicted_flood_margin_m} m`}
+                                </strong>
                               </div>
-                              {/* reason_breakdown from backend */}
-                              {Object.keys(site.reason_breakdown).length > 0 && (
+
+                              {/* Ranking factor breakdown when available */}
+                              {rankedSite && Object.keys(rankedSite.reason_breakdown).length > 0 && (
                                 <div className="col-span-2 bg-white rounded border border-[#c6c6cd] p-1.5">
                                   <span className="block text-[9px] uppercase text-[#76777d] font-bold mb-1">Ranking Factors</span>
                                   <div className="space-y-0.5">
-                                    {Object.entries(site.reason_breakdown).map(([key, value]) => (
+                                    {Object.entries(rankedSite.reason_breakdown).map(([key, value]) => (
                                       <div key={key} className="flex justify-between">
                                         <span className="capitalize text-[#45464d]">{key.replace(/_/g, ' ')}</span>
                                         <strong className="text-[#0f172a]">{value}</strong>

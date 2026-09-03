@@ -259,18 +259,23 @@ export const CitizenProvider: React.FC<{ children: ReactNode }> = ({ children })
     return newIncident;
   };
 
-  const getNearestShelter = (lat?: number, lng?: number): Shelter | null => {
+  const getNearestShelter = (targetLat?: number, targetLng?: number): Shelter | null => {
     const candidates = shelters.filter((s) => s.status === 'open');
     const availableShelters = candidates.length > 0 ? candidates : shelters;
     if (availableShelters.length === 0) return null;
 
-    const targetLat = lat ?? null;
-    const targetLng = lng ?? null;
-    if (targetLat === null || targetLng === null) return availableShelters[0];
+    const effLat = targetLat !== undefined && targetLat !== null && !isNaN(targetLat)
+      ? targetLat
+      : (lat !== null && !isNaN(lat) ? lat : null);
+    const effLng = targetLng !== undefined && targetLng !== null && !isNaN(targetLng)
+      ? targetLng
+      : (lng !== null && !isNaN(lng) ? lng : null);
+
+    if (effLat === null || effLng === null) return availableShelters[0];
 
     return availableShelters.reduce((nearest, shelter) => {
-      const nearestDistance = (nearest.lat - targetLat) ** 2 + (nearest.lng - targetLng) ** 2;
-      const shelterDistance = (shelter.lat - targetLat) ** 2 + (shelter.lng - targetLng) ** 2;
+      const nearestDistance = (nearest.lat - effLat) ** 2 + (nearest.lng - effLng) ** 2;
+      const shelterDistance = (shelter.lat - effLat) ** 2 + (shelter.lng - effLng) ** 2;
       return shelterDistance < nearestDistance ? shelter : nearest;
     });
   };

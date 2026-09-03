@@ -8,6 +8,18 @@ from ..services.site_ranking_service import rank_rescue_sites
 
 router = APIRouter(prefix="/rescue-sites", tags=["Rescue Sites"])
 
+class RescueSiteResponse(BaseModel):
+    id: str
+    name: str
+    lat: float
+    lng: float
+    elevation_m: float
+    predicted_flood_margin_m: float
+    capacity: int
+    current_occupancy: int
+    access_status: str
+    zone_id: str | None
+
 class RescueSiteRankResponse(BaseModel):
     id: str
     name: str
@@ -23,6 +35,28 @@ class RescueSiteRankResponse(BaseModel):
     distance_km: float
     available_capacity: int
     reason_breakdown: Dict[str, str]
+
+@router.get("", response_model=List[RescueSiteResponse])
+def list_rescue_sites(db: Session = Depends(get_db)):
+    """
+    Returns all persisted candidate rescue sites for GIS mapping and overview.
+    """
+    sites = db.query(RescueSite).all()
+    return [
+        RescueSiteResponse(
+            id=s.id,
+            name=s.name,
+            lat=s.lat,
+            lng=s.lng,
+            elevation_m=s.elevation_m,
+            predicted_flood_margin_m=s.predicted_flood_margin_m,
+            capacity=s.capacity,
+            current_occupancy=s.current_occupancy,
+            access_status=s.access_status,
+            zone_id=s.zone_id
+        )
+        for s in sites
+    ]
 
 @router.post("/rank", response_model=List[RescueSiteRankResponse])
 def rank_sites(

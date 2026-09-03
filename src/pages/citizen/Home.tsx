@@ -188,9 +188,16 @@ export const Home: React.FC = () => {
     }
   }, [criticalAlerts, language]);
 
-  // Sorted nearby shelters (open shelters first, then by available capacity)
+  // Sorted nearby shelters based on proximity if user location is available, otherwise by available capacity
   const nearbyShelters = [...shelters]
-    .sort((a, b) => (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy))
+    .sort((a, b) => {
+      if (lat !== null && lng !== null) {
+        const distA = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
+        const distB = (b.lat - lat) ** 2 + (b.lng - lng) ** 2;
+        return distA - distB;
+      }
+      return (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy);
+    })
     .slice(0, 3);
 
   // Filter incidents created by the currently authenticated citizen.
@@ -395,6 +402,7 @@ export const Home: React.FC = () => {
         <CitizenLocationMap
           incident={activeIncident}
           userLocation={lat !== null && lng !== null ? [lat, lng] : null}
+          shelters={shelters}
           height="h-48"
         />
       </div>
