@@ -2,15 +2,13 @@ from typing import List, Literal, Optional
 from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
-
 from pydantic import BaseModel, ConfigDict, field_serializer
-
-from sqlalchemy.orm import Session 
+from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Incident, User
 from ..core.security import require_officer
-from ..services.priority_service import calculate_response_priority 
+from ..services.priority_service import calculate_response_priority
 from ..services.credibility_service import calculate_incident_credibility
 from ..services.risk_service import get_zone_risk_snapshot
 from ..websocket.manager import manager
@@ -34,8 +32,10 @@ class IncidentVerifyRequest(BaseModel):
     review_state: str  # verified | flagged
     credibility_score: float
 
+
 class IncidentStatusUpdateRequest(BaseModel):
     status: Literal["acknowledged", "resolved"]
+
 
 class IncidentResponse(BaseModel):
     id: str
@@ -68,14 +68,11 @@ class IncidentResponse(BaseModel):
 
 @router.get("", response_model=List[IncidentResponse])
 def list_incidents(db: Session = Depends(get_db)):
-<<<<<<< HEAD
     return db.query(Incident).order_by(
+        Incident.created_at.desc(),
         Incident.priority_score.desc()
     ).all()
 
-=======
-    return db.query(Incident).order_by(Incident.created_at.desc(), Incident.priority_score.desc()).all()
->>>>>>> origin/main
 
 @router.post("", response_model=IncidentResponse)
 async def create_incident(
@@ -115,10 +112,12 @@ async def create_incident(
 
     # Deduplicate recent identical emergency SOS submissions within 15 seconds
     recent_cutoff = datetime.now(timezone.utc) - timedelta(seconds=15)
+
     existing = db.query(Incident).filter(
         Incident.description == inc.description,
         Incident.created_at >= recent_cutoff
     ).first()
+
     if existing:
         return existing
 
@@ -162,7 +161,12 @@ async def create_incident(
     db.refresh(new_inc)
 
     # Broadcast structured event
-<<<<<<< HEAD
+    created_at_str = (
+        new_inc.created_at.isoformat().replace("+00:00", "Z")
+        if new_inc.created_at
+        else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+
     await manager.broadcast(
         "incident.created",
         {
@@ -172,30 +176,17 @@ async def create_incident(
             "severity": new_inc.severity,
             "status": new_inc.status,
             "priority_score": new_inc.priority_score,
+            "description": new_inc.description,
+            "lat": new_inc.lat,
+            "lng": new_inc.lng,
+            "zone_id": new_inc.zone_id,
+            "reporter_id": new_inc.reporter_id,
+            "review_state": new_inc.review_state,
             "credibility_score": new_inc.credibility_score,
-            "review_state": new_inc.review_state
+            "created_at": created_at_str
         }
     )
 
-=======
-    created_at_str = new_inc.created_at.isoformat().replace('+00:00', 'Z') if new_inc.created_at else datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
-    await manager.broadcast("incident.created", {
-        "id": new_inc.id,
-        "title": new_inc.title,
-        "category": new_inc.category,
-        "severity": new_inc.severity,
-        "status": new_inc.status,
-        "priority_score": new_inc.priority_score,
-        "description": new_inc.description,
-        "lat": new_inc.lat,
-        "lng": new_inc.lng,
-        "zone_id": new_inc.zone_id,
-        "reporter_id": new_inc.reporter_id,
-        "review_state": new_inc.review_state,
-        "credibility_score": new_inc.credibility_score,
-        "created_at": created_at_str
-    })
->>>>>>> origin/main
     return new_inc
 
 
@@ -239,24 +230,16 @@ async def verify_incident(
     )
 
     incident.priority_score = calculate_response_priority(
-<<<<<<< HEAD
         risk_score=risk["risk_score"],
         severity=incident.severity,
         credibility_score=incident.credibility_score,
         vulnerability_index=risk["vulnerability_index"]
-=======
-        risk_score=0.8,  # Dynamic risk loading placeholder
-        severity=str(incident.severity),
-        credibility_score=req.credibility_score,
-        vulnerability_index=0.7
->>>>>>> origin/main
     )
 
     db.commit()
     db.refresh(incident)
 
     # Broadcast structured event
-<<<<<<< HEAD
     await manager.broadcast(
         "incident.verified",
         {
@@ -268,14 +251,6 @@ async def verify_incident(
     )
 
     return incident
-=======
-    await manager.broadcast("incident.verified", {
-        "id": incident.id,
-        "review_state": incident.review_state,
-        "credibility_score": incident.credibility_score,
-        "priority_score": incident.priority_score
-    })
-    return incident
 
 
 @router.patch("/{id}/status", response_model=IncidentResponse)
@@ -286,17 +261,28 @@ async def update_incident_status(
     db: Session = Depends(get_db),
 ):
     """Persist an officer acknowledgement or resolution on the Incident record."""
-    incident = db.query(Incident).filter(Incident.id == id).first()
+
+    incident = db.query(Incident).filter(
+        Incident.id == id
+    ).first()
+
     if not incident:
-        raise HTTPException(status_code=404, detail="Incident not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found"
+        )
 
     incident.status = req.status
+
     db.commit()
     db.refresh(incident)
 
-    await manager.broadcast("incident.updated", {
-        "id": incident.id,
-        "status": incident.status,
-    })
+    await manager.broadcast(
+        "incident.updated",
+        {
+            "id": incident.id,
+            "status": incident.status,
+        }
+    )
+
     return incident
->>>>>>> origin/main
