@@ -195,6 +195,6 @@ def reset_demo_scenario(
         "message": "Assam Cachar Flood scenario reset successfully",
         "zones_seeded": 3,
         "incidents_seeded": 2,
-        "rescue_sites_seeded": 2,
+        "rescue_sites_seeded": len(all_sites),
         "resources_seeded": 3
     }

@@ -28,9 +28,8 @@ def test_delhi_incident_returns_delhi_sites():
     # Incident near Delhi
     incident_lat = 28.7041
     incident_lng = 77.1025
-    predicted_flood_level = 5.0
     
-    results = rank_rescue_sites(incident_lat, incident_lng, predicted_flood_level, SITES)
+    results = rank_rescue_sites(incident_lat, incident_lng, SITES)
     
     # Should only return the two Delhi sites. Assam and Mumbai are too far.
     assert len(results) == 2
@@ -41,9 +40,8 @@ def test_assam_incident_returns_assam_sites():
     # Incident near Silchar
     incident_lat = 24.8000
     incident_lng = 92.8000
-    predicted_flood_level = 5.0
     
-    results = rank_rescue_sites(incident_lat, incident_lng, predicted_flood_level, SITES)
+    results = rank_rescue_sites(incident_lat, incident_lng, SITES)
     
     # Should only return the Assam site.
     assert len(results) == 1
@@ -53,9 +51,8 @@ def test_far_away_only_scenario():
     # Incident in Andaman and Nicobar Islands (far from all seeds)
     incident_lat = 11.7401
     incident_lng = 92.6586
-    predicted_flood_level = 5.0
     
-    results = rank_rescue_sites(incident_lat, incident_lng, predicted_flood_level, SITES)
+    results = rank_rescue_sites(incident_lat, incident_lng, SITES)
     
     # Empty result because all sites > MAX_RESCUE_SITE_DISTANCE_KM
     assert len(results) == 0
@@ -63,12 +60,11 @@ def test_far_away_only_scenario():
 def test_capacity_constraint():
     incident_lat = 28.6139
     incident_lng = 77.2090
-    predicted_flood_level = 5.0
     
     # Site is at exactly the same location, but full
     full_site = create_site("full-1", "Full Site", 28.6139, 77.2090, capacity=100, occupancy=100)
     
-    results = rank_rescue_sites(incident_lat, incident_lng, predicted_flood_level, [full_site])
+    results = rank_rescue_sites(incident_lat, incident_lng, [full_site])
     
     # Site is within distance, so it IS returned, but suitability_score should be 0.0
     assert len(results) == 1
@@ -78,12 +74,11 @@ def test_capacity_constraint():
 def test_access_constraint():
     incident_lat = 28.6139
     incident_lng = 77.2090
-    predicted_flood_level = 5.0
     
     # Site is blocked
     blocked_site = create_site("blocked-1", "Blocked Site", 28.6139, 77.2090, access="blocked")
     
-    results = rank_rescue_sites(incident_lat, incident_lng, predicted_flood_level, [blocked_site])
+    results = rank_rescue_sites(incident_lat, incident_lng, [blocked_site])
     
     # Site is within distance, so it IS returned, but suitability_score should be 0.0
     assert len(results) == 1
@@ -100,3 +95,31 @@ def test_distance_calculation():
     dist_far = calculate_haversine_km(28.6139, 77.2090, 19.0760, 72.8777)
     # roughly 1100-1200 km
     assert 1100.0 <= dist_far <= 1250.0
+
+def test_flood_margin_constraint():
+    incident_lat = 28.6139
+    incident_lng = 77.2090
+
+    # Negative margin -> unsuitable
+    unsafe_site = create_site("unsafe-1", "Unsafe Site", 28.6139, 77.2090, flood_margin=-1.5)
+    # Zero margin -> unsuitable
+    zero_site = create_site("zero-1", "Zero Margin Site", 28.6139, 77.2090, flood_margin=0.0)
+    # Positive margin -> eligible
+    safe_site = create_site("safe-1", "Safe Site", 28.6139, 77.2090, flood_margin=2.5)
+
+    results = rank_rescue_sites(incident_lat, incident_lng, [unsafe_site, zero_site, safe_site])
+
+    assert len(results) == 3
+
+    # The safe site should have a suitability score > 0
+    safe_result = next(s for s in results if s["id"] == "safe-1")
+    assert safe_result["suitability_score"] > 0.0
+
+    # The unsafe and zero sites should have suitability score == 0.0
+    unsafe_result = next(s for s in results if s["id"] == "unsafe-1")
+    assert unsafe_result["suitability_score"] == 0.0
+    assert "Unsafe water level!" in unsafe_result["reason_breakdown"]["rejection_reason"]
+
+    zero_result = next(s for s in results if s["id"] == "zero-1")
+    assert zero_result["suitability_score"] == 0.0
+    assert "Unsafe water level!" in zero_result["reason_breakdown"]["rejection_reason"]

@@ -50,4 +50,4 @@ def rank_sites(
         }
         for s in sites
     ]
-    return rank_rescue_sites(incident_lat, incident_lng, predicted_flood_m, sites_dict)
+    return rank_rescue_sites(incident_lat, incident_lng, sites_dict)

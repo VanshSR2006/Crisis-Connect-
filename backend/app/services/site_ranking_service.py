@@ -22,7 +22,6 @@ def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -
 def rank_rescue_sites(
     incident_lat: float,
     incident_lng: float,
-    predicted_flood_level_m: float,
     sites: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
@@ -39,7 +38,7 @@ def rank_rescue_sites(
     ranked_results = []
     for site in sites:
         elevation = float(site.get("elevation_m", 10.0))
-        predicted_margin = elevation - float(predicted_flood_level_m)
+        predicted_margin = float(site.get("predicted_flood_margin_m", 0.0))
         capacity = max(0, int(site.get("capacity", 500)))
         occupancy = max(0, int(site.get("current_occupancy", 0)))
         available_cap = max(0, capacity - occupancy)
@@ -61,7 +60,7 @@ def rank_rescue_sites(
             rejection_reasons.append(f"Site is at full capacity ({occupancy}/{capacity} occupied)")
         if predicted_margin <= 0.0 or status in ["flooded", "unsafe", "damaged"]:
             rejection_reasons.append(
-                f"Unsafe water level! Elevation ({elevation}m) <= predicted flood level ({predicted_flood_level_m}m). Safety margin: {round(predicted_margin, 2)}m"
+                f"Unsafe water level! Safety margin is {round(predicted_margin, 2)}m (must be > 0)."
             )
         if access_status in ["blocked", "impassable", "closed"]:
             rejection_reasons.append(f"Access route is blocked (status: '{access_status}')")
