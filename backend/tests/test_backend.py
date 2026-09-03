@@ -549,6 +549,57 @@ class TestShelters:
             "zone_id": "z-test",
         }]
 
+    def test_demo_reset_seeds_india_wide_shelters(self, client, seeded_db, officer_token):
+        from app.models import Shelter
+
+        # 1. Trigger demo reset
+        r = client.post("/demo/reset-scenario", headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "success"
+        assert body.get("shelters_seeded", 0) >= 15
+
+        # 2. Query GET /shelters
+        shelters_resp = client.get("/shelters")
+        assert shelters_resp.status_code == 200
+        shelters = shelters_resp.json()
+        assert len(shelters) >= 15
+
+        # 3. Validate coordinates, capacities, and occupancies
+        has_open = False
+        has_full = False
+        lats = []
+        lngs = []
+
+        for s in shelters:
+            assert s["id"]
+            assert s["name"]
+            # Valid coordinate ranges within India
+            assert 8.0 <= s["lat"] <= 36.0, f"Lat {s['lat']} out of expected range for {s['name']}"
+            assert 68.0 <= s["lng"] <= 98.0, f"Lng {s['lng']} out of expected range for {s['name']}"
+            lats.append(s["lat"])
+            lngs.append(s["lng"])
+
+            # Capacity positive and occupancy <= capacity
+            assert s["capacity"] > 0
+            assert 0 <= s["current_occupancy"] <= s["capacity"]
+
+            if s["status"] == "open":
+                has_open = True
+            elif s["status"] == "full":
+                has_full = True
+
+        # Ensure varied states exist
+        assert has_open, "Expected at least one open shelter"
+        assert has_full, "Expected at least one full shelter for UI demonstration"
+
+        # 4. Multi-region coverage check
+        # North (lat > 27), South (lat < 15), East/Northeast (lng > 85), West (lng < 75)
+        assert any(lat > 27.0 for lat in lats), "North region not represented"
+        assert any(lat < 15.0 for lat in lats), "South region not represented"
+        assert any(lng > 85.0 for lng in lngs), "East/Northeast region not represented"
+        assert any(lng < 75.0 for lng in lngs), "West region not represented"
+
 
 # ===========================================================================
 # 6. Incidents
