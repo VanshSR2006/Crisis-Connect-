@@ -3,6 +3,9 @@
 # Coordinate before modifying outside this workstream.
 import math
 from typing import List, Dict, Any
+
+MAX_RESCUE_SITE_DISTANCE_KM = 200.0
+
 def calculate_haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     Calculates great-circle distance between two point pairs on Earth in kilometers.
@@ -45,6 +48,11 @@ def rank_rescue_sites(
         site_lat = float(site.get("lat", 0.0))
         site_lng = float(site.get("lng", 0.0))
         dist_km = calculate_haversine_km(incident_lat, incident_lng, site_lat, site_lng)
+
+        # 0. Geographic Eligibility Constraint
+        if dist_km > MAX_RESCUE_SITE_DISTANCE_KM:
+            continue
+
         # ---------------------------------------------------------------------
         # 1. Availability and Safety Constraint Validation
         # ---------------------------------------------------------------------
