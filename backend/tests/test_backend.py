@@ -316,21 +316,22 @@ def test_officer_status_updates_persist_for_citizen_refresh(client, seeded_db, o
 
 class TestSignup:
     def test_citizen_signup_and_login_with_phone(self, client):
-        # Signup
+        # Signup with Hindi preference
         signup_resp = client.post("/auth/signup", json={
             "name": "Citizen User",
             "phone": "9876543219",
             "password": "Password123",
             "role": "citizen",
-            "language_pref": "en"
+            "language_pref": "hi"
         })
         assert signup_resp.status_code == 201
         data = signup_resp.json()
         assert data["user"]["role"] == "citizen"
         assert data["user"]["phone"] == "9876543219"
+        assert data["user"]["language_pref"] == "hi"
         assert "access_token" in data
 
-        # Login with correct password
+        # Login with correct password and verify language_pref persists
         login_resp = client.post("/auth/login", json={
             "phone": "9876543219",
             "password": "Password123",
@@ -338,6 +339,7 @@ class TestSignup:
         })
         assert login_resp.status_code == 200
         assert login_resp.json()["user"]["role"] == "citizen"
+        assert login_resp.json()["user"]["language_pref"] == "hi"
 
         # Login with wrong password
         wrong_login = client.post("/auth/login", json={
@@ -368,19 +370,21 @@ class TestSignup:
         assert login_resp.json()["user"]["role"] == "officer"
 
     def test_volunteer_signup_and_login_with_email(self, client):
-        # Signup
+        # Signup with Kannada preference
         signup_resp = client.post("/auth/signup", json={
             "name": "Volunteer User",
             "email": "volunteer.test@crisisconnect.org",
             "password": "VolunteerSecret123",
-            "role": "volunteer"
+            "role": "volunteer",
+            "language_pref": "ka"
         })
         assert signup_resp.status_code == 201
         data = signup_resp.json()
         assert data["user"]["role"] == "volunteer"
         assert data["user"]["email"] == "volunteer.test@crisisconnect.org"
+        assert data["user"]["language_pref"] == "ka"
 
-        # Login with correct credentials
+        # Login with correct credentials and verify language_pref persists
         login_resp = client.post("/auth/login", json={
             "email": "volunteer.test@crisisconnect.org",
             "password": "VolunteerSecret123",
@@ -388,6 +392,7 @@ class TestSignup:
         })
         assert login_resp.status_code == 200
         assert login_resp.json()["user"]["role"] == "volunteer"
+        assert login_resp.json()["user"]["language_pref"] == "ka"
 
     def test_duplicate_signup_rejected(self, client):
         # First signup

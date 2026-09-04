@@ -172,13 +172,17 @@ def signup(
 
     # Hash password and create user
     hashed_pwd = hash_password(req.password)
+    clean_pref = req.language_pref.strip().lower() if req.language_pref else "en"
+    if clean_pref not in ["en", "hi", "ka"]:
+        clean_pref = "en"
+
     new_user = User(
         name=req.name.strip(),
         phone=phone_clean,
         email=email_clean,
         password_hash=hashed_pwd,
         role=clean_role,
-        language_pref=req.language_pref or "en"
+        language_pref=clean_pref
     )
 
     db.add(new_user)

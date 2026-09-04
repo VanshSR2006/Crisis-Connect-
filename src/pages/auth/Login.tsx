@@ -181,7 +181,8 @@ export const Login: React.FC = () => {
             name,
             email,
             password,
-            role: 'volunteer'
+            role: 'volunteer',
+            language_pref: languagePref
           };
         }
       }
@@ -487,8 +488,8 @@ export const Login: React.FC = () => {
                   </div>
                 )}
 
-                {/* Language Preference (Citizen Signup Only) */}
-                {mode === 'signup' && selectedRole === 'citizen' && (
+                {/* Language Preference (Signup Mode) */}
+                {mode === 'signup' && (
                   <div className="space-y-1.5">
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
                       Language Preference
