@@ -4,18 +4,18 @@ import { useQuery } from '@tanstack/react-query';
 import { useOfficerContext } from '@/lib/officerContext';
 import { getVolunteers } from '@/lib/api/users';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
-import { SeverityBadge } from '@/components/shared/SeverityBadge';
-import { Radio, UserCheck, Clock, CheckCircle, Loader2, Send, Package, Users } from 'lucide-react';
+import { Radio, CheckCircle, Loader2, Navigation, Package } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const Dispatch: React.FC = () => {
   const { t } = useTranslation();
-  const { incidents, dispatches, resources, createDispatch, selectedIncidentId, setSelectedIncidentId } =
+  const { incidents, dispatches, resources, createDispatch, selectedIncidentId } =
     useOfficerContext();
 
+  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
+
   const [targetIncidentId, setTargetIncidentId] = useState<string>(
-    selectedIncidentId || incidents[0]?.id || ''
+    selectedIncidentId || activeIncidents[0]?.id || ''
   );
   const [assignedUserId, setAssignedUserId] = useState<string>('');
   const [selectedResourceId, setSelectedResourceId] = useState<string>(resources[0]?.id || '');
@@ -25,8 +25,7 @@ export const Dispatch: React.FC = () => {
   const activeCount = dispatches.filter((d) => d.status !== 'completed').length;
   const completedCount = dispatches.filter((d) => d.status === 'completed').length;
 
-  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
-  const { data: volunteerUsers = [], isLoading: isLoadingVolunteers } = useQuery({
+  const { data: volunteerUsers = [] } = useQuery({
     queryKey: ['dispatch-volunteers'],
     queryFn: getVolunteers,
   });
@@ -39,9 +38,7 @@ export const Dispatch: React.FC = () => {
     const selectedUser = volunteerUsers.find((u) => u.id === assignedUserId);
 
     const fullNotes = dispatchNotes
-      ? `${dispatchNotes} (Assigned unit: ${selectedUser?.name || assignedUserId}, Resource: ${
-          selectedResource?.name || 'Standard Equipment'
-        })`
+      ? dispatchNotes
       : `Deployed ${selectedResource?.name || 'Emergency Team'} under leadership of ${
           selectedUser?.name || assignedUserId
         }.`;
@@ -55,243 +52,257 @@ export const Dispatch: React.FC = () => {
 
     if (!dispatch) return;
 
-    setSuccessMessage(`Dispatch order issued for Incident #${targetIncidentId}!`);
+    setSuccessMessage(`Dispatch order #${dispatch.id} created successfully!`);
     setDispatchNotes('');
     setTimeout(() => setSuccessMessage(null), 4000);
   };
 
-  const getStatusConfig = (status: string) => {
-    if (status === 'completed') {
-      return {
-        label: t('common.completed'),
-        icon: CheckCircle,
-        classes: 'bg-emerald-100 text-emerald-800 border border-emerald-300',
-      };
-    }
-    return {
-      label: t('officer.dispatch.enRoute'),
-      icon: Loader2,
-      classes: 'bg-[#d5e3fc] text-[#57657a] border border-[#b9c7df]',
-    };
-  };
-
   return (
-    <div className="space-y-5">
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('officer.dispatch.title')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {activeCount} {t('officer.dispatch.activeDeployments')} · {completedCount} {t('officer.dispatch.completedMissions')}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
-          <Radio className="h-3.5 w-3.5 text-[#2563eb] animate-pulse" />
-          <span>{t('officer.dispatch.radioChannelActive')}</span>
+    <div className="space-y-6">
+      {/* ── Header Card with Background Image ─────────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        <img
+          src="/resource_stock_bg.jpg"
+          alt="Resource & Unit Dispatch Center"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>FIELD DISPATCH COMMAND</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              Resource & Unit Dispatch Center
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
+              {activeCount} active deployments · {completedCount} completed rescue missions
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg">
+              <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">
+                {activeCount}
+              </span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                Active Deployments
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Success Notification Banner */}
+      {/* Success Banner */}
       {successMessage && (
-        <div className="bg-emerald-900 text-white rounded p-3 text-xs font-bold flex items-center gap-2 shadow-sm animate-fadeIn">
-          <CheckCircle className="h-4 w-4 text-emerald-400" />
+        <div className="bg-emerald-900 text-white rounded-2xl p-4 text-xs font-black flex items-center gap-2 shadow-lg animate-fadeIn border border-emerald-700">
+          <CheckCircle className="h-5 w-5 text-emerald-400" />
           <span>{successMessage}</span>
         </div>
       )}
 
-      {/* ── Dispatch Form & Active Resource Grid ──────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Left 2 Cols: Issue New Dispatch Order */}
-        <div className="lg:col-span-2 bg-white border border-[#c6c6cd] rounded p-4 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
-            <Send className="h-4 w-4 text-[#ba1a1a]" />
-            <h2 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              {t('officer.dispatch.issueEmergencyCommand')}
+      {/* ── Top 2-Column Section ────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column (2/3 width) - Issue Dispatch Form */}
+        <div className="lg:col-span-2 bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-5">
+          <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200">
+            <Navigation className="h-4 w-4 text-rose-600 transform rotate-45" />
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
+              ISSUE EMERGENCY DISPATCH COMMAND
             </h2>
           </div>
 
-          <form onSubmit={handleDispatchSubmit} className="space-y-3">
-            {/* Target Incident Selection */}
+          <form onSubmit={handleDispatchSubmit} className="space-y-4">
+            {/* Target Incident */}
             <div>
-              <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                {t('officer.dispatch.targetIncident')} <span className="text-red-600">*</span>
+              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
+                Target Incident <span className="text-rose-600">*</span>
               </label>
               <select
                 value={targetIncidentId}
-                onChange={(e) => {
-                  setTargetIncidentId(e.target.value);
-                  setSelectedIncidentId(e.target.value);
-                }}
-                className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                onChange={(e) => setTargetIncidentId(e.target.value)}
+                className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
               >
-                {incidents.map((inc) => (
-                  <option key={inc.id} value={inc.id}>
-                    [{inc.id}] {inc.title} ({inc.severity.toUpperCase()} · {inc.status.toUpperCase()})
+                <option value="">Select target emergency incident...</option>
+                {activeIncidents.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    [{i.id}] {i.title} ({i.severity.toUpperCase()} · {i.status.toUpperCase()})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Select Resource & Volunteer Lead */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Inline 2-Column Row for Resource & Leader */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                  {t('officer.dispatch.assignResourceStock')}
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
+                  Assign Resource Stock
                 </label>
                 <select
                   value={selectedResourceId}
                   onChange={(e) => setSelectedResourceId(e.target.value)}
-                  className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                  className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
                 >
-                  {resources.map((res) => (
-                    <option key={res.id} value={res.id}>
-                      {t(`resources.names.${res.name}`, { defaultValue: res.name })} ({res.quantity} {t(`resources.units.${res.unit}`, { defaultValue: res.unit })} - {String(res.status).toUpperCase()})
+                  {resources.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.available_quantity ?? r.quantity} units - {r.available_quantity === 0 ? 'DISPATCHED' : 'AVAILABLE'})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                  {t('officer.dispatch.assignedTeamLeader')}
+                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
+                  Assigned Team Leader / Unit
                 </label>
                 <select
                   value={assignedUserId}
                   onChange={(e) => setAssignedUserId(e.target.value)}
-                  disabled={isLoadingVolunteers || volunteerUsers.length === 0}
-                  className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                  className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
                 >
-                  <option value="">{isLoadingVolunteers ? 'Loading volunteers...' : 'Select volunteer'}</option>
-                  {volunteerUsers.map((usr) => (
-                    <option key={usr.id} value={usr.id}>
-                      {usr.name}{usr.email ? ` (${usr.email})` : ''}
+                  <option value="">Select volunteer</option>
+                  {volunteerUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.role ? u.role.toUpperCase() : 'VOLUNTEER'})
                     </option>
                   ))}
                 </select>
-                {!isLoadingVolunteers && volunteerUsers.length === 0 && (
-                  <p className="mt-1 text-[11px] text-red-700">No volunteers available</p>
-                )}
               </div>
             </div>
 
-            {/* Dispatch Operational Notes */}
+            {/* Tactical Directives */}
             <div>
-              <label className="block text-xs font-semibold text-[#1b1b1d] mb-1">
-                {t('officer.dispatch.dispatchDirectives')}
+              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
+                Dispatch Directives & Tactical Notes
               </label>
               <textarea
                 rows={3}
                 value={dispatchNotes}
                 onChange={(e) => setDispatchNotes(e.target.value)}
-                placeholder={t('officer.dispatch.enterInstructions')}
-                className="w-full text-xs p-2.5 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                placeholder="Enter deployment instructions..."
+                className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
               />
             </div>
 
+            {/* Coral / Emergency Action Button */}
             <Button
               type="submit"
-              variant="danger"
-              fullWidth
-              size="lg"
-              className="bg-[#ba1a1a] hover:bg-[#991b1b] text-white font-black text-xs uppercase tracking-widest py-3 rounded shadow-sm flex items-center justify-center gap-2"
-              disabled={!targetIncidentId || !assignedUserId || isLoadingVolunteers || volunteerUsers.length === 0}
+              disabled={!targetIncidentId || !assignedUserId}
+              className="w-full bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-800 active:from-rose-700 text-white font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-[0_6px_16px_rgba(244,63,94,0.35)] transition-all border border-rose-400/30 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <Radio className="h-4 w-4" />
-              <span>{t('officer.dispatch.confirmDispatch')}</span>
+              <Radio className="h-4 w-4 animate-pulse" />
+              CONFIRM & DISPATCH RESCUE TEAM NOW
             </Button>
           </form>
         </div>
 
-        {/* Right 1 Col: Stock & Available Teams Overview */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-4 shadow-sm space-y-3 h-fit">
-          <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
-            <Package className="h-4 w-4 text-[#2563eb]" />
-            <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              {t('officer.dispatch.availableStockPersonnel')}
-            </h3>
+        {/* Right Column (1/3 width) - Available Stock & Personnel */}
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-4">
+          <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
+            <Package className="h-4 w-4 text-blue-600" />
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
+              AVAILABLE STOCK & PERSONNEL
+            </h2>
           </div>
 
-          <div className="space-y-2">
-            {resources.map((res) => (
+          <div className="space-y-3">
+            {resources.map((r) => (
               <div
-                key={res.id}
-                className="p-2.5 rounded bg-[#f6f3f5] border border-[#c6c6cd] flex items-center justify-between text-xs"
+                key={r.id}
+                className="p-3.5 bg-slate-50/90 border border-slate-200/90 rounded-xl space-y-1 hover:border-slate-300 transition-all shadow-xs"
               >
-                <div>
-                  <span className="font-bold text-[#1b1b1d] block">
-                    {t(`resources.names.${res.name}`, { defaultValue: res.name })}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-slate-900 leading-tight">
+                    {r.name}
                   </span>
-                  <span className="text-[10px] text-[#76777d] uppercase">{res.category}</span>
+                  <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black font-mono bg-emerald-100 text-emerald-800 border border-emerald-300 flex-shrink-0">
+                    {r.available_quantity ?? r.quantity} units
+                  </span>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  {res.quantity} {t(`resources.units.${res.unit}`, { defaultValue: res.unit })}
-                </span>
+                <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                  {r.category || 'RESOURCE'}
+                </p>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ── Active Dispatch Orders Feed ───────────────────── */}
-      <div className="bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm">
-        <div className="px-3 py-2 border-b border-[#c6c6cd] flex items-center justify-between bg-[#f0edef]">
+      {/* ── Bottom Full-Width Section - Live Dispatch Queue ─── */}
+      <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-[#0f172a]" />
-            <span className="text-[12px] font-semibold uppercase tracking-[0.05em] text-[#1b1b1d]">
-              {t('officer.dispatch.liveDispatchQueue')} ({dispatches.length})
-            </span>
+            <Radio className="h-4 w-4 text-rose-600 animate-pulse" />
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
+              LIVE DISPATCH QUEUE ({dispatches.length})
+            </h3>
           </div>
-          <span className="text-[11px] text-[#76777d] font-mono">{t('officer.dispatch.realtimeSync')}</span>
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 font-mono">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+            Real-time Sync
+          </span>
         </div>
 
-        <div className="divide-y divide-[#f0edef]">
-          {dispatches.map((dispatch, idx) => {
-            const statusConfig = getStatusConfig(dispatch.status);
-            const StatusIcon = statusConfig.icon;
-
-            return (
-              <div
-                key={dispatch.id}
-                className={`px-3 py-3 hover:bg-[#f6f3f5] transition-colors ${
-                  idx % 2 === 1 ? 'bg-[#f6f3f5]' : 'bg-white'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3 mb-1.5">
-                  <div>
-                    <span className="text-[13px] font-bold text-[#1b1b1d]">
-                      Dispatch Order #{dispatch.id}
+        <div className="divide-y divide-slate-200/80">
+          {dispatches.length === 0 ? (
+            <div className="p-8 text-center text-xs font-semibold text-slate-500">
+              No active dispatch orders in queue.
+            </div>
+          ) : (
+            dispatches.map((d, idx) => {
+              const isCompleted = d.status === 'completed';
+              return (
+                <div
+                  key={d.id}
+                  className={`p-4 space-y-2.5 transition-colors ${
+                    idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span className="font-black text-slate-900">Dispatch Order #{d.id}</span>
+                      <span className="text-[11px] font-mono text-slate-500">
+                        Target: Incident{' '}
+                        <span className="text-slate-700 font-mono font-bold">
+                          #{d.incident_id}
+                        </span>
+                      </span>
+                    </div>
+                    <span
+                      className={`self-start sm:self-auto px-3 py-1 rounded-xl text-[10px] uppercase font-black font-mono shadow-xs flex items-center gap-1.5 border ${
+                        isCompleted
+                          ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                          : 'bg-blue-100 text-blue-900 border-blue-300'
+                      }`}
+                    >
+                      {isCompleted ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-600" />
+                      ) : (
+                        <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />
+                      )}
+                      {isCompleted ? 'COMPLETED' : 'EN ROUTE'}
                     </span>
-                    <span className="ml-2 text-[11px] text-[#76777d] font-mono">
-                      Target: Incident #{dispatch.incident_id}
+                  </div>
+
+                  <p className="text-xs font-medium text-slate-700">
+                    {d.notes || 'Emergency dispatch order issued.'}
+                  </p>
+
+                  <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-slate-500 pt-1">
+                    <span>
+                      Assigned Lead:{' '}
+                      <strong className="text-slate-800 font-mono font-bold">
+                        {d.assigned_user_id}
+                      </strong>
                     </span>
-                  </div>
-                  <span
-                    className={`flex items-center gap-1 px-2 py-0.5 rounded-sm text-[11px] font-semibold uppercase tracking-wider flex-shrink-0 ${statusConfig.classes}`}
-                  >
-                    <StatusIcon
-                      className={`h-3 w-3 ${dispatch.status !== 'completed' ? 'animate-spin' : ''}`}
-                    />
-                    {statusConfig.label}
-                  </span>
-                </div>
-
-                <p className="text-[13px] text-[#45464d] leading-[18px] mb-2">{dispatch.notes}</p>
-
-                <div className="flex items-center gap-4 text-[11px] text-[#76777d] border-t border-[#f0edef] pt-2">
-                  <div className="flex items-center gap-1">
-                    <UserCheck className="h-3 w-3" />
-                    <span>{t('officer.dispatch.assignedLead')}: {dispatch.assigned_user_id}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    <span>{t('officer.liveMap.dispatched')}: {formatDate(dispatch.dispatched_at)}</span>
+                    <span className="font-mono">Dispatched: {formatDate(d.dispatched_at)}</span>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

@@ -81,6 +81,7 @@ export interface Incident {
   reporter_id?: string | null;
   zone_id: string;
   created_at: string;
+  verification_status?: string;
 }
 
 export interface Shelter {
@@ -148,6 +149,7 @@ export interface Resource {
   shelter_id?: string;
   zone_id?: string;
   status: ResourceStatus;
+  available_quantity?: number;
 }
 
 export interface Dispatch {

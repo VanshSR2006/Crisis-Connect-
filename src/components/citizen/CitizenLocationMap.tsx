@@ -55,13 +55,13 @@ export const CitizenLocationMap: React.FC<CitizenLocationMapProps> = ({
   incident,
   userLocation,
   shelters = [],
-  height = 'h-48',
+  height = 'h-[260px] md:h-[340px]',
 }) => {
   const hasIncidentLocation = incident ? isCoordinate(incident.lat, incident.lng) : false;
 
   if (incident && !hasIncidentLocation) {
     return (
-      <div className={`${height} flex items-center justify-center bg-[#f6f3f5] text-center text-xs text-[#45464d]`}>
+      <div className="w-full h-[260px] md:h-[340px] flex items-center justify-center bg-[#f6f3f5] text-center text-xs text-[#45464d] rounded-md">
         Location unavailable for this incident.
       </div>
     );
@@ -73,7 +73,7 @@ export const CitizenLocationMap: React.FC<CitizenLocationMapProps> = ({
   const validShelters = shelters.filter(s => isCoordinate(s.lat, s.lng));
 
   return (
-    <div className={`${height} w-full`}>
+    <div className="w-full h-[260px] md:h-[340px] rounded-md overflow-hidden">
       <MapContainer center={center} zoom={incidentLocation || userLocation ? 14 : 11} scrollWheelZoom className="h-full w-full">
         <MapView center={center} zoom={incidentLocation || userLocation ? 14 : 11} />
         <TileLayer
@@ -105,9 +105,8 @@ export const CitizenLocationMap: React.FC<CitizenLocationMapProps> = ({
             <Popup>
               <div className="text-xs space-y-1 min-w-[140px]">
                 <strong className="block text-slate-900 font-bold">{shelter.name}</strong>
-                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
-                  shelter.status === 'open' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                }`}>
+                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${shelter.status === 'open' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                  }`}>
                   {shelter.status === 'open' ? 'Open' : 'Full'}
                 </span>
                 <p className="text-slate-600">
