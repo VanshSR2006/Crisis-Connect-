@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User
 from ..core.security import create_access_token, hash_password, verify_password
+from ..core.rate_limiter import RateLimiter
+from ..core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -36,7 +38,11 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 @router.post("/login", response_model=AuthResponse)
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+def login(
+    req: LoginRequest,
+    db: Session = Depends(get_db),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_LOGIN, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="auth_login")),
+):
     """
     Authenticates an existing user by phone number (Citizen) or email (Officer/Volunteer) and password.
     Returns a JWT containing the authenticated user's true database role.
@@ -100,7 +106,11 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(req: SignupRequest, db: Session = Depends(get_db)):
+def signup(
+    req: SignupRequest,
+    db: Session = Depends(get_db),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_SIGNUP, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="auth_signup")),
+):
     """
     Registers a new Citizen, Officer, or Volunteer.
     Citizen requires phone + password.

@@ -29,6 +29,13 @@ class Settings:
     SARVAM_API_KEY: str = os.getenv("SARVAM_API_KEY", "")
     SARVAM_MODEL: str = os.getenv("SARVAM_MODEL", "sarvam-105b-conversations")
 
+    # Rate Limiting
+    RATE_LIMIT_LOGIN: int = int(os.getenv("RATE_LIMIT_LOGIN", "20"))
+    RATE_LIMIT_SIGNUP: int = int(os.getenv("RATE_LIMIT_SIGNUP", "10"))
+    RATE_LIMIT_INCIDENTS: int = int(os.getenv("RATE_LIMIT_INCIDENTS", "60"))
+    RATE_LIMIT_AI: int = int(os.getenv("RATE_LIMIT_AI", "60"))
+    RATE_LIMIT_WINDOW_SECONDS: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+
     # Validate production environment requirements
     def validate(self):
         if self.ENVIRONMENT == "production":

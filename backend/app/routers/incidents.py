@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Incident, User
-from ..core.security import get_current_user, require_officer
+from ..core.security import get_current_user, get_optional_current_user, require_officer
+from ..core.rate_limiter import RateLimiter
+from ..core.config import settings
 from ..services.priority_service import calculate_response_priority
 from ..websocket.manager import manager
 
@@ -23,7 +25,7 @@ class IncidentCreate(BaseModel):
     lng: float
     title: Optional[str] = "Emergency SOS Report"
     zone_id: Optional[str] = "z-silchar"
-    reporter_id: Optional[str] = "usr-citizen-1"
+    reporter_id: Optional[str] = None
 
 class IncidentVerifyRequest(BaseModel):
     review_state: str  # verified | flagged
@@ -63,30 +65,21 @@ def list_incidents(db: Session = Depends(get_db)):
     return db.query(Incident).order_by(Incident.created_at.desc(), Incident.priority_score.desc()).all()
 
 @router.post("", response_model=IncidentResponse)
-async def create_incident(inc: IncidentCreate, db: Session = Depends(get_db)):
+async def create_incident(
+    inc: IncidentCreate,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_INCIDENTS, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="incidents_create")),
+):
     """
     Submits a new incident SOS report and broadcasts a structured JSON event to the WebSocket.
+    Enforces JWT authentication: if authenticated, reporter_id is strictly set to current_user.id.
+    If unauthenticated (guest SOS), reporter_id is set to None.
     """
-    # Normalize reporter_id for guest/placeholder values
-    reporter_id = inc.reporter_id
-    if reporter_id is not None:
-        reporter_id_clean = reporter_id.strip()
-        if reporter_id_clean.lower() in ("usr-guest", "guest", ""):
-            reporter_id = None
-        else:
-            reporter_id = reporter_id_clean
-
-    # Validate real reporter_id before INSERT if non-null
-    if reporter_id is not None:
-        user = db.query(User).filter(User.id == reporter_id).first()
-        if not user:
-            if reporter_id.lower() in ("usr-guest", "guest", ""):
-                reporter_id = None
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid reporter_id"
-                )
+    if current_user is not None:
+        reporter_id = current_user.id
+    else:
+        reporter_id = None
 
     # Deduplicate recent identical emergency SOS submissions within 15 seconds
     recent_cutoff = datetime.now(timezone.utc) - timedelta(seconds=15)
