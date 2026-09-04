@@ -2,35 +2,47 @@
 // Officer global state: incidents, dispatches, resources, risk zones, resource pressure.
 // Coordinate before modifying outside this workstream.
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+
+import {
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+
 import {
   Incident,
   Dispatch,
   Resource,
   IncidentStatus,
-  DispatchStatus,
   SeverityLevel,
 } from '@/types';
-
-import { mockDispatches } from '@/mocks';
 
 import {
   getIncidents,
   updateIncidentStatus as persistIncidentStatus,
 } from '@/lib/api/incidents';
+
 import { getRiskScores } from '@/lib/api/risk';
 import { getZones } from '@/lib/api/zones';
 import { getResources } from '@/lib/api/resources';
-import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
-import { getDispatches, createDispatch as persistDispatch } from '@/lib/api/dispatches';
-import { realtimeClient } from '@/lib/api/websocket';
-import { normalizeRiskScore } from '@/lib/utils/risk';
+
+import {
+  getZoneDemand,
+  ZoneDemandResponse,
+} from '@/lib/api/demand';
 
 import {
   getDispatches,
-  createDispatch as createDispatchApi,
+  createDispatch as persistDispatch,
 } from '@/lib/api/dispatches';
+
+import { realtimeClient } from '@/lib/api/websocket';
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EXPORTED TYPES
@@ -79,6 +91,7 @@ export interface ZoneResourcePressure {
   hasSupplyData: boolean;
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PRESSURE DERIVATION
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,7 +116,10 @@ function deriveCategoryStatus(
     return 'adequate';
   }
 
-  const gapRatio = (demand - available) / demand;
+  const gapRatio =
+    demand > 0
+      ? (demand - available) / demand
+      : 0;
 
   if (gapRatio >= 0.5) {
     return 'critical';
@@ -112,6 +128,7 @@ function deriveCategoryStatus(
   return 'under_pressure';
 }
 
+
 function deriveOverallStatus(
   cats: CategoryPressure[]
 ): ZoneResourcePressure['overallStatus'] {
@@ -119,16 +136,30 @@ function deriveOverallStatus(
     return 'critical';
   }
 
-  if (cats.some((c) => c.status === 'under_pressure')) {
+  if (
+    cats.some(
+      (c) => c.status === 'under_pressure'
+    )
+  ) {
     return 'under_pressure';
   }
 
-  if (cats.every((c) => c.status === 'adequate')) {
+  if (
+    cats.length > 0 &&
+    cats.every(
+      (c) => c.status === 'adequate'
+    )
+  ) {
     return 'adequate';
   }
 
   return 'unknown';
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BUILD RESOURCE PRESSURE MODELS
+// ─────────────────────────────────────────────────────────────────────────────
 
 function buildPressureModels(
   zones: Array<{
@@ -141,23 +172,36 @@ function buildPressureModels(
 ): ZoneResourcePressure[] {
   return zones.map((zone) => {
     const zoneResources = resources.filter(
-      (r) => r.zone_id === zone.id
+      (resource) =>
+        resource.zone_id === zone.id
     );
 
-    const demand = demandMap.get(zone.id) ?? null;
+    const demand =
+      demandMap.get(zone.id) ?? null;
 
-    const hasSupplyData = zoneResources.length > 0;
-    const hasDemandData = demand !== null;
+    const hasSupplyData =
+      zoneResources.length > 0;
 
-    const sumCat = (types: string[]) => {
+    const hasDemandData =
+      demand !== null;
+
+    const sumCat = (
+      types: string[]
+    ): number | null => {
       if (!hasSupplyData) {
         return null;
       }
 
       return zoneResources
-        .filter((r) => types.includes(r.category))
+        .filter((resource) =>
+          types.includes(
+            resource.category
+          )
+        )
         .reduce(
-          (acc, r) => acc + (r.quantity ?? 0),
+          (total, resource) =>
+            total +
+            (resource.quantity ?? 0),
           0
         );
     };
@@ -176,14 +220,21 @@ function buildPressureModels(
       'water',
     ]);
 
+    // IMPORTANT:
+    // ZoneDemandResponse contains the actual demand
+    // inside the `demand` property.
     const foodDemand =
-      demand?.food_packets ?? null;
+      demand?.demand?.food_packets ??
+      null;
 
     const medicalDemand =
-      demand?.medical_kits ?? null;
+      demand?.demand?.medical_kits ??
+      null;
 
     const waterDemand =
-      demand?.drinking_water_liters ?? null;
+      demand?.demand
+        ?.drinking_water_liters ??
+      null;
 
     const categories: CategoryPressure[] = [
       {
@@ -248,6 +299,7 @@ function buildPressureModels(
   });
 }
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONTEXT TYPES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -257,9 +309,6 @@ interface CreateDispatchPayload {
   assignedUserId: string;
   resourceId?: string;
   notes: string;
-
-  // Optional resource selected by officer
-  resourceId?: string;
 }
 
 interface OfficerContextType {
@@ -284,18 +333,28 @@ interface OfficerContextType {
   isErrorPressure: boolean;
 
   dispatches: Dispatch[];
+
   isLoadingDispatches: boolean;
   isErrorDispatches: boolean;
 
   selectedIncidentId: string | null;
-  setSelectedIncidentId: (id: string | null) => void;
+
+  setSelectedIncidentId: (
+    id: string | null
+  ) => void;
 
   selectedZoneId: string | null;
-  setSelectedZoneId: (id: string | null) => void;
+
+  setSelectedZoneId: (
+    id: string | null
+  ) => void;
 
   updateIncidentStatus: (
     id: string,
-    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
+    status: Extract<
+      IncidentStatus,
+      'acknowledged' | 'resolved'
+    >
   ) => Promise<void>;
 
   createDispatch: (
@@ -303,13 +362,22 @@ interface OfficerContextType {
   ) => Promise<Dispatch | null>;
 
   isCrisisMode: boolean;
-  setIsCrisisMode: (isCrisis: boolean) => void;
+
+  setIsCrisisMode: (
+    isCrisis: boolean
+  ) => void;
 }
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTEXT
+// ─────────────────────────────────────────────────────────────────────────────
+
 const OfficerContext =
-  createContext<OfficerContextType | undefined>(
-    undefined
-  );
+  createContext<
+    OfficerContextType | undefined
+  >(undefined);
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROVIDER
@@ -334,7 +402,9 @@ export const OfficerProvider: React.FC<{
     refetchInterval: 15000,
   });
 
-  const incidents = liveIncidents ?? [];
+  const incidents =
+    liveIncidents ?? [];
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // RISK ZONES
@@ -348,21 +418,88 @@ export const OfficerProvider: React.FC<{
     queryKey: ['risk_zones'],
 
     queryFn: async () => {
-  updateIncidentStatus: (
-    id: string,
-    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
-  ) => Promise<void>;
+      const scores =
+        await getRiskScores();
 
-  createDispatch: (
-    payload: CreateDispatchPayload
-  ) => Promise<Dispatch | null>;
-      return merged;
+      const zones =
+        await getZones();
+
+      if (
+        !zones ||
+        zones.length === 0
+      ) {
+        return [];
+      }
+
+      return zones.map((zone) => {
+        const scoreData =
+          scores?.find(
+            (score: any) =>
+              String(
+                score.zone_id
+              ) ===
+              String(zone.id)
+          );
+
+        const rawScore =
+          scoreData?.score ?? 0;
+
+        const normalizedScore =
+          Number(rawScore);
+
+        let riskLevel: SeverityLevel;
+
+        if (
+          normalizedScore >= 0.8
+        ) {
+          riskLevel = 'critical';
+        } else if (
+          normalizedScore >= 0.6
+        ) {
+          riskLevel = 'high';
+        } else if (
+          normalizedScore >= 0.4
+        ) {
+          riskLevel = 'medium';
+        } else {
+          riskLevel = 'low';
+        }
+
+        return {
+          id:
+            scoreData?.id ??
+            zone.id,
+
+          zone_id: zone.id,
+
+          name: zone.name,
+
+          risk_level: riskLevel,
+
+          score:
+            normalizedScore,
+
+          computed_at:
+            scoreData?.computed_at ??
+            new Date().toISOString(),
+
+          boundary_json:
+            zone.boundary_json ??
+            null,
+
+          population_est:
+            zone.population_est ??
+            0,
+        };
+      });
     },
 
     refetchInterval: 30000,
   });
 
-  const riskZones = liveRiskZones ?? [];
+  const riskZones =
+    liveRiskZones ?? [];
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // RESOURCES
@@ -378,7 +515,9 @@ export const OfficerProvider: React.FC<{
     refetchInterval: 30000,
   });
 
-  const resources = liveResources ?? [];
+  const resources =
+    liveResources ?? [];
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // ZONE PRESSURE
@@ -392,29 +531,37 @@ export const OfficerProvider: React.FC<{
     queryKey: ['zone_pressure'],
 
     queryFn: async () => {
-      const zones = await getZones();
+      const zones =
+        await getZones();
 
-      if (!zones || zones.length === 0) {
+      if (
+        !zones ||
+        zones.length === 0
+      ) {
         return [];
       }
 
       const demandMap =
-        new Map<string, ZoneDemandResponse>();
+        new Map<
+          string,
+          ZoneDemandResponse
+        >();
 
       const demandResults =
         await Promise.allSettled(
-          zones.map((z) =>
-            getZoneDemand(z.id)
+          zones.map((zone) =>
+            getZoneDemand(zone.id)
           )
         );
 
       demandResults.forEach(
-        (result, idx) => {
+        (result, index) => {
           if (
-            result.status === 'fulfilled'
+            result.status ===
+            'fulfilled'
           ) {
             demandMap.set(
-              zones[idx].id,
+              zones[index].id,
               result.value
             );
           }
@@ -424,7 +571,8 @@ export const OfficerProvider: React.FC<{
       const cachedResources =
         queryClient.getQueryData<
           Resource[]
-        >(['resources']) ?? [];
+        >(['resources']) ??
+        resources;
 
       return buildPressureModels(
         zones,
@@ -433,14 +581,20 @@ export const OfficerProvider: React.FC<{
       );
     },
 
-    enabled: !isLoadingResources,
+    enabled:
+      !isLoadingResources,
+
     staleTime: 60000,
   });
 
   const zonePressure =
     liveZonePressure ?? [];
 
-  // ── Dispatches query (Issue 1 fix) ─────────────────────────────────────────
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // DISPATCHES
+  // ───────────────────────────────────────────────────────────────────────────
+
   const {
     data: liveDispatches,
     isLoading: isLoadingDispatches,
@@ -448,43 +602,41 @@ export const OfficerProvider: React.FC<{
   } = useQuery({
     queryKey: ['dispatches'],
     queryFn: getDispatches,
+    refetchInterval: 10000,
   });
 
-  const dispatches = liveDispatches ?? [];
+  const dispatches =
+    liveDispatches ?? [];
 
-  const [selectedIncidentId, setSelectedIncidentId] =
-    useState<string | null>(null);
-
-  const [selectedZoneId, setSelectedZoneId] =
-    useState<string | null>(null);
-
-  const [isCrisisMode, setIsCrisisMode] =
-    useState<boolean>(false);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // LOCAL STATE
+  // LOCAL UI STATE
   // ───────────────────────────────────────────────────────────────────────────
-
-  const [dispatches, setDispatches] =
-    useState<Dispatch[]>([]);
 
   const [
     selectedIncidentId,
     setSelectedIncidentId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     selectedZoneId,
     setSelectedZoneId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   const [
     isCrisisMode,
     setIsCrisisMode,
-  ] = useState<boolean>(false);
+  ] = useState<boolean>(
+    false
+  );
+
 
   // ───────────────────────────────────────────────────────────────────────────
-  // LOAD DISPATCHES FROM BACKEND
+  // REFRESH DISPATCHES
   // ───────────────────────────────────────────────────────────────────────────
 
   const refreshDispatches =
@@ -502,11 +654,16 @@ export const OfficerProvider: React.FC<{
           backendDispatches
         );
 
-        setDispatches(
+        queryClient.setQueryData<
+          Dispatch[]
+        >(
+          ['dispatches'],
           backendDispatches ?? []
         );
 
-        return backendDispatches ?? [];
+        return (
+          backendDispatches ?? []
+        );
       } catch (error) {
         console.error(
           '[OfficerContext] Failed to load dispatches:',
@@ -517,25 +674,18 @@ export const OfficerProvider: React.FC<{
       }
     };
 
-  // Initial load
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // INITIAL DISPATCH LOAD
+  // ───────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     refreshDispatches();
   }, []);
 
-  // Keep Officer dispatch queue synchronized
-  useEffect(() => {
-    const interval =
-      setInterval(() => {
-        refreshDispatches();
-      }, 10000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // INITIAL INCIDENT
+  // INITIAL INCIDENT SELECTION
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -552,188 +702,302 @@ export const OfficerProvider: React.FC<{
     selectedIncidentId,
   ]);
 
+
   // ───────────────────────────────────────────────────────────────────────────
-  // WEBSOCKET
+  // REALTIME / WEBSOCKET
   // ───────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    const handleIncidentEvent = (payload: any) => {
-      if (!payload) return;
-
-      queryClient.setQueryData<Incident[]>(
-        ['incidents'],
-        (old) => {
-          if (!old) return old;
-
-          const exists = old.some(
-            (i) => i.id === payload.id
-          );
-
-          const updatedList = exists
-            ? old.map((i) =>
-                i.id === payload.id
-                  ? { ...i, ...payload }
-                  : i
-              )
-            : [payload as Incident, ...old];
-
-          return updatedList.sort((a, b) => {
-            const timeA = a.created_at
-              ? new Date(a.created_at).getTime()
-              : 0;
-            const timeB = b.created_at
-              ? new Date(b.created_at).getTime()
-              : 0;
-
-            if (timeA !== timeB) {
-              return timeB - timeA;
-            }
-
-            return (
-              (b.priority_score ?? 0) -
-              (a.priority_score ?? 0)
-            );
-          });
-        }
-      );
-
-      queryClient.invalidateQueries({
-        queryKey: ['incidents'],
-      });
-    };
-
-    const wsUrl =
-      import.meta.env.VITE_API_BASE_URL
-        ? import.meta.env.VITE_API_BASE_URL
-            .replace(/^http/, 'ws') +
-          '/ws/dashboard'
-        : 'ws://localhost:8000/ws/dashboard';
-
-    let ws: WebSocket;
-    let reconnectTimer: ReturnType<typeof setTimeout>;
-
-    const connectWs = () => {
-      const token =
-        typeof localStorage !== 'undefined'
-          ? localStorage.getItem('token')
-          : null;
-
-      if (!token) {
-        console.warn(
-          '[OfficerContext] No authentication token found for WebSocket.'
-        );
+    const handleIncidentEvent = (
+      payload: any
+    ) => {
+      if (!payload) {
         return;
       }
 
-      const url =
-        `${wsUrl}?token=${encodeURIComponent(token)}`;
+      queryClient.setQueryData<
+        Incident[]
+      >(
+        ['incidents'],
+        (old) => {
+          if (!old) {
+            return old;
+          }
 
-      console.log(
-        '[OfficerContext] Connecting WebSocket:',
-        url
+          const exists =
+            old.some(
+              (incident) =>
+                incident.id ===
+                payload.id
+            );
+
+          const updatedList =
+            exists
+              ? old.map(
+                  (incident) =>
+                    incident.id ===
+                    payload.id
+                      ? {
+                          ...incident,
+                          ...payload,
+                        }
+                      : incident
+                )
+              : [
+                  payload as Incident,
+                  ...old,
+                ];
+
+          return updatedList.sort(
+            (a, b) => {
+              const timeA =
+                a.created_at
+                  ? new Date(
+                      a.created_at
+                    ).getTime()
+                  : 0;
+
+              const timeB =
+                b.created_at
+                  ? new Date(
+                      b.created_at
+                    ).getTime()
+                  : 0;
+
+              if (
+                timeA !== timeB
+              ) {
+                return (
+                  timeB - timeA
+                );
+              }
+
+              return (
+                (b.priority_score ??
+                  0) -
+                (a.priority_score ??
+                  0)
+              );
+            }
+          );
+        }
       );
 
-      ws = new WebSocket(url);
+      queryClient.invalidateQueries(
+        {
+          queryKey: [
+            'incidents',
+          ],
+        }
+      );
+    };
 
-      ws.onopen = () => {
-        console.log(
-          '[OfficerContext] WebSocket connected.'
+
+    const handleResourceUpdated =
+      () => {
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'resources',
+            ],
+          }
+        );
+
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'zone_pressure',
+            ],
+          }
         );
       };
 
-      ws.onmessage = (event) => {
-        try {
+
+    const handleDispatchEvent =
+      () => {
+        queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'dispatches',
+            ],
+          }
+        );
+      };
+
+
+    const unsubCreated =
+      realtimeClient.subscribe(
+        'incident.created',
+        handleIncidentEvent
+      );
+
+    const unsubVerified =
+      realtimeClient.subscribe(
+        'incident.verified',
+        handleIncidentEvent
+      );
+
+    const unsubUpdated =
+      realtimeClient.subscribe(
+        'incident.updated',
+        handleIncidentEvent
+      );
+
+    const unsubResource =
+      realtimeClient.subscribe(
+        'resource.updated',
+        handleResourceUpdated
+      );
+
+    const unsubDispatchAuth =
+      realtimeClient.subscribe(
+        'dispatch.authorized',
+        handleDispatchEvent
+      );
+
+    const unsubDispatchStatus =
+      realtimeClient.subscribe(
+        'dispatch.status_changed',
+        handleDispatchEvent
+      );
+
+
+    // Browser WebSocket connection
+    const apiBaseUrl =
+      import.meta.env
+        .VITE_API_BASE_URL;
+
+    const wsUrl = apiBaseUrl
+      ? apiBaseUrl.replace(
+          /^http/,
+          'ws'
+        ) + '/ws/dashboard'
+      : 'ws://localhost:8000/ws/dashboard';
+
+    let ws:
+      WebSocket | null = null;
+
+    let reconnectTimer:
+      ReturnType<
+        typeof setTimeout
+      > | null = null;
+
+    const connectWs = () => {
+      const token =
+        typeof localStorage !==
+        'undefined'
+          ? localStorage.getItem(
+              'token'
+            )
+          : null;
+
+      if (!token) {
+        return;
+      }
+
+      try {
+        ws = new WebSocket(
+          `${wsUrl}?token=${encodeURIComponent(
+            token
+          )}`
+        );
+
+        ws.onopen = () => {
+          console.log(
+            '[OfficerContext] WebSocket connected.'
+          );
+        };
+
+        ws.onmessage = (
+          event
+        ) => {
+          try {
+            if (
+              typeof event.data ===
+                'string' &&
+              event.data.startsWith(
+                'ACK:'
+              )
+            ) {
+              return;
+            }
+
+            const data =
+              JSON.parse(
+                event.data
+              );
+
+            if (
+              data.type ===
+                'incident.created' ||
+              data.type ===
+                'incident.verified'
+            ) {
+              handleIncidentEvent(
+                data.payload
+              );
+            }
+
+            if (
+              data.type ===
+              'resource.updated'
+            ) {
+              handleResourceUpdated();
+            }
+
+            if (
+              data.type ===
+                'dispatch.created' ||
+              data.type ===
+                'dispatch.authorized' ||
+              data.type ===
+                'dispatch.status_changed'
+            ) {
+              handleDispatchEvent();
+            }
+          } catch (error) {
+            console.error(
+              '[OfficerContext] WebSocket parse error:',
+              error
+            );
+          }
+        };
+
+        ws.onerror = (
+          error
+        ) => {
+          console.error(
+            '[OfficerContext] WebSocket error:',
+            error
+          );
+        };
+
+        ws.onclose = (
+          event
+        ) => {
           if (
-            typeof event.data === 'string' &&
-            event.data.startsWith('ACK:')
+            event.code === 4401 ||
+            event.code === 4403
           ) {
             return;
           }
 
-          const data = JSON.parse(event.data);
-
-          console.log(
-            '[OfficerContext] WS event:',
-            data
-          );
-
-          // INCIDENT EVENTS
-          if (
-            data.type === 'incident.created' ||
-            data.type === 'incident.verified'
-          ) {
-            handleIncidentEvent(data.payload);
-          }
-
-          // RESOURCE EVENTS
-          if (data.type === 'resource.updated') {
-            queryClient.invalidateQueries({
-              queryKey: ['resources'],
-            });
-
-            queryClient.invalidateQueries({
-              queryKey: ['zone_pressure'],
-            });
-          }
-
-          // DISPATCH EVENTS
-          if (
-            data.type === 'dispatch.created' ||
-            data.type === 'dispatch.authorized' ||
-            data.type === 'dispatch.status_changed'
-          ) {
-            refreshDispatches();
-          }
-        } catch (error) {
-          console.error(
-            '[OfficerContext] WebSocket parse error:',
-            error
-          );
-        }
-      };
-
-      ws.onerror = (error) => {
+          reconnectTimer =
+            setTimeout(
+              connectWs,
+              5000
+            );
+        };
+      } catch (error) {
         console.error(
-          '[OfficerContext] WebSocket error:',
+          '[OfficerContext] WebSocket connection error:',
           error
         );
-      };
-
-      ws.onclose = (event: CloseEvent) => {
-        console.warn(
-          '[OfficerContext] WebSocket closed:',
-          event.code
-        );
-
-        if (
-          event.code === 4401 ||
-          event.code === 4403
-        ) {
-          return;
-        }
-
-        reconnectTimer = setTimeout(
-          connectWs,
-          5000
-        );
-      };
+      }
     };
 
-    const handleResourceUpdated = () => {
-      queryClient.invalidateQueries({ queryKey: ['resources'] });
-      queryClient.invalidateQueries({ queryKey: ['zone_pressure'] });
-    };
+    connectWs();
 
-    const handleDispatchEvent = () => {
-      queryClient.invalidateQueries({ queryKey: ['dispatches'] });
-    };
-
-    const unsubCreated = realtimeClient.subscribe('incident.created', handleIncidentEvent);
-    const unsubVerified = realtimeClient.subscribe('incident.verified', handleIncidentEvent);
-    const unsubUpdated = realtimeClient.subscribe('incident.updated', handleIncidentEvent);
-    const unsubResource = realtimeClient.subscribe('resource.updated', handleResourceUpdated);
-    const unsubDispatchAuth = realtimeClient.subscribe('dispatch.authorized', handleDispatchEvent);
-    const unsubDispatchStatus = realtimeClient.subscribe('dispatch.status_changed', handleDispatchEvent);
 
     return () => {
       unsubCreated();
@@ -742,53 +1006,135 @@ export const OfficerProvider: React.FC<{
       unsubResource();
       unsubDispatchAuth();
       unsubDispatchStatus();
+
+      if (
+        reconnectTimer
+      ) {
+        clearTimeout(
+          reconnectTimer
+        );
+      }
+
+      if (ws) {
+        ws.close();
+      }
     };
   }, [queryClient]);
 
-  const updateIncidentStatus = async (
-    id: string,
-    status: Extract<IncidentStatus, 'acknowledged' | 'resolved'>
-  ) => {
-    const updatedIncident = await persistIncidentStatus(id, status);
 
-    if (!updatedIncident) return;
+  // ───────────────────────────────────────────────────────────────────────────
+  // UPDATE INCIDENT STATUS
+  // ───────────────────────────────────────────────────────────────────────────
 
-    queryClient.setQueryData<Incident[]>(
-      ['incidents'],
-      (old) => {
-        if (!old) return old;
-
-        return old.map((incident) =>
-          incident.id === id
-            ? updatedIncident
-            : incident
+  const updateIncidentStatus =
+    async (
+      id: string,
+      status: Extract<
+        IncidentStatus,
+        'acknowledged' | 'resolved'
+      >
+    ) => {
+      const updatedIncident =
+        await persistIncidentStatus(
+          id,
+          status
         );
+
+      if (!updatedIncident) {
+        return;
       }
-    );
-  };
 
-  const createDispatch = async (
-    payload: CreateDispatchPayload
-  ): Promise<Dispatch | null> => {
-    const newDispatch = await persistDispatch({
-      incident_id: payload.incidentId,
-      resource_id: payload.resourceId,
-      assigned_user_id: payload.assignedUserId,
-      notes: payload.notes,
-    });
+      queryClient.setQueryData<
+        Incident[]
+      >(
+        ['incidents'],
+        (old) => {
+          if (!old) {
+            return old;
+          }
 
-    if (!newDispatch) return null;
+          return old.map(
+            (incident) =>
+              incident.id === id
+                ? updatedIncident
+                : incident
+          );
+        }
+      );
+    };
 
-    await queryClient.invalidateQueries({
-      queryKey: ['dispatches'],
-    });
 
-    await queryClient.invalidateQueries({
-      queryKey: ['incidents'],
-    });
+  // ───────────────────────────────────────────────────────────────────────────
+  // CREATE DISPATCH
+  // ───────────────────────────────────────────────────────────────────────────
 
-    return newDispatch;
-  };
+  const createDispatch =
+    async (
+      payload: CreateDispatchPayload
+    ): Promise<Dispatch | null> => {
+      try {
+        const newDispatch =
+          await persistDispatch({
+            incident_id:
+              payload.incidentId,
+
+            resource_id:
+              payload.resourceId,
+
+            assigned_user_id:
+              payload.assignedUserId,
+
+            notes:
+              payload.notes,
+          });
+
+        if (!newDispatch) {
+          return null;
+        }
+
+        await queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'dispatches',
+            ],
+          }
+        );
+
+        await queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'incidents',
+            ],
+          }
+        );
+
+        await queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'resources',
+            ],
+          }
+        );
+
+        await queryClient.invalidateQueries(
+          {
+            queryKey: [
+              'zone_pressure',
+            ],
+          }
+        );
+
+        return newDispatch;
+      } catch (error) {
+        console.error(
+          '[OfficerContext] Failed to create dispatch:',
+          error
+        );
+
+        return null;
+      }
+    };
+
 
   // ───────────────────────────────────────────────────────────────────────────
   // PROVIDER
@@ -818,8 +1164,10 @@ export const OfficerProvider: React.FC<{
         isErrorPressure,
 
         dispatches,
+
         isLoadingDispatches,
         isErrorDispatches,
+
         selectedIncidentId,
         setSelectedIncidentId,
 
@@ -839,6 +1187,7 @@ export const OfficerProvider: React.FC<{
   );
 };
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HOOK
 // ─────────────────────────────────────────────────────────────────────────────
@@ -846,7 +1195,9 @@ export const OfficerProvider: React.FC<{
 export const useOfficerContext =
   (): OfficerContextType => {
     const context =
-      useContext(OfficerContext);
+      useContext(
+        OfficerContext
+      );
 
     if (!context) {
       throw new Error(
