@@ -5,6 +5,7 @@ import { askAiAssistant, speechToText, textToSpeech } from '@/lib/api/ai';
 import { useLanguage } from '@/lib/languageContext';
 import { RobotAvatar, AssistantState } from './RobotAvatar';
 import { convertBlobToWav } from '@/lib/audioRecorder';
+import { handleEmergencyConversation, AssistantEmergencyState } from '@/lib/emergencyAssistant';
 
 export interface Message {
   id: string;
@@ -34,8 +35,22 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState<string>('');
   const [internalState, setInternalState] = useState<AssistantState>('idle');
+  const [emergencyState, setEmergencyState] = useState<AssistantEmergencyState>({ step: 'idle' });
   const [micNotice, setMicNotice] = useState<string | null>(null);
   const [recordingDuration, setRecordingDuration] = useState<number>(0);
+
+  const getBrowserLocation = async (): Promise<{ lat: number; lng: number } | null> => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      return null;
+    }
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { timeout: 5000, enableHighAccuracy: true }
+      );
+    });
+  };
 
   const activeState = assistantState || internalState;
 
@@ -230,12 +245,44 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
           };
           setMessages((prev) => [...prev, userMessage]);
 
+          // Check emergency, shelter, or alert conversation first
+          const emergencyResult = await handleEmergencyConversation(
+            recognizedText,
+            language,
+            emergencyState,
+            null,
+            getBrowserLocation
+          );
+
+          if (emergencyResult.handled && emergencyResult.reply) {
+            setEmergencyState(emergencyResult.nextState);
+            const assistantMsgId = `assistant-${Date.now()}`;
+            const assistantMessage: Message = {
+              id: assistantMsgId,
+              role: 'assistant',
+              content: emergencyResult.reply,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setMessages((prev) => [...prev, assistantMessage]);
+            await speakText(emergencyResult.reply, assistantMsgId);
+            return;
+          }
+
+          setEmergencyState(emergencyResult.nextState);
+
           // Send recognized transcript to Sarvam AI (sarvam-105b-conversations)
           const aiResponse = await askAiAssistant(recognizedText, language);
 
           if (aiResponse && aiResponse.response) {
-            // User requested audio-only reply for voice queries: synthesize and speak directly without displaying text reply
-            await speakText(aiResponse.response);
+            const assistantMsgId = `assistant-${Date.now()}`;
+            const assistantMessage: Message = {
+              id: assistantMsgId,
+              role: 'assistant',
+              content: aiResponse.response,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+            setMessages((prev) => [...prev, assistantMessage]);
+            await speakText(aiResponse.response, assistantMsgId);
           } else {
             const errorMessage: Message = {
               id: `error-ai-${Date.now()}`,
@@ -349,6 +396,32 @@ export const VoiceAssistantWidget: React.FC<VoiceAssistantWidgetProps> = ({
     updateState('thinking');
 
     try {
+      // 1. Process via emergency assistant engine
+      const emergencyResult = await handleEmergencyConversation(
+        messageToSend,
+        language,
+        emergencyState,
+        null,
+        getBrowserLocation
+      );
+
+      if (emergencyResult.handled && emergencyResult.reply) {
+        setEmergencyState(emergencyResult.nextState);
+        const assistantMsgId = `assistant-${Date.now()}`;
+        const assistantMessage: Message = {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: emergencyResult.reply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
+        updateState('idle');
+        return;
+      }
+
+      setEmergencyState(emergencyResult.nextState);
+
+      // 2. Fall back to Sarvam AI Assistant
       const response = await askAiAssistant(messageToSend, language);
 
       if (response && response.response) {
