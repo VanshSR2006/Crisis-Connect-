@@ -227,57 +227,71 @@ export const LiveMap: React.FC = () => {
   const activeZoom = mapCenterOverride ? 14 : selectedIncident?.lat ? 13 : DEFAULT_ZOOM;
 
   return (
-    <div className="space-y-4">
-      {/* ── Page Header ────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('officer.liveMap.title', 'GIS Command Map')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {t('officer.liveMap.subtitle', 'Live geospatial monitoring')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-[#45464d]">
-          {isLoadingIncidents ? (
-            <span className="text-blue-600">Connecting GIS...</span>
-          ) : isErrorIncidents ? (
-            <span className="text-red-600">GIS Offline</span>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping" />
-              {t('officer.liveMap.gisTelemetryLive', 'GIS Telemetry Live')}
-            </>
-          )}
+    <div className="space-y-5">
+      {/* ── Page Header Card with Background Image ────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        <img
+          src="/news/northeast_landslide.jpg"
+          alt="GIS Geospatial Monitoring"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>GIS REAL-TIME COMMAND MAP</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              {t('officer.liveMap.title', 'GIS Command Map')}
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
+              {t('officer.liveMap.subtitle', 'Live geospatial monitoring')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg">
+              <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">
+                {incidents.length}
+              </span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                {t('officer.liveMap.gisTelemetryLive', 'GIS Telemetry Live')}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* ── Left: Layer Controls ────────────────────────── */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-3.5 space-y-4 shadow-sm h-fit">
-          <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
-            <SlidersHorizontal className="h-4 w-4 text-[#0f172a]" />
-            <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-4 space-y-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] h-fit">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+            <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-xs">
+              <SlidersHorizontal className="h-4 w-4 text-blue-600" />
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
               {t('officer.liveMap.mapLayerControls', 'Layer Controls')}
             </h3>
           </div>
 
           <div className="space-y-2 text-xs">
             {[
-              { label: 'Risk Zones', icon: <Layers className="h-3.5 w-3.5 text-[#c2410c]" />, state: showRiskOverlay, set: setShowRiskOverlay },
-              { label: 'Resource Pressure', icon: <Package className="h-3.5 w-3.5 text-[#7c3aed]" />, state: showResourcePressure, set: setShowResourcePressure },
+              { label: 'Risk Zones', icon: <Layers className="h-3.5 w-3.5 text-amber-600" />, state: showRiskOverlay, set: setShowRiskOverlay },
+              { label: 'Resource Pressure', icon: <Package className="h-3.5 w-3.5 text-purple-600" />, state: showResourcePressure, set: setShowResourcePressure },
               { label: 'Rescue Sites', icon: <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />, state: showRescueSites, set: setShowRescueSites },
-              { label: t('officer.liveMap.evacuationShelters', 'Safe Zones'), icon: <MapPin className="h-3.5 w-3.5 text-slate-500" />, state: showShelters, set: setShowShelters },
+              { label: t('officer.liveMap.evacuationShelters', 'Safe Zones'), icon: <MapPin className="h-3.5 w-3.5 text-blue-600" />, state: showShelters, set: setShowShelters },
             ].map(({ label, icon, state, set }) => (
-              <label key={label} className="flex items-center justify-between p-2 rounded bg-[#f6f3f5] border border-[#c6c6cd] cursor-pointer">
-                <span className="font-semibold text-[#1b1b1d] flex items-center gap-1.5">
+              <label key={label} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer shadow-xs hover:bg-blue-50/60 transition-colors">
+                <span className="font-extrabold text-slate-800 flex items-center gap-2">
                   {icon} {label}
                 </span>
                 <input
                   type="checkbox"
                   checked={state}
                   onChange={e => set(e.target.checked)}
-                  className="rounded border-[#c6c6cd] text-[#2563eb] focus:ring-0"
+                  className="rounded border-slate-300 text-blue-600 focus:ring-0"
                 />
               </label>
             ))}
@@ -352,7 +366,7 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Center: Map ─────────────────────────────────── */}
-        <div className={`lg:col-span-2 bg-[#e2e8f0] border rounded overflow-hidden shadow-sm relative min-h-[480px] flex flex-col z-0 ${isCrisisMode ? 'border-red-500 shadow-red-200' : 'border-[#cbd5e1]'}`}>
+        <div className={`lg:col-span-2 bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] relative min-h-[480px] flex flex-col z-0 ${isCrisisMode ? 'ring-2 ring-red-500 border-red-500' : ''}`}>
           <ErrorBoundary fallbackMessage="The map encountered an error.">
             <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={true} className="w-full h-full min-h-[480px]" zoomControl={false}>
             <TileLayer
@@ -403,15 +417,15 @@ export const LiveMap: React.FC = () => {
           </ErrorBoundary>
 
           {/* Map top bar */}
-          <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded shadow-sm text-slate-800 text-[11px] pointer-events-none">
+          <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm text-slate-800 text-[11px] pointer-events-none">
             <div className="flex items-center gap-2">
               <MapIcon className="h-3.5 w-3.5 text-blue-600" />
-              <span className="font-bold tracking-wider uppercase">Active Tracking Region</span>
+              <span className="font-extrabold tracking-wider uppercase">Active Tracking Region</span>
             </div>
           </div>
 
           {/* Map bottom legend */}
-          <div className="absolute bottom-4 left-4 right-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded shadow-sm text-slate-800 text-[10px] flex items-center justify-between pointer-events-none">
+          <div className="absolute bottom-4 left-4 right-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm text-slate-800 text-[10px] flex items-center justify-between pointer-events-none">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ba1a1a]" />{t('common.critical', 'Critical')}</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#c2410c]" />{t('common.high', 'High')}</span>
@@ -423,7 +437,7 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Right: Tabbed Detail Panel ──────────────────── */}
-        <div className="bg-white border border-[#c6c6cd] rounded shadow-sm flex flex-col gap-3 pb-3">
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] flex flex-col gap-3 pb-3">
           <div className="flex-1 flex flex-col">
             {/* Tabs */}
           <div className="flex border-b border-[#f0edef]">

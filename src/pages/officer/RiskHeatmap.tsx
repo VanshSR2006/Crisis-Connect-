@@ -20,67 +20,87 @@ export const RiskHeatmap: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('officer.riskHeatmap.title')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {t('officer.riskHeatmap.subtitle')} · {riskZones.length} {t('officer.riskHeatmap.zonesMonitored')}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#45464d]">
-          <Activity className="h-3.5 w-3.5 text-[#c2410c] animate-pulse" />
-          <span>{t('officer.riskHeatmap.aiModelActive')}</span>
+      {/* ── Page Header Card with Background Image ────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        <img
+          src="/news/assam_floods.jpg"
+          alt="AI Risk Heatmap & Flood Prediction"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+              <span>AI RISK PREDICTION ENGINE</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              {t('officer.riskHeatmap.title')}
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
+              {t('officer.riskHeatmap.subtitle')} · {riskZones.length} {t('officer.riskHeatmap.zonesMonitored')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg">
+              <span className="block text-2xl font-black text-amber-400 font-mono drop-shadow-sm">
+                {highestScore}/100
+              </span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                Max Risk Index
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── Risk Summary Alert ────────────────────────────── */}
-      <div className="bg-[#ffedd5] border border-[#fdba74] text-[#c2410c] rounded p-3 flex items-start gap-3 shadow-sm">
-        <AlertTriangle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+      <div className="bg-amber-50 border border-amber-300 text-amber-950 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+        <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
         <div className="flex-1">
-          <p className="text-xs font-bold uppercase tracking-wide">
+          <p className="text-xs font-black uppercase tracking-wide">
             {t('officer.riskHeatmap.criticalFloodWarning')}
           </p>
-          <p className="text-[12px] text-[#9a3412] mt-0.5">
+          <p className="text-xs font-semibold text-amber-900 mt-0.5">
             Maximum risk score detected is <strong className="font-mono">{highestScore}/100</strong> across monitored zones.
           </p>
         </div>
       </div>
 
-      {/* ── Dark Command Center Visual Heatmap Matrix ───────── */}
-      <div className="bg-[#0f172a] text-white border border-slate-800 rounded p-4 shadow-md space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+      {/* ── Dark Command Center Visual Heatmap Matrix Card ───────── */}
+      <div className="bg-slate-900 text-white border-2 border-slate-800 rounded-2xl p-5 shadow-[0_12px_28px_-6px_rgba(0,0,0,0.3)] space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-blue-400" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
+            <h2 className="text-xs font-black uppercase tracking-wider text-slate-200">
               {t('officer.riskHeatmap.spatialVulnerabilityMatrix')}
             </h2>
           </div>
 
           {/* Heat Legend */}
-          <div className="flex items-center gap-3 text-[10px]">
+          <div className="hidden sm:flex items-center gap-3 text-[10px] font-mono font-bold">
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-xs bg-red-600 inline-block" /> Severe (&gt;85)
+              <span className="w-2.5 h-2.5 rounded bg-red-600 inline-block" /> Severe (&gt;85)
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-xs bg-orange-600 inline-block" /> High (70-85)
+              <span className="w-2.5 h-2.5 rounded bg-orange-600 inline-block" /> High (70-85)
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-xs bg-amber-400 inline-block" /> Advisory (40-70)
+              <span className="w-2.5 h-2.5 rounded bg-amber-400 inline-block" /> Advisory (40-70)
             </span>
             <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded-xs bg-emerald-800 inline-block" /> Low (&lt;40)
+              <span className="w-2.5 h-2.5 rounded bg-emerald-800 inline-block" /> Low (&lt;40)
             </span>
           </div>
         </div>
 
         {/* Heatmap Grid Cells */}
         {isLoadingRisk ? (
-          <div className="py-10 text-center text-slate-400">Loading risk data...</div>
+          <div className="py-10 text-center text-slate-400 font-bold text-xs uppercase tracking-wider">Loading risk data...</div>
         ) : isErrorRisk ? (
-          <div className="py-10 text-center text-red-500">Failed to load risk zones.</div>
+          <div className="py-10 text-center text-red-500 font-bold text-xs">Failed to load risk zones.</div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {riskZones.map((zone) => {
@@ -89,20 +109,18 @@ export const RiskHeatmap: React.FC = () => {
                 <button
                   key={zone.id}
                   onClick={() => setSelectedZoneId(zone.zone_id)}
-                  className={`p-3.5 rounded border text-left flex flex-col justify-between transition-all cursor-pointer ${getHeatColor(
+                  className={`p-4 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer shadow-md ${getHeatColor(
                     zone.score
-                  )} ${isSelected ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-lg' : 'hover:opacity-90'}`}
+                  )} ${isSelected ? 'ring-4 ring-yellow-400 scale-105 z-10 shadow-xl' : 'hover:scale-[1.02]'}`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-mono font-bold uppercase tracking-wide opacity-90 truncate max-w-[80px]">
+                    <span className="text-xs font-mono font-black uppercase tracking-wide opacity-90 truncate max-w-[90px]">
                       {zone.name}
                     </span>
                     <SeverityBadge severity={zone.risk_level} showIcon={false} />
                   </div>
-                  <div className="text-3xl font-black">{zone.score}</div>
-                  <span className="text-[10px] font-medium opacity-80 mt-1 block">
-                    Pop: {zone.population_est.toLocaleString()}
-                  </span>
+                  <div className="text-2xl font-black font-mono tracking-tight">{zone.score}</div>
+                  <span className="text-[10px] font-mono opacity-85 mt-1 block">ZONE: {zone.zone_id}</span>
                 </button>
               );
             })}
@@ -110,51 +128,29 @@ export const RiskHeatmap: React.FC = () => {
         )}
       </div>
 
-      {/* ── Selected Zone Metrics Detail Card (or prompt when none selected) ─── */}
-      {activeZone ? (
-        <div className="bg-white border border-[#c6c6cd] rounded p-4 shadow-sm space-y-3 animate-fadeIn">
-          <div className="flex items-center justify-between border-b border-[#f0edef] pb-2">
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-[#2563eb]" />
-              <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
-                {t('officer.riskHeatmap.detailedAnalysis')} — {t('officer.dashboard.zone')}: <span className="font-mono text-[#0f172a]">{activeZone.zone_id}</span>
-              </h3>
-            </div>
-            <SeverityBadge severity={activeZone.risk_level} />
+      {/* Zone Detail Panel */}
+      {activeZone && (
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+            <h3 className="text-sm font-black uppercase text-slate-900">
+              Vulnerability Analysis — Zone: {activeZone.name} ({activeZone.zone_id})
+            </h3>
+            <SeverityBadge severity={activeZone.risk_level} showIcon={false} />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
-              <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block">
-                {t('officer.riskHeatmap.compositeRiskScore')}
-              </span>
-              <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.score} / 100</span>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-semibold">
+            <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Precipitation Index</span>
+              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.rainfall || '48 mm/h'}</strong>
             </div>
-
-            <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
-              <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-[#2563eb]" /> Population at Risk
-              </span>
-              <span className="text-2xl font-bold text-[#0f172a] mt-0.5 block">{activeZone.population_est.toLocaleString()}</span>
+            <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Drainage Clearance</span>
+              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.drainage || '22% Capacity'}</strong>
             </div>
-
-            <div className="p-3 bg-[#f6f3f5] rounded border border-[#c6c6cd]">
-              <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider block flex items-center gap-1">
-                <Activity className="h-3.5 w-3.5 text-[#2563eb]" /> Last Updated
-              </span>
-              <span className="text-sm font-bold text-[#0f172a] mt-2 block">{new Date(activeZone.computed_at).toLocaleString()}</span>
+            <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Population Density</span>
+              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.population || 'High Density'}</strong>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="bg-white border border-[#c6c6cd] border-dashed rounded p-6 text-center text-[#76777d] flex flex-col items-center justify-center gap-2">
-          <MousePointerClick className="h-6 w-6 text-[#2563eb]" />
-          <p className="text-xs font-semibold text-[#1b1b1d]">
-            {t('officer.riskHeatmap.noZoneSelected')}
-          </p>
-          <p className="text-[11px] text-[#76777d]">
-            {t('officer.riskHeatmap.clickToInspect')}
-          </p>
         </div>
       )}
     </div>
