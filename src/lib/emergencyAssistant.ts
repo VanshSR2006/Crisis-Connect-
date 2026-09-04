@@ -139,14 +139,49 @@ export function detectAlertsQuery(message: string): boolean {
 }
 
 /**
- * Detects affirmative confirmation (yes, proceed, please, haan, avudu, etc.)
+ * Detects affirmative confirmation (yes, proceed, please, haan, haudu, etc.)
+ * Strictly returns false if the message contains negation (e.g. "yes, don't send it").
  */
 export function detectAffirmative(message: string): boolean {
   if (!message) return false;
   const clean = message.trim().toLowerCase();
-  return /^(yes|yeah|yep|sure|ok|okay|please|proceed|send\s+it|send|haan|ha|theek\s+hai|karo|bhejo|avudu|sari|hogi|yes\s+please)$/i.test(
-    clean
-  ) || /\b(yes|haan|avudu|sure|proceed)\b/i.test(clean);
+
+  // If there is any negation word or phrase, it cannot be an affirmative confirmation
+  if (
+    /\b(don'?t|do\s+not|never|not|no|nahi|mat|beda|illa|cancel|stop)\b/i.test(clean) ||
+    /नहीं|मत|ಬೇಡ|ರದ್ದು|ಇಲ್ಲ/.test(clean)
+  ) {
+    return false;
+  }
+
+  // Exact match on common single-word or short affirmative confirmations
+  const exactPatterns = [
+    /^(yes|yeah|yep|yup|sure|ok|okay|please|proceed|send\s+it|send\s+help|dispatch|dispatch\s+it|do\s+it|okay\s+send|yes\s+please|yes\s+send|yes\s+dispatch)$/i,
+    /^(haan|ha|haa|theek\s+hai|karo|bhejo|haan\s+bhejo|madad\s+bhejo|sahi\s+hai)$/i,
+    /^(avudu|haudu|sari|hogi|kalsi|kalisi|kaluhisi|haudu\s+kalisi)$/i,
+    /^(हाँ|हां|हाँ\s*भेजो|भेज\s*दो|मदद\s*भेजो|ठीक\s*है|अवश्य)$/,
+    /^(ಹೌದು|ಹೌದು\s*ಕಳಿಸಿ|ಸರಿ|ಕಳುಹಿಸಿ)$/,
+  ];
+
+  if (exactPatterns.some((p) => p.test(clean))) {
+    return true;
+  }
+
+  // Compound affirmations starting with yes/haan/haudu that confirm dispatch
+  if (
+    /^(yes|yeah|yep|sure|haan|ha|haudu|avudu)[,.\s]+(send(\s+help|\s+it)?|dispatch(\s+it)?|do\s+it|please|i\s+need\s+help|i\s+am\s+trapped|madad\s+bhejo|kalisi)\b/i.test(
+      clean
+    )
+  ) {
+    return true;
+  }
+
+  // Direct dispatch commands: "send help", "send rescue", "dispatch rescue now"
+  if (/^(send\s+help|send\s+rescue|dispatch\s+rescue|dispatch\s+it\s+now|send\s+the\s+report)$/i.test(clean)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -155,7 +190,30 @@ export function detectAffirmative(message: string): boolean {
 export function detectNegative(message: string): boolean {
   if (!message) return false;
   const clean = message.trim().toLowerCase();
-  return /^(no|nah|nope|don'?t|cancel|nahi|mat\s+karo|illa|beda)$/i.test(clean);
+
+  // Explicit standalone or short negative words
+  if (/^(no|nah|nope|not\s+now|cancel|stop|never|nevermind|nahi|mat|illa|beda)$/i.test(clean)) {
+    return true;
+  }
+
+  // Phrases expressing negation or refusal
+  const negativePhrases = [
+    /\b(no\s+thanks|no\s+need|don'?t\s+send|do\s+not\s+send|don'?t\s+dispatch|do\s+not\s+dispatch|not\s+now|no\s+sos|don'?t\s+report|do\s+not\s+report|cancel\s+(it|report|sos)?|stop\s+(it|sending|dispatch)?)\b/i,
+    /\b(nahi\s+chahiye|mat\s+bhejo|bhejna\s+mat|nahi\s+bhejna|cancel\s+karo|band\s+karo)\b/i,
+    /\b(beda|kaliso\s+beda|kalasbeda|beda\s+nange|cancel\s+madi|nillisi)\b/i,
+    /नहीं|मत\s*भेजो|रद्द|ಬೇಡ|ಕಳಿಸಬೇಡಿ|ರದ್ದು/,
+  ];
+
+  if (negativePhrases.some((p) => p.test(clean))) {
+    return true;
+  }
+
+  // Leading "no", "nahi", "illa", "beda", "don't" followed by other text (e.g. "no just tell me a shelter", "no I only want...")
+  if (/^(no|nah|nope|nahi|illa|beda|don'?t)\b/i.test(clean)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -303,6 +361,157 @@ export interface AssistantEmergencyState {
 }
 
 /**
+ * Fulfills shelter request using real backend shelter data.
+ */
+export async function executeShelterFlow(
+  cleanMsg: string,
+  language: LanguageCode,
+  effectiveLocationName: string | undefined,
+  effectiveCoords: { lat: number; lng: number } | null | undefined,
+  getBrowserLocation: () => Promise<{ lat: number; lng: number } | null>
+): Promise<{
+  reply: string;
+  nextState: AssistantEmergencyState;
+  handled: boolean;
+}> {
+  if (effectiveCoords) {
+    const nearestResult = await findNearestSafeShelter(effectiveCoords.lat, effectiveCoords.lng);
+    if (nearestResult) {
+      const { shelter, distanceKm, availableBeds } = nearestResult;
+      const locName = effectiveLocationName || 'your location';
+      let reply = '';
+      if (language === 'hi') {
+        reply = `${shelter.name} आपके स्थान (${locName}) के लिए सबसे नजदीकी उपयुक्त आश्रय है (लगभग ${distanceKm} किमी)। इसमें ${availableBeds}/${shelter.capacity} बेड उपलब्ध हैं और यह खुला है।`;
+      } else if (language === 'ka') {
+        reply = `${shelter.name} ನಿಮ್ಮ ಸ್ಥಳಕ್ಕೆ (${locName}) ಹತ್ತಿರದ ಸೂಕ್ತ ಆಶ್ರಯ ತಾಣವಾಗಿದೆ (ಸುಮಾರು ${distanceKm} ಕಿಮೀ). ಇದರಲ್ಲಿ ${availableBeds}/${shelter.capacity} ಬೆಡ್‌ಗಳು ಲಭ್ಯವಿವೆ.`;
+      } else {
+        reply = `${shelter.name} is the closest suitable shelter I found for ${locName}, approximately ${distanceKm} km away. It currently has ${availableBeds} beds available (${shelter.current_occupancy}/${shelter.capacity} occupied) and is open and accessible.`;
+      }
+      return {
+        reply,
+        nextState: { step: 'idle', statedLocation: locName, coordinates: effectiveCoords },
+        handled: true,
+      };
+    }
+  }
+
+  // Try browser location
+  const autoCoords = await getBrowserLocation();
+  if (autoCoords) {
+    const nearestResult = await findNearestSafeShelter(autoCoords.lat, autoCoords.lng);
+    if (nearestResult) {
+      const { shelter, distanceKm, availableBeds } = nearestResult;
+      let reply = '';
+      if (language === 'hi') {
+        reply = `${shelter.name} आपके वर्तमान GPS स्थान से सबसे नजदीकी उपयुक्त आश्रय है (लगभग ${distanceKm} किमी)। इसमें ${availableBeds}/${shelter.capacity} बेड उपलब्ध हैं और यह खुला है।`;
+      } else if (language === 'ka') {
+        reply = `${shelter.name} ನಿಮ್ಮ ಪ್ರಸ್ತುತ GPS ಸ್ಥಳದಿಂದ ಹತ್ತಿರದ ಸೂಕ್ತ ಆಶ್ರಯ ತಾಣವಾಗಿದೆ (ಸುಮಾರು ${distanceKm} ಕಿಮೀ). ಇದರಲ್ಲಿ ${availableBeds}/${shelter.capacity} ಬೆಡ್‌ಗಳು ಲಭ್ಯವಿವೆ.`;
+      } else {
+        reply = `${shelter.name} is the closest suitable shelter I found for your location, approximately ${distanceKm} km away. It currently has ${availableBeds} beds available (${shelter.current_occupancy}/${shelter.capacity} occupied) and is open and accessible.`;
+      }
+      return {
+        reply,
+        nextState: { step: 'idle', statedLocation: 'Current GPS Location', coordinates: autoCoords },
+        handled: true,
+      };
+    }
+  }
+
+  // If city is mentioned without coordinates, ask for area
+  if (effectiveLocationName) {
+    let reply = '';
+    if (language === 'hi') {
+      reply = `मैं आपके लिए आश्रय चेक कर सकता हूँ। आप वर्तमान में ${effectiveLocationName} के किस इलाके या लैंडमार्क में हैं?`;
+    } else if (language === 'ka') {
+      reply = `ನಾನು ನಿಮಗಾಗಿ ಆಶ್ರಯ ತಾಣವನ್ನು ಪರಿಶೀಲಿಸುತ್ತೇನೆ. ನೀವು ಪ್ರಸ್ತುತ ${effectiveLocationName} ನ ಯಾವ ಪ್ರದೇಶದಲ್ಲಿದ್ದೀರಿ?`;
+    } else {
+      reply = `I can check that for you. What area or landmark in ${effectiveLocationName} are you currently in?`;
+    }
+    return {
+      reply,
+      nextState: { step: 'awaiting_shelter_location', statedLocation: effectiveLocationName, pendingShelterSearch: true },
+      handled: true,
+    };
+  }
+
+  let reply = '';
+  if (language === 'hi') {
+    reply = `मैं बिना लॉगिन के सुरक्षित आश्रय चेक कर सकता हूँ। क्या मैं आपकी GPS लोकेशन का उपयोग करूँ, या कृपया अपना शहर और इलाका बताएं?`;
+  } else if (language === 'ka') {
+    reply = `ನಾನು ಲಾಗಿನ್ ಇಲ್ಲದೆಯೇ ಸುರಕ್ಷಿತ ಆಶ್ರಯ ತಾಣಗಳನ್ನು ಹುಡುಕಬಲ್ಲೆ. ನಾನು ನಿಮ್ಮ GPS ಲೊಕೇಶನ್ ಬಳಸಲೆ, ಅಥವಾ ನಿಮ್ಮ ನಗರ ಮತ್ತು ಪ್ರದೇಶ ತಿಳಿಸಿ?`;
+  } else {
+    reply = `I can check safe shelters for you without login. Can I use your current GPS location, or tell me your city and area?`;
+  }
+  return {
+    reply,
+    nextState: { step: 'awaiting_shelter_location', pendingShelterSearch: true },
+    handled: true,
+  };
+}
+
+/**
+ * Fulfills alert request using real backend alert data.
+ */
+export async function executeAlertsFlow(
+  language: LanguageCode,
+  effectiveLocationName?: string,
+  effectiveCoords?: { lat: number; lng: number } | null
+): Promise<{
+  reply: string;
+  nextState: AssistantEmergencyState;
+  handled: boolean;
+}> {
+  try {
+    const alerts = await getAlerts();
+    if (!alerts || alerts.length === 0) {
+      let reply = '';
+      if (language === 'hi') {
+        reply = 'वर्तमान में आपके क्षेत्र के लिए कोई सक्रिय आपदा चेतावनी जारी नहीं की गई है। सतर्क रहें और जरूरत पड़ने पर मुझसे सहायता लें।';
+      } else if (language === 'ka') {
+        reply = 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಸಕ್ರಿಯ ವಿಪತ್ತು ಎಚ್ಚರಿಕೆಗಳು ದಾಖಲಾಗಿಲ್ಲ. ಜಾಗರೂಕರಾಗಿರಿ ಮತ್ತು ಅಗತ್ಯವಿದ್ದಲ್ಲಿ ಸಹಾಯ ಕೇಳಿ.';
+      } else {
+        reply = 'There are currently no active severe disaster alerts broadcast for this area. Stay vigilant, and let me know if you need shelter guidance or emergency assistance.';
+      }
+      return {
+        reply,
+        nextState: { step: 'idle', statedLocation: effectiveLocationName, coordinates: effectiveCoords || undefined },
+        handled: true,
+      };
+    }
+
+    const activeAlertSummaries = alerts.slice(0, 3).map((a) => {
+      const msg =
+        (a.message_translated && a.message_translated[language]) ||
+        a.message_translated?.en ||
+        a.message_en ||
+        'Emergency Alert';
+      return `• [${a.severity.toUpperCase()}] ${msg}`;
+    });
+
+    let reply = '';
+    if (language === 'hi') {
+      reply = `सक्रिय आपातकालीन अलर्ट:\n${activeAlertSummaries.join('\n')}\n\nयदि आप खतरे में हैं तो मुझे तुरंत बताएं।`;
+    } else if (language === 'ka') {
+      reply = `ಸಕ್ರಿಯ ತುರ್ತು ಎಚ್ಚರಿಕೆಗಳು:\n${activeAlertSummaries.join('\n')}\n\nನೀವು ಅಪಾಯದಲ್ಲಿದ್ದರೆ ತಕ್ಷಣ ನನಗೆ ತಿಳಿಸಿ.`;
+    } else {
+      reply = `Active Emergency Alerts:\n${activeAlertSummaries.join('\n')}\n\nIf you are in immediate danger, let me know right away so I can assist.`;
+    }
+
+    return {
+      reply,
+      nextState: { step: 'idle', statedLocation: effectiveLocationName, coordinates: effectiveCoords || undefined },
+      handled: true,
+    };
+  } catch {
+    return {
+      reply: 'Unable to load active disaster alerts at this moment.',
+      nextState: { step: 'idle', statedLocation: effectiveLocationName, coordinates: effectiveCoords || undefined },
+      handled: true,
+    };
+  }
+}
+
+/**
  * Core Emergency Conversational Engine for the Sarvam Crisis Assistant.
  * Intercepts emergency, shelter, and alert intents and fulfills them with real data.
  */
@@ -336,9 +545,20 @@ export async function handleEmergencyConversation(
   const isNegative = detectNegative(cleanMsg);
 
   // -------------------------------------------------------------
-  // FLOW A: User is in the middle of an emergency report workflow
+  // FLOW A: User was awaiting SOS confirmation
   // -------------------------------------------------------------
-  if (currentState.step === 'awaiting_emergency_location' || currentState.step === 'awaiting_emergency_confirmation') {
+  if (currentState.step === 'awaiting_emergency_confirmation') {
+    // 1. User intent overrides confirmation: User asks for Shelter (e.g. "no, just tell me any shelter" or "where is the nearest shelter?")
+    if (isShelter) {
+      return executeShelterFlow(cleanMsg, language, effectiveLocationName, effectiveCoords, getBrowserLocation);
+    }
+
+    // 2. User intent overrides confirmation: User asks for Alerts (e.g. "no, any active alerts?" or "are there flood warnings?")
+    if (isAlerts) {
+      return executeAlertsFlow(language, effectiveLocationName, effectiveCoords);
+    }
+
+    // 3. Explicit negative response cancels SOS (e.g. "no", "cancel", "don't send", "not now", "stop", "yes, don't send it")
     if (isNegative) {
       const reply =
         language === 'hi'
@@ -353,11 +573,21 @@ export async function handleEmergencyConversation(
       };
     }
 
-    // Attempt to resolve coordinates
+    // 4. If message is NOT an affirmative confirmation (e.g. general question "what about Bangalore?" or "how do I login?"),
+    // clear the pending confirmation and pass through to general assistant
+    if (!isAffirmative) {
+      return {
+        reply: '',
+        nextState: { step: 'idle', statedLocation: effectiveLocationName, coordinates: effectiveCoords || undefined },
+        handled: false,
+      };
+    }
+
+    // 5. User gave explicit affirmative confirmation ("yes", "send help", "dispatch it", "haan", etc.)
     let targetCoords = effectiveCoords;
     let targetLocationName = effectiveLocationName || 'Current Location';
 
-    if (isAffirmative && !targetCoords) {
+    if (!targetCoords) {
       targetCoords = await getBrowserLocation();
       if (targetCoords) {
         targetLocationName = 'Current GPS Location';
@@ -383,7 +613,7 @@ export async function handleEmergencyConversation(
       };
     }
 
-    // Submit real incident to backend!
+    // Submit real incident to backend
     const result = await submitEmergencyIncident({
       description: currentState.emergencyDescription || cleanMsg,
       lat: targetCoords.lat,
@@ -429,11 +659,37 @@ export async function handleEmergencyConversation(
   }
 
   // -------------------------------------------------------------
-  // FLOW B: User is in the middle of a shelter query workflow
+  // FLOW B: User was awaiting emergency location
   // -------------------------------------------------------------
-  if (currentState.step === 'awaiting_shelter_location' || (currentState.pendingShelterSearch && extractedLoc)) {
+  if (currentState.step === 'awaiting_emergency_location') {
+    // 1. User overrides with Shelter query
+    if (isShelter) {
+      return executeShelterFlow(cleanMsg, language, effectiveLocationName, effectiveCoords, getBrowserLocation);
+    }
+
+    // 2. User overrides with Alerts query
+    if (isAlerts) {
+      return executeAlertsFlow(language, effectiveLocationName, effectiveCoords);
+    }
+
+    // 3. User cancels
+    if (isNegative) {
+      const reply =
+        language === 'hi'
+          ? 'ठीक है, आपातकालीन रिपोर्ट रद्द कर दी गई है। अगर आपको किसी भी समय सहायता या आश्रय की आवश्यकता हो तो मुझे बताएं।'
+          : language === 'ka'
+          ? 'ಸರಿ, ತುರ್ತು ವರದಿಯನ್ನು ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ. ನಿಮಗೆ ಯಾವುದೇ ಸಮಯದಲ್ಲಿ ಸಹಾಯ ಅಥವಾ ಆಶ್ರಯ ಬೇಕಾದರೆ ತಿಳಿಸಿ.'
+          : 'Understood, emergency distress report has been cancelled. Let me know if you need safe shelter information or immediate assistance at any time.';
+      return {
+        reply,
+        nextState: { step: 'idle', statedLocation: effectiveLocationName, coordinates: effectiveCoords || undefined },
+        handled: true,
+      };
+    }
+
+    // 4. User provides a recognizable location or confirms browser location
     let targetCoords = effectiveCoords;
-    let targetLocationName = effectiveLocationName || 'Stated Location';
+    let targetLocationName = effectiveLocationName;
 
     if (isAffirmative && !targetCoords) {
       targetCoords = await getBrowserLocation();
@@ -442,54 +698,74 @@ export async function handleEmergencyConversation(
       }
     }
 
-    if (!targetCoords) {
-      const reply =
-        language === 'hi'
-          ? 'सुरक्षित आश्रय खोजने के लिए कृपया अपना शहर या इलाका (जैसे "बैंगलोर", "दिल्ली", या "व्हाइटफील्ड") बताएं।'
-          : language === 'ka'
-          ? 'ಸುರಕ್ಷಿತ ಆಶ್ರಯ ತಾಣವನ್ನು ಹುಡುಕಲು ದಯವಿಟ್ಟು ನಿಮ್ಮ ನಗರ ಅಥವಾ ಪ್ರದೇಶವನ್ನು (ಉದಾ: "ಬೆಂಗಳೂರು", "ದೆಹಲಿ") ತಿಳಿಸಿ.'
-          : 'To find your closest shelter, please tell me your city, area, or landmark (for example: "Bangalore", "Whitefield", or "Silchar").';
+    if (targetCoords) {
+      const result = await submitEmergencyIncident({
+        description: currentState.emergencyDescription || cleanMsg,
+        lat: targetCoords.lat,
+        lng: targetCoords.lng,
+        locationName: targetLocationName || 'Stated Location',
+      });
+
+      let nearestInfoStr = '';
+      try {
+        const nearest = await findNearestSafeShelter(targetCoords.lat, targetCoords.lng);
+        if (nearest) {
+          if (language === 'hi') {
+            nearestInfoStr = ` सबसे नजदीकी सुरक्षित आश्रय: ${nearest.shelter.name} (${nearest.distanceKm} किमी, ${nearest.availableBeds} बेड उपलब्ध)।`;
+          } else if (language === 'ka') {
+            nearestInfoStr = ` ಹತ್ತಿರದ ಸುರಕ್ಷಿತ ಆಶ್ರಯ: ${nearest.shelter.name} (${nearest.distanceKm} ಕಿಮೀ, ${nearest.availableBeds} ಬೆಡ್‌ಗಳು ಲಭ್ಯ).`;
+          } else {
+            nearestInfoStr = ` Nearest safe shelter: ${nearest.shelter.name} (${nearest.distanceKm} km away, ${nearest.availableBeds} beds available).`;
+          }
+        }
+      } catch {
+        // Ignore shelter lookup error
+      }
+
+      let reply = '';
+      if (language === 'hi') {
+        reply = `आपकी आपातकालीन संकट रिपोर्ट (Ref ID: ${result.referenceId}) भेज दी गई है। स्थान: ${targetLocationName}। कृपया किसी ऊंचे और सुरक्षित स्थान पर रहें।${nearestInfoStr} बचाव दल को सूचित कर दिया गया है।`;
+      } else if (language === 'ka') {
+        reply = `ನಿಮ್ಮ ತುರ್ತು ವರದಿ (Ref ID: ${result.referenceId}) ಯಶಸ್ವಿಯಾಗಿ ಕಳುಹಿಸಲಾಗಿದೆ. ಸ್ಥಳ: ${targetLocationName}. ದಯವಿಟ್ಟು ಎತ್ತರದ ಸ್ಥಳದಲ್ಲೇ ಇರಿ.${nearestInfoStr} ರಕ್ಷಣಾ ತಂಡಗಳಿಗೆ ಮಾಹಿತಿ ನೀಡಲಾಗಿದೆ.`;
+      } else {
+        reply = `Your distress report has been sent (Ref ID: ${result.referenceId}). Location: ${targetLocationName}. Stay somewhere elevated, stay calm, and avoid moving through floodwater.${nearestInfoStr} Emergency responders have been alerted.`;
+      }
+
       return {
         reply,
-        nextState: { step: 'awaiting_shelter_location', statedLocation: effectiveLocationName },
+        nextState: {
+          step: 'idle',
+          statedLocation: targetLocationName,
+          coordinates: targetCoords,
+        },
         handled: true,
       };
     }
 
-    const nearestResult = await findNearestSafeShelter(targetCoords.lat, targetCoords.lng);
-    if (!nearestResult) {
-      const reply =
-        language === 'hi'
-          ? 'वर्तमान में कोई आश्रय उपलब्ध नहीं मिला। कृपया आपातकालीन सहायता के लिए मुझे सूचित करें।'
-          : language === 'ka'
-          ? 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಆಶ್ರಯ ತಾಣ ಲಭ್ಯವಿಲ್ಲ. ತುರ್ತು ಸಹಾಯಕ್ಕಾಗಿ ತಿಳಿಸಿ.'
-          : 'No active shelters could be loaded right now. If you are in immediate danger, tell me and I will dispatch an emergency SOS report.';
-      return {
-        reply,
-        nextState: { step: 'idle', statedLocation: targetLocationName, coordinates: targetCoords },
-        handled: true,
-      };
-    }
-
-    const { shelter, distanceKm, availableBeds } = nearestResult;
-    let reply = '';
-    if (language === 'hi') {
-      reply = `${shelter.name} आपके स्थान (${targetLocationName}) से सबसे नजदीकी उपयुक्त आश्रय है (लगभग ${distanceKm} किमी दूर)। इसमें वर्तमान में ${availableBeds}/${shelter.capacity} बेड उपलब्ध हैं और यह खुला और सुलभ है।`;
-    } else if (language === 'ka') {
-      reply = `${shelter.name} ನಿಮ್ಮ ಸ್ಥಳದಿಂದ (${targetLocationName}) ಹತ್ತಿರದ ಸೂಕ್ತ ಆಶ್ರಯ ತಾಣವಾಗಿದೆ (ಸುಮಾರು ${distanceKm} ಕಿಮೀ ದೂರ). ಇದರಲ್ಲಿ ಪ್ರಸ್ತುತ ${availableBeds}/${shelter.capacity} ಬೆಡ್‌ಗಳು ಲಭ್ಯವಿವೆ ಮತ್ತು ಇದು ತೆರೆದಿದೆ.`;
-    } else {
-      reply = `${shelter.name} is the closest suitable shelter I found for ${targetLocationName}, approximately ${distanceKm} km away. It currently has ${availableBeds} beds available (${shelter.current_occupancy}/${shelter.capacity} occupied) and is open and accessible.`;
-    }
-
+    // Location could not be resolved from text or GPS
+    const reply =
+      language === 'hi'
+        ? 'मुझे आपकी लोकेशन नहीं मिली। कृपया अपने शहर या इलाके का नाम बताएं (जैसे "बैंगलोर" या "सिल्चर") ताकि मैं आपकी संकट रिपोर्ट भेज सकूं।'
+        : language === 'ka'
+        ? 'ನಿಮ್ಮ ಲೊಕೇಶನ್ ಸಿಗಲಿಲ್ಲ. ದಯವಿಟ್ಟು ನಿಮ್ಮ ನಗರ ಅಥವಾ ಪ್ರದೇಶದ ಹೆಸರು ತಿಳಿಸಿ (ಉದಾ: "ಬೆಂಗಳೂರು" ಅಥವಾ "ಸಿಲ್ಚಾರ್").'
+        : "I couldn't identify that location. Please tell me your city or area name (for example: \"Bangalore\" or \"Silchar\") so I can dispatch your rescue report.";
     return {
       reply,
       nextState: {
-        step: 'idle',
-        statedLocation: targetLocationName,
-        coordinates: targetCoords,
+        step: 'awaiting_emergency_location',
+        statedLocation: effectiveLocationName,
+        coordinates: undefined,
+        emergencyDescription: currentState.emergencyDescription,
       },
       handled: true,
     };
+  }
+
+  // -------------------------------------------------------------
+  // FLOW B2: User is in the middle of a shelter query workflow
+  // -------------------------------------------------------------
+  if (currentState.step === 'awaiting_shelter_location' || (currentState.pendingShelterSearch && extractedLoc)) {
+    return executeShelterFlow(cleanMsg, language, effectiveLocationName, effectiveCoords, getBrowserLocation);
   }
 
   // -------------------------------------------------------------
@@ -570,129 +846,14 @@ export async function handleEmergencyConversation(
   // FLOW D: New Shelter Query Trigger
   // -------------------------------------------------------------
   if (isShelter) {
-    if (effectiveCoords) {
-      const nearestResult = await findNearestSafeShelter(effectiveCoords.lat, effectiveCoords.lng);
-      if (nearestResult) {
-        const { shelter, distanceKm, availableBeds } = nearestResult;
-        const locName = effectiveLocationName || 'your location';
-        let reply = '';
-        if (language === 'hi') {
-          reply = `${shelter.name} आपके स्थान (${locName}) के लिए सबसे नजदीकी उपयुक्त आश्रय है (लगभग ${distanceKm} किमी)। इसमें ${availableBeds}/${shelter.capacity} बेड उपलब्ध हैं और यह खुला है।`;
-        } else if (language === 'ka') {
-          reply = `${shelter.name} ನಿಮ್ಮ ಸ್ಥಳಕ್ಕೆ (${locName}) ಹತ್ತಿರದ ಸೂಕ್ತ ಆಶ್ರಯ ತಾಣವಾಗಿದೆ (ಸುಮಾರು ${distanceKm} ಕಿಮೀ). ಇದರಲ್ಲಿ ${availableBeds}/${shelter.capacity} ಬೆಡ್‌ಗಳು ಲಭ್ಯವಿವೆ.`;
-        } else {
-          reply = `${shelter.name} is the closest suitable shelter I found for ${locName}, approximately ${distanceKm} km away. It currently has ${availableBeds} beds available (${shelter.current_occupancy}/${shelter.capacity} occupied) and is open and accessible.`;
-        }
-        return {
-          reply,
-          nextState: { step: 'idle', statedLocation: locName, coordinates: effectiveCoords },
-          handled: true,
-        };
-      }
-    }
-
-    // Try browser location
-    const autoCoords = await getBrowserLocation();
-    if (autoCoords) {
-      const nearestResult = await findNearestSafeShelter(autoCoords.lat, autoCoords.lng);
-      if (nearestResult) {
-        const { shelter, distanceKm, availableBeds } = nearestResult;
-        let reply = '';
-        if (language === 'hi') {
-          reply = `${shelter.name} आपके वर्तमान GPS स्थान से सबसे नजदीकी उपयुक्त आश्रय है (लगभग ${distanceKm} किमी)। इसमें ${availableBeds}/${shelter.capacity} बेड उपलब्ध हैं और यह खुला है।`;
-        } else if (language === 'ka') {
-          reply = `${shelter.name} ನಿಮ್ಮ ಪ್ರಸ್ತುತ GPS ಸ್ಥಳದಿಂದ ಹತ್ತಿರದ ಸೂಕ್ತ ಆಶ್ರಯ ತಾಣವಾಗಿದೆ (ಸುಮಾರು ${distanceKm} ಕಿಮೀ). ಇದರಲ್ಲಿ ${availableBeds}/${shelter.capacity} ಬೆಡ್‌ಗಳು ಲಭ್ಯವಿವೆ.`;
-        } else {
-          reply = `${shelter.name} is the closest suitable shelter I found for your location, approximately ${distanceKm} km away. It currently has ${availableBeds} beds available (${shelter.current_occupancy}/${shelter.capacity} occupied) and is open and accessible.`;
-        }
-        return {
-          reply,
-          nextState: { step: 'idle', statedLocation: 'Current GPS Location', coordinates: autoCoords },
-          handled: true,
-        };
-      }
-    }
-
-    // If city is mentioned without coordinates, ask for area
-    if (effectiveLocationName) {
-      let reply = '';
-      if (language === 'hi') {
-        reply = `मैं आपके लिए आश्रय चेक कर सकता हूँ। आप वर्तमान में ${effectiveLocationName} के किस इलाके या लैंडमार्क में हैं?`;
-      } else if (language === 'ka') {
-        reply = `ನಾನು ನಿಮಗಾಗಿ ಆಶ್ರಯ ತಾಣವನ್ನು ಪರಿಶೀಲಿಸುತ್ತೇನೆ. ನೀವು ಪ್ರಸ್ತುತ ${effectiveLocationName} ನ ಯಾವ ಪ್ರದೇಶದಲ್ಲಿದ್ದೀರಿ?`;
-      } else {
-        reply = `I can check that for you. What area or landmark in ${effectiveLocationName} are you currently in?`;
-      }
-      return {
-        reply,
-        nextState: { step: 'awaiting_shelter_location', statedLocation: effectiveLocationName, pendingShelterSearch: true },
-        handled: true,
-      };
-    }
-
-    let reply = '';
-    if (language === 'hi') {
-      reply = `मैं बिना लॉगिन के सुरक्षित आश्रय चेक कर सकता हूँ। क्या मैं आपकी GPS लोकेशन का उपयोग करूँ, या कृपया अपना शहर और इलाका बताएं?`;
-    } else if (language === 'ka') {
-      reply = `ನಾನು ಲಾಗಿನ್ ಇಲ್ಲದೆಯೇ ಸುರಕ್ಷಿತ ಆಶ್ರಯ ತಾಣಗಳನ್ನು ಹುಡುಕಬಲ್ಲೆ. ನಾನು ನಿಮ್ಮ GPS ಲೊಕೇಶನ್ ಬಳಸಲೆ, ಅಥವಾ ನಿಮ್ಮ ನಗರ ಮತ್ತು ಪ್ರದೇಶ ತಿಳಿಸಿ?`;
-    } else {
-      reply = `I can check safe shelters for you without login. Can I use your current GPS location, or tell me your city and area?`;
-    }
-    return {
-      reply,
-      nextState: { step: 'awaiting_shelter_location', pendingShelterSearch: true },
-      handled: true,
-    };
+    return executeShelterFlow(cleanMsg, language, effectiveLocationName, effectiveCoords, getBrowserLocation);
   }
 
   // -------------------------------------------------------------
   // FLOW E: Active Disaster Alerts Trigger
   // -------------------------------------------------------------
   if (isAlerts) {
-    try {
-      const alerts = await getAlerts();
-      if (!alerts || alerts.length === 0) {
-        let reply = '';
-        if (language === 'hi') {
-          reply = 'वर्तमान में आपके क्षेत्र के लिए कोई सक्रिय आपदा चेतावनी जारी नहीं की गई है। सतर्क रहें और जरूरत पड़ने पर मुझसे सहायता लें।';
-        } else if (language === 'ka') {
-          reply = 'ಪ್ರಸ್ತುತ ಯಾವುದೇ ಸಕ್ರಿಯ ವಿಪತ್ತು ಎಚ್ಚರಿಕೆಗಳು ದಾಖಲಾಗಿಲ್ಲ. ಜಾಗರೂಕರಾಗಿರಿ ಮತ್ತು ಅಗತ್ಯವಿದ್ದಲ್ಲಿ ಸಹಾಯ ಕೇಳಿ.';
-        } else {
-          reply = 'There are currently no active severe disaster alerts broadcast for this area. Stay vigilant, and let me know if you need shelter guidance or emergency assistance.';
-        }
-        return {
-          reply,
-          nextState: currentState,
-          handled: true,
-        };
-      }
-
-      const activeAlertSummaries = alerts.slice(0, 3).map((a) => {
-        const msg =
-          (a.message_translated && a.message_translated[language]) ||
-          a.message_translated?.en ||
-          a.message_en ||
-          'Emergency Alert';
-        return `• [${a.severity.toUpperCase()}] ${msg}`;
-      });
-
-      let reply = '';
-      if (language === 'hi') {
-        reply = `सक्रिय आपातकालीन अलर्ट:\n${activeAlertSummaries.join('\n')}\n\nयदि आप खतरे में हैं तो मुझे तुरंत बताएं।`;
-      } else if (language === 'ka') {
-        reply = `ಸಕ್ರಿಯ ತುರ್ತು ಎಚ್ಚರಿಕೆಗಳು:\n${activeAlertSummaries.join('\n')}\n\nನೀವು ಅಪಾಯದಲ್ಲಿದ್ದರೆ ತಕ್ಷಣ ನನಗೆ ತಿಳಿಸಿ.`;
-      } else {
-        reply = `Active Emergency Alerts:\n${activeAlertSummaries.join('\n')}\n\nIf you are in immediate danger, let me know right away so I can assist.`;
-      }
-
-      return {
-        reply,
-        nextState: currentState,
-        handled: true,
-      };
-    } catch {
-      // Fall back to general assistant on error
-    }
+    return executeAlertsFlow(language, effectiveLocationName, effectiveCoords);
   }
 
   // If user simply states a location in conversation e.g. "I'm in Bangalore" or "Whitefield"
