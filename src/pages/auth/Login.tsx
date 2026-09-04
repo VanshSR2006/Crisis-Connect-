@@ -130,6 +130,7 @@ export const Login: React.FC = () => {
   const { t } = useTranslation();
 
   const handleRoleSelect = (role: UserRole) => {
+    if (mode === 'signup' && role === 'officer') return;
     setSelectedRole(role);
     setErrorMsg(null);
   };
@@ -137,12 +138,21 @@ export const Login: React.FC = () => {
   const handleModeChange = (newMode: AuthMode) => {
     setMode(newMode);
     setErrorMsg(null);
+    if (newMode === 'signup' && selectedRole === 'officer') {
+      setSelectedRole('citizen');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
+
+    if (mode === 'signup' && selectedRole === 'officer') {
+      setErrorMsg('Officer registration is disabled. Officers must log in using existing credentials.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/signup';
@@ -157,7 +167,7 @@ export const Login: React.FC = () => {
           bodyPayload = { email, password, role: selectedRole };
         }
       } else {
-        // Signup
+        // Signup (Citizen or Volunteer only)
         if (selectedRole === 'citizen') {
           bodyPayload = {
             name,
@@ -171,7 +181,7 @@ export const Login: React.FC = () => {
             name,
             email,
             password,
-            role: selectedRole
+            role: 'volunteer'
           };
         }
       }
@@ -349,7 +359,7 @@ export const Login: React.FC = () => {
                     <User className="h-3.5 w-3.5 text-slate-400" />
                     Select Role
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className={`grid ${mode === 'signup' ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
                     {/* Citizen */}
                     <button
                       type="button"
@@ -370,25 +380,27 @@ export const Login: React.FC = () => {
                       </div>
                     </button>
 
-                    {/* Officer */}
-                    <button
-                      type="button"
-                      onClick={() => handleRoleSelect('officer')}
-                      className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${selectedRole === 'officer'
-                        ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-sm ring-1 ring-red-600/30'
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                        }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={`p-1.5 rounded-lg ${selectedRole === 'officer' ? 'bg-red-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}`}>
-                          <ShieldAlert className="h-3.5 w-3.5" />
+                    {/* Officer (Login Mode Only) */}
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRoleSelect('officer')}
+                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${selectedRole === 'officer'
+                          ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-sm ring-1 ring-red-600/30'
+                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                          }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className={`p-1.5 rounded-lg ${selectedRole === 'officer' ? 'bg-red-600 text-white' : 'bg-white border border-slate-200 text-slate-500'}`}>
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                          </div>
+                          {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
                         </div>
-                        {selectedRole === 'officer' && <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse"></span>}
-                      </div>
-                      <div>
-                        <div className="font-bold text-xs text-slate-900">{t('auth.officerRole')}</div>
-                      </div>
-                    </button>
+                        <div>
+                          <div className="font-bold text-xs text-slate-900">{t('auth.officerRole')}</div>
+                        </div>
+                      </button>
+                    )}
 
                     {/* Volunteer */}
                     <button

@@ -112,15 +112,22 @@ def signup(
     _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_SIGNUP, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="auth_signup")),
 ):
     """
-    Registers a new Citizen, Officer, or Volunteer.
+    Registers a new Citizen or Volunteer.
     Citizen requires phone + password.
-    Officer and Volunteer require email + password.
+    Volunteer requires email + password.
+    Officer registration is completely disabled.
     """
     clean_role = req.role.strip().lower() if req.role else ""
-    if clean_role not in ["citizen", "officer", "volunteer"]:
+    if clean_role == "officer":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role specified. Must be 'citizen', 'officer', or 'volunteer'."
+            detail="Officer registration is disabled. Officers must log in using existing credentials."
+        )
+
+    if clean_role not in ["citizen", "volunteer"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role specified. Must be 'citizen' or 'volunteer'."
         )
 
     if not req.name or not req.name.strip():
@@ -150,11 +157,11 @@ def signup(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="An account with this phone number already exists."
             )
-    else:  # officer or volunteer
+    else:  # volunteer
         if not email_clean:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email address is required for {clean_role.capitalize()} signup."
+                detail="Email address is required for Volunteer signup."
             )
         existing_email = db.query(User).filter(User.email == email_clean).first()
         if existing_email:

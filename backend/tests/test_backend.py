@@ -42,6 +42,7 @@ def setup_test_database():
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from app.database.base import Base
+    from app import models  # noqa: F401 - Register all models with Base.metadata
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
@@ -346,23 +347,21 @@ class TestSignup:
         })
         assert wrong_login.status_code == 401
 
-    def test_officer_signup_and_login_with_email(self, client):
-        # Signup
+    def test_officer_signup_is_rejected_and_existing_login_works(self, client, seeded_db):
+        # Signup attempt for officer must be rejected
         signup_resp = client.post("/auth/signup", json={
             "name": "Officer User",
-            "email": "officer.test@crisisconnect.org",
+            "email": "officer.new@crisisconnect.org",
             "password": "OfficerSecret123",
             "role": "officer"
         })
-        assert signup_resp.status_code == 201
-        data = signup_resp.json()
-        assert data["user"]["role"] == "officer"
-        assert data["user"]["email"] == "officer.test@crisisconnect.org"
+        assert signup_resp.status_code == 400
+        assert "Officer registration is disabled" in signup_resp.json()["detail"]
 
-        # Login with correct credentials
+        # Existing seeded officer credentials can still log in successfully
         login_resp = client.post("/auth/login", json={
             "email": "officer.test@crisisconnect.org",
-            "password": "OfficerSecret123",
+            "password": "TestPassword123",
             "role": "officer"
         })
         assert login_resp.status_code == 200
@@ -379,6 +378,7 @@ class TestSignup:
         assert signup_resp.status_code == 201
         data = signup_resp.json()
         assert data["user"]["role"] == "volunteer"
+        assert data["user"]["email"] == "volunteer.test@crisisconnect.org"
 
         # Login with correct credentials
         login_resp = client.post("/auth/login", json={
@@ -395,14 +395,14 @@ class TestSignup:
             "name": "Original User",
             "email": "duplicate.test@crisisconnect.org",
             "password": "Password123",
-            "role": "officer"
+            "role": "volunteer"
         })
         # Duplicate email
         dup_resp = client.post("/auth/signup", json={
             "name": "Imposter User",
             "email": "duplicate.test@crisisconnect.org",
             "password": "Password123",
-            "role": "officer"
+            "role": "volunteer"
         })
         assert dup_resp.status_code == 400
         assert "already exists" in dup_resp.json()["detail"]
