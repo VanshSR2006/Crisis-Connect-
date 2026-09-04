@@ -1,3 +1,4 @@
+import time
 from typing import Optional, Any
 import redis
 from ..core.config import settings
@@ -5,22 +6,45 @@ from ..core.config import settings
 class RedisStub:
     """
     A simple in-memory mock Redis client used for local development fallbacks.
+    Supports basic get, set, incr, expire, and delete with TTL.
     """
     def __init__(self):
         self._data = {}
+        self._expires = {}
+
+    def _cleanup(self, key: str):
+        if key in self._expires and time.time() > self._expires[key]:
+            self._data.pop(key, None)
+            self._expires.pop(key, None)
 
     def get(self, key: str):
+        self._cleanup(key)
         return self._data.get(key)
 
     def set(self, key: str, value: str, ex: Optional[int] = None):
         self._data[key] = str(value)
+        if ex is not None:
+            self._expires[key] = time.time() + ex
+        else:
+            self._expires.pop(key, None)
         return True
 
-    def delete(self, key: str):
+    def incr(self, key: str) -> int:
+        self._cleanup(key)
+        val = int(self._data.get(key, 0)) + 1
+        self._data[key] = str(val)
+        return val
+
+    def expire(self, key: str, seconds: int) -> bool:
         if key in self._data:
-            del self._data[key]
-            return 1
-        return 0
+            self._expires[key] = time.time() + seconds
+            return True
+        return False
+
+    def delete(self, key: str):
+        self._data.pop(key, None)
+        self._expires.pop(key, None)
+        return 1
 
     def ping(self):
         return True
@@ -39,7 +63,6 @@ class RedisClientManager:
             if settings.ENVIRONMENT == "production":
                 raise ValueError("REDIS_URL must be specified in production environment.")
             else:
-                print("WARNING: REDIS_URL not configured. Using local Redis stub in-memory.")
                 self.client = RedisStub()
                 self.is_stub = True
                 return
@@ -57,7 +80,6 @@ class RedisClientManager:
                 print(f"CRITICAL: Failed to connect to Redis at {settings.REDIS_URL} in production!")
                 raise e
             else:
-                print(f"WARNING: Failed to connect to Redis. Falling back to local Redis stub. Error: {e}")
                 self.client = RedisStub()
                 self.is_stub = True
 
@@ -70,6 +92,16 @@ class RedisClientManager:
         if not self.client:
             self.connect()
         return self.client.set(key, value, ex=ex)
+
+    def incr(self, key: str) -> int:
+        if not self.client:
+            self.connect()
+        return self.client.incr(key)
+
+    def expire(self, key: str, seconds: int) -> bool:
+        if not self.client:
+            self.connect()
+        return bool(self.client.expire(key, seconds))
 
     def delete(self, key: str):
         if not self.client:

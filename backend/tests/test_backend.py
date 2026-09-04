@@ -664,9 +664,9 @@ class TestIncidents:
         created_inc = next(i for i in all_incidents if i["id"] == body["id"])
         assert created_inc["reporter_id"] is None
 
-    def test_create_incident_valid_citizen(self, client, seeded_db):
+    def test_create_incident_valid_citizen(self, client, seeded_db, citizen_token):
         """Valid logged-in citizen reporter_id persists correctly."""
-        r = client.post("/incidents", json={
+        r = client.post("/incidents", headers={"Authorization": f"Bearer {citizen_token}"}, json={
             "category": "medical",
             "severity": "high",
             "description": "Medical emergency by valid citizen",
@@ -678,21 +678,19 @@ class TestIncidents:
         body = r.json()
         assert body["reporter_id"] == "usr-citizen-1"
 
-    def test_create_incident_invalid_reporter_returns_400(self, client, seeded_db):
-        """Non-existent reporter_id returns 400 Bad Request (not 500) and no row is inserted."""
-        inc_count_before = len(client.get("/incidents").json())
-        r = client.post("/incidents", json={
+    def test_create_incident_spoofed_reporter_enforces_jwt_identity(self, client, seeded_db, citizen_token):
+        """When an authenticated user supplies a conflicting/spoofed reporter_id, server enforces JWT identity."""
+        r = client.post("/incidents", headers={"Authorization": f"Bearer {citizen_token}"}, json={
             "category": "rescue",
             "severity": "high",
             "description": "Invalid reporter test",
             "lat": 24.82,
             "lng": 92.79,
-            "reporter_id": "usr-does-not-exist"
+            "reporter_id": "usr-officer-1"
         })
-        assert r.status_code == 400
-        assert r.json()["detail"] == "Invalid reporter_id"
-        inc_count_after = len(client.get("/incidents").json())
-        assert inc_count_after == inc_count_before
+        assert r.status_code == 200
+        assert r.json()["reporter_id"] == "usr-citizen-1"
+
 
 
 # ===========================================================================
