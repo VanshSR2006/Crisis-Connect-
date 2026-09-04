@@ -25,13 +25,7 @@ import { apiFetch } from '@/lib/api/client';
  *   reason_breakdown      Record<string, string>
  */
 
-export interface RescueSiteRankRequest {
-  incident_lat: number;
-  incident_lng: number;
-  predicted_flood_m?: number; // default 2.0 on backend
-}
-
-export interface RankedRescueSite {
+export interface RescueSite {
   id: string;
   name: string;
   lat: number;
@@ -42,10 +36,28 @@ export interface RankedRescueSite {
   current_occupancy: number;
   access_status: 'accessible' | 'limited' | 'blocked';
   zone_id: string | null;
+}
+
+export interface RescueSiteRankRequest {
+  incident_lat: number;
+  incident_lng: number;
+  predicted_flood_m?: number; // default 2.0 on backend
+}
+
+export interface RankedRescueSite extends RescueSite {
   suitability_score: number;
   distance_km: number;
   available_capacity: number;
   reason_breakdown: Record<string, string>;
+}
+
+/**
+ * GET /rescue-sites
+ * Returns all candidate rescue sites persisted in the system for GIS mapping.
+ */
+export async function getRescueSites(): Promise<RescueSite[]> {
+  const data = await apiFetch<RescueSite[]>('/rescue-sites');
+  return data ?? [];
 }
 
 /**

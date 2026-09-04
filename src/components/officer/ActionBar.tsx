@@ -51,14 +51,14 @@ export const ActionBar: React.FC<ActionBarProps> = ({ selectedEntityId, entityTy
   };
 
   return (
-    <div className="bg-white border border-[#c6c6cd] rounded shadow-sm p-3 flex flex-col gap-3">
-      <div className="flex items-center justify-between border-b border-[#f0edef] pb-2">
-        <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d] flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-[#4f46e5]" />
+    <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] p-4 flex flex-col gap-3">
+      <div className="flex items-center justify-between border-b border-slate-200 pb-2.5">
+        <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-2">
+          <Cpu className="h-4 w-4 text-blue-600" />
           Command Actions
         </h3>
         {selectedEntityId && (
-          <span className="text-[10px] font-mono text-[#76777d] bg-[#f6f3f5] px-2 py-0.5 rounded">
+          <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200">
             Target: {selectedEntityId}
           </span>
         )}
@@ -67,52 +67,48 @@ export const ActionBar: React.FC<ActionBarProps> = ({ selectedEntityId, entityTy
       <div className="flex gap-2">
         <Button
           variant="outline"
-          className="flex-1 text-[11px] font-bold uppercase tracking-wider h-9"
+          className="flex-1 text-[11px] font-black uppercase tracking-wider h-10 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800"
           disabled={!selectedEntityId || isExplaining}
           onClick={handleExplain}
         >
-          <Brain className="h-3.5 w-3.5 mr-1.5 text-[#4f46e5]" />
+          <Brain className="h-4 w-4 mr-1.5 text-blue-600" />
           {isExplaining ? 'Analyzing...' : 'Explain Decision'}
         </Button>
         <Button
           variant="primary"
-          className="flex-1 text-[11px] font-bold uppercase tracking-wider bg-[#ba1a1a] hover:bg-[#991b1b] text-white h-9"
+          className="flex-1 text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white h-10 rounded-xl shadow-xs border border-red-400/30"
           disabled={!selectedEntityId || entityType !== 'incident' || isAuthorizing}
           onClick={handleAuthorize}
         >
-          <ShieldAlert className="h-3.5 w-3.5 mr-1.5" />
+          <ShieldAlert className="h-4 w-4 mr-1.5" />
           {isAuthorizing ? 'Authorizing...' : 'Authorize Response'}
         </Button>
       </div>
 
       {explanation && (
-        <div className="bg-[#f8fafc] border border-[#cbd5e1] rounded p-3 text-xs animate-fadeIn mt-2">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs animate-fadeIn mt-1 shadow-inner">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-bold text-[#0f172a]">AI Reasoning Breakdown</span>
-            <span className="text-[9px] text-[#64748b] font-mono">{new Date(explanation.generated_at).toLocaleTimeString()}</span>
+            <span className="font-black text-slate-900 uppercase">AI Reasoning Breakdown</span>
+            <span className="text-[10px] text-slate-500 font-mono">{new Date(explanation.generated_at).toLocaleTimeString()}</span>
           </div>
-          <p className="text-[#334155] mb-3 leading-relaxed">{explanation.summary}</p>
+          <p className="text-slate-700 mb-3 font-semibold leading-relaxed">{explanation.summary}</p>
           <div className="space-y-1.5">
             {explanation.factors.map((f, i) => (
-              <div key={i} className="flex justify-between items-center text-[11px] bg-white border border-[#e2e8f0] p-1.5 rounded">
-                <span className="text-[#475569]">{f.label}</span>
-                <span className={`font-bold ${f.impact === 'negative' ? 'text-red-600' : f.impact === 'positive' ? 'text-emerald-600' : 'text-slate-600'}`}>
+              <div key={i} className="flex justify-between items-center text-[11px] bg-white border border-slate-200 p-2 rounded-lg font-bold">
+                <span className="text-slate-700">{f.label}</span>
+                <span className={`font-black font-mono ${f.impact === 'negative' ? 'text-red-600' : f.impact === 'positive' ? 'text-emerald-600' : 'text-slate-600'}`}>
                   {f.value}
                 </span>
               </div>
             ))}
           </div>
-          <div className="mt-3 text-[10px] text-[#94a3b8] italic flex items-start gap-1">
-            <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-            Backend integration pending: Contract mode only.
-          </div>
         </div>
       )}
 
       {authStatus && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 rounded p-2 text-xs font-bold flex items-center gap-2 mt-2 animate-fadeIn">
+        <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-xs font-black text-emerald-900 flex items-center gap-2 shadow-xs">
           <ShieldCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-          {authStatus}
+          <span>{authStatus}</span>
         </div>
       )}
     </div>

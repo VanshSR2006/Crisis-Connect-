@@ -57,6 +57,11 @@ export interface LiveRiskZone {
   computed_at: string;
   boundary_json: string | null;
   population_est: number;
+  factors?: {
+    rainfall?: string;
+    drainage?: string;
+    population?: string;
+  };
 }
 
 export interface CategoryPressure {

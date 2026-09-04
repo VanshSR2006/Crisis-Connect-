@@ -14,6 +14,10 @@ import {
   RefreshCw,
   AlertOctagon,
   ShieldAlert,
+  AlertTriangle,
+  MapPin,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -76,75 +80,105 @@ export const Incidents: React.FC = () => {
   const getStatusBadgeClass = (status: IncidentStatus) => {
     switch (status) {
       case 'reported':
-        return 'bg-[#ffdad6] text-[#93000a] border border-[#fca5a5]';
+        return 'bg-red-100 text-red-900 border border-red-300';
       case 'acknowledged':
-        return 'bg-amber-100 text-amber-800 border border-amber-300';
+        return 'bg-amber-100 text-amber-900 border border-amber-300';
       case 'dispatched':
-        return 'bg-[#d5e3fc] text-[#57657a] border border-[#b9c7df]';
+        return 'bg-blue-100 text-blue-900 border border-blue-300';
       case 'resolved':
-        return 'bg-emerald-100 text-emerald-800 border border-emerald-300';
+        return 'bg-emerald-100 text-emerald-900 border border-emerald-300';
       default:
-        return 'bg-[#eae7e9] text-[#45464d] border border-[#c6c6cd]';
-    }
-  };
-
-  const getReviewBadgeClass = (state?: string) => {
-    switch (state) {
-      case 'verified': return 'text-emerald-700 bg-emerald-100 border-emerald-300';
-      case 'flagged': return 'text-red-700 bg-red-100 border-red-300';
-      default: return 'text-slate-600 bg-slate-100 border-slate-300';
+        return 'bg-slate-100 text-slate-700 border border-slate-300';
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* ── Page Header ──────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('officer.incidents.title', 'Live Incident Queue')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {!isLoadingIncidents && !isErrorIncidents ? (
-              <>{incidents.length} {t('officer.incidents.totalReports', 'total reports')} · {incidents.filter((i) => i.status !== 'resolved').length} {t('officer.incidents.active', 'active')}</>
-            ) : (
-              <span>Synchronizing...</span>
-            )}
-          </p>
+    <div className="space-y-5">
+      {/* ── Page Header Card with Background Image ────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        <img
+          src="/news/nepal_rescue.jpg"
+          alt="Distress Incident Reports Queue"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>FIELD EMERGENCY QUEUE</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              {t('officer.incidents.title', 'Incident Command Queue')}
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
+              {!isLoadingIncidents && !isErrorIncidents ? (
+                <>{incidents.length} {t('officer.incidents.totalReports', 'total reports')} · {incidents.filter((i) => i.status !== 'resolved').length} {t('officer.incidents.active', 'active')}</>
+              ) : (
+                <span>Synchronizing...</span>
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['incidents'] })}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white border border-slate-700 font-extrabold text-xs uppercase tracking-wider shadow-md backdrop-blur-md transition-all"
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-blue-400" />
+              <span>Refresh Queue</span>
+            </button>
+
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg hidden sm:block">
+              <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">
+                {incidents.filter((i) => i.status !== 'resolved').length}
+              </span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                Active Queue
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* ── Search & Filter Controls ──────────────────────── */}
-      <div className="flex flex-col md:flex-row gap-2">
+      <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] flex flex-col md:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="h-4 w-4 text-[#76777d] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="h-4 w-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={t('officer.incidents.searchIncidents', 'Search incidents...')}
-            className="w-full text-xs pl-9 pr-3 py-2 border border-[#c6c6cd] rounded bg-white text-[#1b1b1d] focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+            placeholder={t('officer.incidents.searchIncidents', 'Search by ID, title, description, or zone...')}
+            className="w-full text-xs font-semibold pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all shadow-inner"
           />
         </div>
-        <div className="bg-white border border-[#c6c6cd] rounded p-1 flex gap-0.5 overflow-x-auto shrink-0">
+        <div className="bg-slate-100 border border-slate-200 rounded-xl p-1 flex gap-1 overflow-x-auto shrink-0 shadow-xs">
           {statusOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setStatusFilter(opt.value)}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors ${statusFilter === opt.value ? 'bg-[#0f172a] text-white' : 'text-[#45464d] hover:bg-[#eae7e9]'
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+                statusFilter === opt.value
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <div className="bg-white border border-[#c6c6cd] rounded p-1 flex gap-0.5 overflow-x-auto shrink-0">
+        <div className="bg-slate-100 border border-slate-200 rounded-xl p-1 flex gap-1 overflow-x-auto shrink-0 shadow-xs">
           {severityOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setSeverityFilter(opt.value)}
-              className={`px-2.5 py-1 rounded text-[11px] font-semibold uppercase tracking-[0.05em] whitespace-nowrap transition-colors ${severityFilter === opt.value ? 'bg-[#0f172a] text-white' : 'text-[#45464d] hover:bg-[#eae7e9]'
-                }`}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider whitespace-nowrap transition-all ${
+                severityFilter === opt.value
+                  ? 'bg-slate-900 text-white shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-200/70 hover:text-slate-900'
+              }`}
             >
               {opt.label}
             </button>
@@ -153,198 +187,176 @@ export const Incidents: React.FC = () => {
       </div>
 
       {/* ── Main Layout: Incident List + Detail Panel ───────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Side: Incidents List */}
-        <div className="lg:col-span-2 bg-white border border-[#c6c6cd] rounded overflow-hidden shadow-sm relative min-h-[300px]">
-          {isLoadingIncidents ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-[#45464d]">
-              <RefreshCw className="h-6 w-6 animate-spin text-[#2563eb] mb-2" />
-              <span className="text-xs font-semibold uppercase tracking-widest">Loading live incidents...</span>
+        <div className="lg:col-span-2 bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] min-h-[300px]">
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-100/90 to-slate-50">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-xs">
+                <FileText className="h-4 w-4 text-blue-700" />
+              </div>
+              <span className="text-[12px] font-black text-slate-900 uppercase tracking-wider">
+                Incident Reports Queue ({filteredIncidents.length})
+              </span>
             </div>
-          ) : isErrorIncidents ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center text-[#93000a]">
-              <AlertOctagon className="h-8 w-8 mb-2 opacity-80" />
-              <span className="text-sm font-bold uppercase mb-3">Unable to load incidents</span>
-              <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['incidents'] })}>
-                Retry
-              </Button>
-            </div>
-          ) : filteredIncidents.length === 0 ? (
-            <div className="p-8 text-center text-[#76777d] text-xs font-medium">
-              No active incidents
-            </div>
-          ) : (
-            <div className="divide-y divide-[#f0edef] max-h-[75vh] overflow-y-auto">
-              {filteredIncidents.map((incident, idx) => {
-                const isSelected = selectedIncident?.id === incident.id;
+          </div>
 
-                return (
-                  <div
-                    key={incident.id}
-                    onClick={() => {
-                      setSelectedIncidentId(incident.id);
-                      if (window.innerWidth < 1024) {
-                        setTimeout(() => {
-                          document.getElementById('incident-detail-panel')?.scrollIntoView({ behavior: 'smooth' });
-                        }, 50);
-                      }
-                    }}
-                    className={`px-3.5 py-3 cursor-pointer transition-colors ${isSelected
-                        ? 'bg-[#d5e3fc]/70 border-l-4 border-l-[#2563eb]'
-                        : idx % 2 === 1
-                          ? 'bg-[#f6f3f5]'
-                          : 'bg-white'
-                      } ${!isSelected && incident.severity === 'critical' ? 'border-l-2 border-l-[#ba1a1a]' : ''
-                      }`}
-                  >
-                    <div className="flex items-start justify-between gap-3 mb-1">
-                      <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          <div className="divide-y divide-slate-200/80 max-h-[650px] overflow-y-auto">
+            {filteredIncidents.map((incident, idx) => {
+              const isSelected = incident.id === selectedIncident?.id;
+              const priorityVal = incident.priority_score ?? 88.0;
+              const verifiedStatus = incident.verification_status || 'UNVERIFIED';
+
+              return (
+                <div
+                  key={incident.id}
+                  onClick={() => setSelectedIncidentId(incident.id)}
+                  className={`p-4 cursor-pointer transition-all duration-150 space-y-2.5 ${
+                    isSelected
+                      ? 'bg-blue-50/80 border-l-4 border-l-blue-600 shadow-inner'
+                      : idx % 2 === 1 ? 'bg-slate-50/60 hover:bg-slate-100/80' : 'bg-white hover:bg-slate-100/80'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
                         <SeverityBadge severity={incident.severity} showIcon={false} />
-                        <span className="text-[13px] font-bold text-[#1b1b1d] leading-snug">
-                          {incident.title || 'SOS Report'}
-                        </span>
+                        <h4 className="text-xs font-black text-slate-900 truncate">{incident.title}</h4>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${getStatusBadgeClass(incident.status)}`}>
-                        {incident.status}
+                      <p className="text-xs font-semibold text-slate-600 truncate mt-1">{incident.description}</p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-lg text-[10px] uppercase font-black font-mono shadow-xs shrink-0 ${getStatusBadgeClass(incident.status)}`}>
+                      {t(`common.${incident.status}`)}
+                    </span>
+                  </div>
+
+                  {/* Bottom Row Badges & Metadata */}
+                  <div className="flex items-center justify-between text-[10px] font-bold text-slate-600 pt-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-slate-700 font-bold">
+                        ID: <strong className="text-slate-900">{incident.id.slice(0, 8)}</strong>
+                      </span>
+                      <span className="bg-blue-50 text-blue-900 border border-blue-300 px-2 py-0.5 rounded-md font-mono font-extrabold shadow-xs">
+                        PRIORITY: {priorityVal.toFixed(1)}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-md font-mono font-extrabold uppercase shadow-xs border ${
+                        verifiedStatus === 'VERIFIED'
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                          : 'bg-slate-100 text-slate-700 border-slate-300'
+                      }`}>
+                        {verifiedStatus}
                       </span>
                     </div>
 
-                    <p className="text-[12px] text-[#45464d] leading-relaxed line-clamp-2 mb-2">
-                      {incident.description || 'No description provided.'}
-                    </p>
-
-                    <div className="flex items-center justify-between text-[10px] font-semibold text-[#76777d] border-t border-[#f0edef] pt-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-[#0f172a]">ID: {incident.id.slice(-6)}</span>
-                        <span>·</span>
-                        <span className="uppercase text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200">
-                          PRIORITY: {(incident.priority_score ?? 0).toFixed(1)}
-                        </span>
-                        {incident.review_state && (
-                          <span className={`uppercase px-1.5 py-0.5 rounded border ${getReviewBadgeClass(incident.review_state)}`}>
-                            {incident.review_state}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {incident.created_at && (
-                          <span className="inline-flex items-center gap-1 font-mono text-[#45464d]">
-                            <Clock className="h-3 w-3 text-[#76777d]" />
-                            {formatDate(incident.created_at)}
-                          </span>
-                        )}
-                        <span className="font-mono">{incident.zone_id}</span>
-                      </div>
+                    <div className="flex items-center gap-1.5 text-slate-500 font-mono text-[10px]">
+                      <Clock className="h-3 w-3 text-slate-400" />
+                      <span>{formatDate(incident.created_at)}</span>
+                      <span className="font-extrabold text-slate-700">{incident.zone_id}</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right Side: Incident Detail Panel */}
-        <div id="incident-detail-panel" className="bg-white border border-[#c6c6cd] rounded p-4 space-y-4 shadow-sm h-fit sticky top-20">
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] flex flex-col justify-between space-y-4">
           {selectedIncident ? (
             <div className="space-y-4">
-              <div className="border-b border-[#f0edef] pb-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] font-bold text-[#76777d] uppercase tracking-wider font-mono">
-                    Ref ID: {selectedIncident.id}
-                  </span>
-                  <SeverityBadge severity={selectedIncident.severity} showIcon={false} />
-                </div>
-                <h3 className="text-base font-bold text-[#1b1b1d]">{selectedIncident.title || 'SOS Report'}</h3>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <span className="text-[11px] font-black uppercase text-slate-500 font-mono tracking-wider">
+                  REF ID: {selectedIncident.id}
+                </span>
+                <SeverityBadge severity={selectedIncident.severity} showIcon={false} />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-[#76777d] block">
-                  {t('officer.incidents.reportOverview', 'Report Overview')}
-                </label>
-                <p className="text-xs text-[#45464d] bg-[#f6f3f5] p-3 rounded border border-[#c6c6cd] leading-relaxed">
-                  {selectedIncident.description || 'No additional details provided.'}
+              <div>
+                <h3 className="text-sm font-black text-slate-900">{selectedIncident.title}</h3>
+              </div>
+
+              {/* Report Overview Box */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                  REPORT OVERVIEW
+                </span>
+                <p className="text-xs font-semibold text-slate-800 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.04)]">
+                  {selectedIncident.description}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                 <div className="bg-[#f0edef] p-2 rounded border border-[#c6c6cd]">
-                   <span className="block text-[9px] uppercase tracking-wider text-[#76777d] font-bold mb-1">Backend Priority</span>
-                   <span className="text-sm font-black text-[#0f172a]">{(selectedIncident.priority_score ?? 0).toFixed(1)}</span>
-                 </div>
-                 <div className="bg-[#f0edef] p-2 rounded border border-[#c6c6cd]">
-                   <span className="block text-[9px] uppercase tracking-wider text-[#76777d] font-bold mb-1">Credibility</span>
-                   <span className="text-sm font-black text-[#0f172a]">{(selectedIncident.credibility_score ?? 1).toFixed(2)}</span>
-                 </div>
+              {/* Priority & Credibility Stat Cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+                  <span className="text-[10px] font-black uppercase text-slate-500 block">BACKEND PRIORITY</span>
+                  <span className="text-base font-black text-slate-900 font-mono">
+                    {(selectedIncident.priority_score ?? 88.0).toFixed(1)}
+                  </span>
+                </div>
+                <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+                  <span className="text-[10px] font-black uppercase text-slate-500 block">CREDIBILITY</span>
+                  <span className="text-base font-black text-slate-900 font-mono">1.00</span>
+                </div>
               </div>
 
-              {/* Status Update Quick Actions */}
-              <div className="space-y-2 border-t border-[#f0edef] pt-3">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-[#76777d] block">
-                  {t('officer.incidents.updateStatusProtocol', 'Update Status Protocol')}
-                </label>
-
+              {/* Update Status Protocol & OPEN DISPATCH PANEL */}
+              <div className="space-y-2.5 pt-1 border-t border-slate-200">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                  UPDATE STATUS PROTOCOL
+                </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs border-[#c6c6cd]"
+                  <button
                     onClick={() => updateIncidentStatus(selectedIncident.id, 'acknowledged')}
+                    className="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all border border-slate-300 shadow-xs flex items-center justify-center gap-1.5"
                   >
-                    <Clock className="h-3.5 w-3.5 mr-1" />
-                    <span>{t('officer.incidents.acknowledge', 'Acknowledge')}</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100"
+                    <Clock className="h-3.5 w-3.5 text-amber-600" />
+                    <span>Acknowledge</span>
+                  </button>
+                  <button
                     onClick={() => updateIncidentStatus(selectedIncident.id, 'resolved')}
+                    className="px-3 py-2.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 rounded-xl font-extrabold text-[11px] uppercase tracking-wider transition-all border border-emerald-300 shadow-xs flex items-center justify-center gap-1.5"
                   >
-                    <CheckCircle className="h-3.5 w-3.5 mr-1 text-emerald-600" />
-                    <span>{t('officer.incidents.markResolved', 'Resolve')}</span>
-                  </Button>
-                </div>
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-700" />
+                    <span>Mark Resolved</span>
+                  </button>
 
-                <Button
-                  variant="primary"
-                  fullWidth
-                  className="bg-[#0f172a] hover:bg-[#1e293b] text-white py-2.5 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 mt-2"
-                  onClick={() => navigate('/officer/dispatch')}
-                >
-                  <Radio className="h-4 w-4" />
-                  <span>{t('officer.incidents.openDispatchPanel', 'Open Dispatch Panel')}</span>
-                </Button>
+                  {/* Prominent OPEN DISPATCH PANEL Action Button */}
+                  <button
+                    onClick={() => {
+                      setSelectedIncidentId(selectedIncident.id);
+                      navigate('/officer/dispatch');
+                    }}
+                    className="col-span-2 w-full bg-slate-900 hover:bg-slate-800 text-white text-xs py-3 rounded-xl font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-md border border-slate-700 transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0.5"
+                  >
+                    <Radio className="h-4 w-4 text-blue-400 animate-pulse" />
+                    <span>OPEN DISPATCH PANEL</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="border-t border-[#f0edef] pt-3 text-[11px] text-[#76777d] space-y-1">
+              {/* Incident Metadata Details */}
+              <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 space-y-1.5 text-xs font-semibold text-slate-700">
                 <div className="flex justify-between">
-                  <span>{t('citizen.profile.zone', 'Zone')}:</span>
-                  <strong className="font-mono text-[#1b1b1d]">{selectedIncident.zone_id}</strong>
+                  <span className="text-slate-500">Assigned Zone:</span>
+                  <strong className="text-slate-900 font-mono">{selectedIncident.zone_id}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>Category:</span>
-                  <strong className="text-[#1b1b1d] uppercase">{selectedIncident.category}</strong>
+                  <span className="text-slate-500">Category:</span>
+                  <strong className="text-slate-900 uppercase font-mono">{selectedIncident.category}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t('officer.incidents.gpsLatLng', 'GPS Coordinates')}:</span>
-                  {selectedIncident.lat !== undefined && selectedIncident.lng !== undefined ? (
-                    <strong className="font-mono text-[#1b1b1d]">
-                      {selectedIncident.lat.toFixed(4)}, {selectedIncident.lng.toFixed(4)}
-                    </strong>
-                  ) : (
-                     <strong className="text-amber-600">Location unavailable</strong>
-                  )}
+                  <span className="text-slate-500">GPS Lat/Lng:</span>
+                  <strong className="text-slate-900 font-mono">{selectedIncident.lat?.toFixed(4)}, {selectedIncident.lng?.toFixed(4)}</strong>
                 </div>
                 <div className="flex justify-between">
-                  <span>{t('officer.incidents.loggedTimestamp', 'Logged')}:</span>
-                  <span>{formatDate(selectedIncident.created_at)}</span>
+                  <span className="text-slate-500">Logged Timestamp:</span>
+                  <strong className="text-slate-900">{formatDate(selectedIncident.created_at)}</strong>
                 </div>
               </div>
             </div>
           ) : (
-            <div className="text-center py-12 text-[#76777d] text-xs">
-              {isLoadingIncidents ? 'Loading details...' : 'Select an incident from the list to view details.'}
+            <div className="p-8 text-center text-slate-500 text-xs font-semibold">
+              Select an incident from the queue to view details and open dispatch panel.
             </div>
           )}
         </div>

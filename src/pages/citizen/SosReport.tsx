@@ -232,7 +232,7 @@ export const SosReport: React.FC = () => {
 
   // Confirmation view
   if (submittedIncidentId) {
-    const nearestShelter = getNearestShelter();
+    const nearestShelter = getNearestShelter(lat, lng);
 
     return (
       <div className="space-y-5 animate-fadeIn">

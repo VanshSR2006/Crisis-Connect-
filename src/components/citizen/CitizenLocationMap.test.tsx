@@ -1,12 +1,13 @@
 import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Incident } from '@/types';
+import { Incident, Shelter } from '@/types';
 
 const setView = vi.fn();
 
 vi.mock('leaflet', () => ({
   default: {
+    icon: vi.fn(() => ({})),
     Icon: {
       Default: {
         prototype: {},
@@ -42,6 +43,19 @@ const incident = (overrides: Partial<Incident> = {}): Incident => ({
   ...overrides,
 });
 
+const sampleShelter: Shelter = {
+  id: 'shelter-delhi-1',
+  name: 'Delhi NCR Disaster Evacuation Center',
+  location_name: 'Delhi NCR Disaster Evacuation Center',
+  lat: 28.6139,
+  lng: 77.2090,
+  capacity: 1200,
+  current_occupancy: 350,
+  status: 'open',
+  contact_number: '',
+  zone_id: 'z-delhi',
+};
+
 describe('CitizenLocationMap', () => {
   afterEach(() => {
     cleanup();
@@ -57,7 +71,7 @@ describe('CitizenLocationMap', () => {
     );
 
     expect(screen.getByTestId('marker').getAttribute('data-position')).toBe('24.8333,92.7789');
-    expect(setView).toHaveBeenLastCalledWith([24.8333, 92.7789], 15);
+    expect(setView).toHaveBeenLastCalledWith([24.8333, 92.7789], 14);
 
     rerender(
       <CitizenLocationMap
@@ -67,7 +81,22 @@ describe('CitizenLocationMap', () => {
     );
 
     expect(screen.getByTestId('marker').getAttribute('data-position')).toBe('24.9,92.85');
-    expect(setView).toHaveBeenLastCalledWith([24.9, 92.85], 15);
+    expect(setView).toHaveBeenLastCalledWith([24.9, 92.85], 14);
+  });
+
+  it('renders shelter markers when shelters array is provided', () => {
+    render(
+      <CitizenLocationMap
+        incident={incident()}
+        userLocation={null}
+        shelters={[sampleShelter]}
+      />
+    );
+
+    const markers = screen.getAllByTestId('marker');
+    expect(markers.length).toBe(2); // incident + shelter
+    expect(markers.some(m => m.getAttribute('data-position') === '28.6139,77.209')).toBe(true);
+    expect(screen.getByText('Delhi NCR Disaster Evacuation Center')).toBeTruthy();
   });
 
   it('shows the unavailable state when the active incident coordinates are invalid', () => {

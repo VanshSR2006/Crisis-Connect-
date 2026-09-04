@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import User
 from ..core.security import create_access_token, hash_password, verify_password
+from ..core.rate_limiter import RateLimiter
+from ..core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -36,7 +38,11 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 @router.post("/login", response_model=AuthResponse)
-def login(req: LoginRequest, db: Session = Depends(get_db)):
+def login(
+    req: LoginRequest,
+    db: Session = Depends(get_db),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_LOGIN, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="auth_login")),
+):
     """
     Authenticates an existing user by phone number (Citizen) or email (Officer/Volunteer) and password.
     Returns a JWT containing the authenticated user's true database role.
@@ -100,17 +106,28 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(req: SignupRequest, db: Session = Depends(get_db)):
+def signup(
+    req: SignupRequest,
+    db: Session = Depends(get_db),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_SIGNUP, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="auth_signup")),
+):
     """
-    Registers a new Citizen, Officer, or Volunteer.
+    Registers a new Citizen or Volunteer.
     Citizen requires phone + password.
-    Officer and Volunteer require email + password.
+    Volunteer requires email + password.
+    Officer registration is completely disabled.
     """
     clean_role = req.role.strip().lower() if req.role else ""
-    if clean_role not in ["citizen", "officer", "volunteer"]:
+    if clean_role == "officer":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role specified. Must be 'citizen', 'officer', or 'volunteer'."
+            detail="Officer registration is disabled. Officers must log in using existing credentials."
+        )
+
+    if clean_role not in ["citizen", "volunteer"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid role specified. Must be 'citizen' or 'volunteer'."
         )
 
     if not req.name or not req.name.strip():
@@ -140,11 +157,11 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="An account with this phone number already exists."
             )
-    else:  # officer or volunteer
+    else:  # volunteer
         if not email_clean:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email address is required for {clean_role.capitalize()} signup."
+                detail="Email address is required for Volunteer signup."
             )
         existing_email = db.query(User).filter(User.email == email_clean).first()
         if existing_email:
@@ -155,13 +172,17 @@ def signup(req: SignupRequest, db: Session = Depends(get_db)):
 
     # Hash password and create user
     hashed_pwd = hash_password(req.password)
+    clean_pref = req.language_pref.strip().lower() if req.language_pref else "en"
+    if clean_pref not in ["en", "hi", "ka"]:
+        clean_pref = "en"
+
     new_user = User(
         name=req.name.strip(),
         phone=phone_clean,
         email=email_clean,
         password_hash=hashed_pwd,
         role=clean_role,
-        language_pref=req.language_pref or "en"
+        language_pref=clean_pref
     )
 
     db.add(new_user)

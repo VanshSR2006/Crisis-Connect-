@@ -1,7 +1,9 @@
 from typing import Literal, Optional
-from fastapi import APIRouter, File, Form, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from pydantic import BaseModel, Field, field_validator
 from ..services.sarvam_service import sarvam_service
+from ..core.rate_limiter import RateLimiter
+from ..core.config import settings
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
@@ -99,7 +101,10 @@ class TextToSpeechResponse(BaseModel):
     summary="Crisis Connect AI Voice & Text Assistant",
     description="Processes user questions regarding Crisis Connect platform features, login guidance, and disaster safety in English, Hindi, or Kannada using Sarvam AI conversational model.",
 )
-async def chat_with_assistant(request: AssistantRequest) -> AssistantResponse:
+async def chat_with_assistant(
+    request: AssistantRequest,
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_AI, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="ai_assistant")),
+) -> AssistantResponse:
     """
     Public conversational AI assistant endpoint.
     Processes user queries and returns clear, localized responses.
@@ -122,6 +127,7 @@ async def chat_with_assistant(request: AssistantRequest) -> AssistantResponse:
 async def speech_to_text(
     file: UploadFile = File(...),
     language: Optional[Literal["en", "hi", "ka"]] = Form(default=None),
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_AI, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="ai_stt")),
 ) -> SpeechToTextResponse:
     """
     Public audio transcription endpoint. Converts user voice note / speech to text.
@@ -150,7 +156,10 @@ async def speech_to_text(
     summary="Sarvam Bulbul v3 Text-to-Speech Audio Synthesis",
     description="Converts assistant text response to high quality speech audio using Sarvam Bulbul v3.",
 )
-async def text_to_speech(request: TextToSpeechRequest) -> TextToSpeechResponse:
+async def text_to_speech(
+    request: TextToSpeechRequest,
+    _limiter: None = Depends(RateLimiter(times=settings.RATE_LIMIT_AI, seconds=settings.RATE_LIMIT_WINDOW_SECONDS, key_prefix="ai_tts")),
+) -> TextToSpeechResponse:
     """
     Public text-to-speech synthesis endpoint.
     """

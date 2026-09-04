@@ -42,6 +42,7 @@ def setup_test_database():
     import sys, os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from app.database.base import Base
+    from app import models  # noqa: F401 - Register all models with Base.metadata
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
@@ -315,21 +316,22 @@ def test_officer_status_updates_persist_for_citizen_refresh(client, seeded_db, o
 
 class TestSignup:
     def test_citizen_signup_and_login_with_phone(self, client):
-        # Signup
+        # Signup with Hindi preference
         signup_resp = client.post("/auth/signup", json={
             "name": "Citizen User",
             "phone": "9876543219",
             "password": "Password123",
             "role": "citizen",
-            "language_pref": "en"
+            "language_pref": "hi"
         })
         assert signup_resp.status_code == 201
         data = signup_resp.json()
         assert data["user"]["role"] == "citizen"
         assert data["user"]["phone"] == "9876543219"
+        assert data["user"]["language_pref"] == "hi"
         assert "access_token" in data
 
-        # Login with correct password
+        # Login with correct password and verify language_pref persists
         login_resp = client.post("/auth/login", json={
             "phone": "9876543219",
             "password": "Password123",
@@ -337,6 +339,7 @@ class TestSignup:
         })
         assert login_resp.status_code == 200
         assert login_resp.json()["user"]["role"] == "citizen"
+        assert login_resp.json()["user"]["language_pref"] == "hi"
 
         # Login with wrong password
         wrong_login = client.post("/auth/login", json={
@@ -346,41 +349,42 @@ class TestSignup:
         })
         assert wrong_login.status_code == 401
 
-    def test_officer_signup_and_login_with_email(self, client):
-        # Signup
+    def test_officer_signup_is_rejected_and_existing_login_works(self, client, seeded_db):
+        # Signup attempt for officer must be rejected
         signup_resp = client.post("/auth/signup", json={
             "name": "Officer User",
-            "email": "officer.test@crisisconnect.org",
+            "email": "officer.new@crisisconnect.org",
             "password": "OfficerSecret123",
             "role": "officer"
         })
-        assert signup_resp.status_code == 201
-        data = signup_resp.json()
-        assert data["user"]["role"] == "officer"
-        assert data["user"]["email"] == "officer.test@crisisconnect.org"
+        assert signup_resp.status_code == 400
+        assert "Officer registration is disabled" in signup_resp.json()["detail"]
 
-        # Login with correct credentials
+        # Existing seeded officer credentials can still log in successfully
         login_resp = client.post("/auth/login", json={
             "email": "officer.test@crisisconnect.org",
-            "password": "OfficerSecret123",
+            "password": "TestPassword123",
             "role": "officer"
         })
         assert login_resp.status_code == 200
         assert login_resp.json()["user"]["role"] == "officer"
 
     def test_volunteer_signup_and_login_with_email(self, client):
-        # Signup
+        # Signup with Kannada preference
         signup_resp = client.post("/auth/signup", json={
             "name": "Volunteer User",
             "email": "volunteer.test@crisisconnect.org",
             "password": "VolunteerSecret123",
-            "role": "volunteer"
+            "role": "volunteer",
+            "language_pref": "ka"
         })
         assert signup_resp.status_code == 201
         data = signup_resp.json()
         assert data["user"]["role"] == "volunteer"
+        assert data["user"]["email"] == "volunteer.test@crisisconnect.org"
+        assert data["user"]["language_pref"] == "ka"
 
-        # Login with correct credentials
+        # Login with correct credentials and verify language_pref persists
         login_resp = client.post("/auth/login", json={
             "email": "volunteer.test@crisisconnect.org",
             "password": "VolunteerSecret123",
@@ -388,6 +392,7 @@ class TestSignup:
         })
         assert login_resp.status_code == 200
         assert login_resp.json()["user"]["role"] == "volunteer"
+        assert login_resp.json()["user"]["language_pref"] == "ka"
 
     def test_duplicate_signup_rejected(self, client):
         # First signup
@@ -395,14 +400,14 @@ class TestSignup:
             "name": "Original User",
             "email": "duplicate.test@crisisconnect.org",
             "password": "Password123",
-            "role": "officer"
+            "role": "volunteer"
         })
         # Duplicate email
         dup_resp = client.post("/auth/signup", json={
             "name": "Imposter User",
             "email": "duplicate.test@crisisconnect.org",
             "password": "Password123",
-            "role": "officer"
+            "role": "volunteer"
         })
         assert dup_resp.status_code == 400
         assert "already exists" in dup_resp.json()["detail"]
@@ -549,6 +554,57 @@ class TestShelters:
             "zone_id": "z-test",
         }]
 
+    def test_demo_reset_seeds_india_wide_shelters(self, client, seeded_db, officer_token):
+        from app.models import Shelter
+
+        # 1. Trigger demo reset
+        r = client.post("/demo/reset-scenario", headers={"Authorization": f"Bearer {officer_token}"})
+        assert r.status_code == 200
+        body = r.json()
+        assert body["status"] == "success"
+        assert body.get("shelters_seeded", 0) >= 15
+
+        # 2. Query GET /shelters
+        shelters_resp = client.get("/shelters")
+        assert shelters_resp.status_code == 200
+        shelters = shelters_resp.json()
+        assert len(shelters) >= 15
+
+        # 3. Validate coordinates, capacities, and occupancies
+        has_open = False
+        has_full = False
+        lats = []
+        lngs = []
+
+        for s in shelters:
+            assert s["id"]
+            assert s["name"]
+            # Valid coordinate ranges within India
+            assert 8.0 <= s["lat"] <= 36.0, f"Lat {s['lat']} out of expected range for {s['name']}"
+            assert 68.0 <= s["lng"] <= 98.0, f"Lng {s['lng']} out of expected range for {s['name']}"
+            lats.append(s["lat"])
+            lngs.append(s["lng"])
+
+            # Capacity positive and occupancy <= capacity
+            assert s["capacity"] > 0
+            assert 0 <= s["current_occupancy"] <= s["capacity"]
+
+            if s["status"] == "open":
+                has_open = True
+            elif s["status"] == "full":
+                has_full = True
+
+        # Ensure varied states exist
+        assert has_open, "Expected at least one open shelter"
+        assert has_full, "Expected at least one full shelter for UI demonstration"
+
+        # 4. Multi-region coverage check
+        # North (lat > 27), South (lat < 15), East/Northeast (lng > 85), West (lng < 75)
+        assert any(lat > 27.0 for lat in lats), "North region not represented"
+        assert any(lat < 15.0 for lat in lats), "South region not represented"
+        assert any(lng > 85.0 for lng in lngs), "East/Northeast region not represented"
+        assert any(lng < 75.0 for lng in lngs), "West region not represented"
+
 
 # ===========================================================================
 # 6. Incidents
@@ -613,9 +669,9 @@ class TestIncidents:
         created_inc = next(i for i in all_incidents if i["id"] == body["id"])
         assert created_inc["reporter_id"] is None
 
-    def test_create_incident_valid_citizen(self, client, seeded_db):
+    def test_create_incident_valid_citizen(self, client, seeded_db, citizen_token):
         """Valid logged-in citizen reporter_id persists correctly."""
-        r = client.post("/incidents", json={
+        r = client.post("/incidents", headers={"Authorization": f"Bearer {citizen_token}"}, json={
             "category": "medical",
             "severity": "high",
             "description": "Medical emergency by valid citizen",
@@ -627,21 +683,19 @@ class TestIncidents:
         body = r.json()
         assert body["reporter_id"] == "usr-citizen-1"
 
-    def test_create_incident_invalid_reporter_returns_400(self, client, seeded_db):
-        """Non-existent reporter_id returns 400 Bad Request (not 500) and no row is inserted."""
-        inc_count_before = len(client.get("/incidents").json())
-        r = client.post("/incidents", json={
+    def test_create_incident_spoofed_reporter_enforces_jwt_identity(self, client, seeded_db, citizen_token):
+        """When an authenticated user supplies a conflicting/spoofed reporter_id, server enforces JWT identity."""
+        r = client.post("/incidents", headers={"Authorization": f"Bearer {citizen_token}"}, json={
             "category": "rescue",
             "severity": "high",
             "description": "Invalid reporter test",
             "lat": 24.82,
             "lng": 92.79,
-            "reporter_id": "usr-does-not-exist"
+            "reporter_id": "usr-officer-1"
         })
-        assert r.status_code == 400
-        assert r.json()["detail"] == "Invalid reporter_id"
-        inc_count_after = len(client.get("/incidents").json())
-        assert inc_count_after == inc_count_before
+        assert r.status_code == 200
+        assert r.json()["reporter_id"] == "usr-citizen-1"
+
 
 
 # ===========================================================================

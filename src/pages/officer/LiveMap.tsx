@@ -24,7 +24,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
-import { rankRescueSites, RankedRescueSite } from '@/lib/api/rescueSites';
+import { getRescueSites, rankRescueSites, RescueSite, RankedRescueSite } from '@/lib/api/rescueSites';
 import { ActionBar } from '@/components/officer/ActionBar';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 
@@ -106,6 +106,17 @@ export const LiveMap: React.FC = () => {
     setMapCenterOverride(null);
   }, [selectedIncidentId]);
 
+  // ── All Rescue Sites inventory query ───────────────────────────────────────
+  const {
+    data: allRescueSites = [],
+    isLoading: isLoadingAllSites,
+    isError: isErrorAllSites,
+  } = useQuery<RescueSite[]>({
+    queryKey: ['rescue-sites-inventory'],
+    queryFn: getRescueSites,
+    staleTime: 60000,
+  });
+
   // ── Rescue-site ranking query ──────────────────────────────────────────────
   const {
     data: rankedSites,
@@ -113,7 +124,7 @@ export const LiveMap: React.FC = () => {
     isError: isErrorSites,
     refetch: refetchSites,
   } = useQuery<RankedRescueSite[]>({
-    queryKey: ['rescue-sites', selectedIncidentId],
+    queryKey: ['rescue-sites-ranking', selectedIncidentId],
     queryFn: () => {
       if (!selectedIncident?.lat || !selectedIncident?.lng) {
         throw new Error('Incident has no coordinates');
@@ -128,8 +139,17 @@ export const LiveMap: React.FC = () => {
     retry: 1,
   });
 
-  const sites = rankedSites ?? [];
-  const selectedSite = selectedSiteId ? sites.find(s => s.id === selectedSiteId) ?? null : null;
+  // If ranking active and has results, use rankedSites; otherwise display full inventory
+  const displaySites: (RescueSite | RankedRescueSite)[] =
+    rankingEnabled && rankedSites !== undefined ? rankedSites : allRescueSites;
+
+  // Rankings are recommendations for the detail panel. The map remains an
+  // inventory view, so an empty regional ranking never removes known sites.
+  const mapSites = allRescueSites;
+
+  const selectedSite = selectedSiteId
+    ? displaySites.find(s => s.id === selectedSiteId) ?? null
+    : null;
 
   // ── Switch to Sites tab when ranking results arrive ────────────────────────
   useEffect(() => {
@@ -141,10 +161,25 @@ export const LiveMap: React.FC = () => {
   // ── Handle site selection (list or map) ────────────────────────────────────
   const handleSiteSelect = (id: string) => {
     setSelectedSiteId(id);
-    const site = sites.find(s => s.id === id);
+    const site = displaySites.find(s => s.id === id) ?? allRescueSites.find(s => s.id === id);
     if (site && site.lat && site.lng) {
       setMapCenterOverride([site.lat, site.lng]);
     }
+    setDetailMode('sites');
+  };
+
+  const focusRescueSiteInventory = () => {
+    const sitesWithCoordinates = allRescueSites.filter(
+      site => Number.isFinite(site.lat) && Number.isFinite(site.lng) && site.lat !== 0 && site.lng !== 0
+    );
+    if (sitesWithCoordinates.length === 0) return;
+
+    const center: [number, number] = [
+      sitesWithCoordinates.reduce((sum, site) => sum + site.lat, 0) / sitesWithCoordinates.length,
+      sitesWithCoordinates.reduce((sum, site) => sum + site.lng, 0) / sitesWithCoordinates.length,
+    ];
+    setSelectedSiteId(null);
+    setMapCenterOverride(center);
     setDetailMode('sites');
   };
 
@@ -192,57 +227,71 @@ export const LiveMap: React.FC = () => {
   const activeZoom = mapCenterOverride ? 14 : selectedIncident?.lat ? 13 : DEFAULT_ZOOM;
 
   return (
-    <div className="space-y-4">
-      {/* ── Page Header ────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-[#1b1b1d]" style={{ letterSpacing: '-0.02em' }}>
-            {t('officer.liveMap.title', 'GIS Command Map')}
-          </h1>
-          <p className="text-[13px] text-[#45464d] mt-0.5">
-            {t('officer.liveMap.subtitle', 'Live geospatial monitoring')}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-[#45464d]">
-          {isLoadingIncidents ? (
-            <span className="text-blue-600">Connecting GIS...</span>
-          ) : isErrorIncidents ? (
-            <span className="text-red-600">GIS Offline</span>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping" />
-              {t('officer.liveMap.gisTelemetryLive', 'GIS Telemetry Live')}
-            </>
-          )}
+    <div className="space-y-5">
+      {/* ── Page Header Card with Background Image ────────────── */}
+      <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 border border-slate-700/80 shadow-xl group">
+        <img
+          src="/news/northeast_landslide.jpg"
+          alt="GIS Geospatial Monitoring"
+          className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
+          <div className="space-y-1.5 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-[10px] font-mono font-bold uppercase tracking-wider backdrop-blur-md">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>GIS REAL-TIME COMMAND MAP</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
+              {t('officer.liveMap.title', 'GIS Command Map')}
+            </h1>
+            <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
+              {t('officer.liveMap.subtitle', 'Live geospatial monitoring')}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-slate-900/90 backdrop-blur-md border border-slate-700/90 rounded-2xl px-5 py-3 text-center shadow-lg">
+              <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">
+                {incidents.length}
+              </span>
+              <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
+                {t('officer.liveMap.gisTelemetryLive', 'GIS Telemetry Live')}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
         {/* ── Left: Layer Controls ────────────────────────── */}
-        <div className="bg-white border border-[#c6c6cd] rounded p-3.5 space-y-4 shadow-sm h-fit">
-          <div className="flex items-center gap-2 border-b border-[#f0edef] pb-2">
-            <SlidersHorizontal className="h-4 w-4 text-[#0f172a]" />
-            <h3 className="text-xs font-bold uppercase tracking-[0.05em] text-[#1b1b1d]">
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-4 space-y-4 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] h-fit">
+          <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+            <div className="p-1.5 bg-blue-500/10 rounded-lg border border-blue-500/20 shadow-xs">
+              <SlidersHorizontal className="h-4 w-4 text-blue-600" />
+            </div>
+            <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
               {t('officer.liveMap.mapLayerControls', 'Layer Controls')}
             </h3>
           </div>
 
           <div className="space-y-2 text-xs">
             {[
-              { label: 'Risk Zones', icon: <Layers className="h-3.5 w-3.5 text-[#c2410c]" />, state: showRiskOverlay, set: setShowRiskOverlay },
-              { label: 'Resource Pressure', icon: <Package className="h-3.5 w-3.5 text-[#7c3aed]" />, state: showResourcePressure, set: setShowResourcePressure },
+              { label: 'Risk Zones', icon: <Layers className="h-3.5 w-3.5 text-amber-600" />, state: showRiskOverlay, set: setShowRiskOverlay },
+              { label: 'Resource Pressure', icon: <Package className="h-3.5 w-3.5 text-purple-600" />, state: showResourcePressure, set: setShowResourcePressure },
               { label: 'Rescue Sites', icon: <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />, state: showRescueSites, set: setShowRescueSites },
-              { label: t('officer.liveMap.evacuationShelters', 'Safe Zones'), icon: <MapPin className="h-3.5 w-3.5 text-slate-500" />, state: showShelters, set: setShowShelters },
+              { label: t('officer.liveMap.evacuationShelters', 'Safe Zones'), icon: <MapPin className="h-3.5 w-3.5 text-blue-600" />, state: showShelters, set: setShowShelters },
             ].map(({ label, icon, state, set }) => (
-              <label key={label} className="flex items-center justify-between p-2 rounded bg-[#f6f3f5] border border-[#c6c6cd] cursor-pointer">
-                <span className="font-semibold text-[#1b1b1d] flex items-center gap-1.5">
+              <label key={label} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer shadow-xs hover:bg-blue-50/60 transition-colors">
+                <span className="font-extrabold text-slate-800 flex items-center gap-2">
                   {icon} {label}
                 </span>
                 <input
                   type="checkbox"
                   checked={state}
                   onChange={e => set(e.target.checked)}
-                  className="rounded border-[#c6c6cd] text-[#2563eb] focus:ring-0"
+                  className="rounded border-slate-300 text-blue-600 focus:ring-0"
                 />
               </label>
             ))}
@@ -317,7 +366,7 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Center: Map ─────────────────────────────────── */}
-        <div className={`lg:col-span-2 bg-[#e2e8f0] border rounded overflow-hidden shadow-sm relative min-h-[480px] flex flex-col z-0 ${isCrisisMode ? 'border-red-500 shadow-red-200' : 'border-[#cbd5e1]'}`}>
+        <div className={`lg:col-span-2 bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] relative min-h-[480px] flex flex-col z-0 ${isCrisisMode ? 'ring-2 ring-red-500 border-red-500' : ''}`}>
           <ErrorBoundary fallbackMessage="The map encountered an error.">
             <MapContainer center={DEFAULT_CENTER} zoom={DEFAULT_ZOOM} scrollWheelZoom={true} className="w-full h-full min-h-[480px]" zoomControl={false}>
             <TileLayer
@@ -340,7 +389,7 @@ export const LiveMap: React.FC = () => {
             {/* Rescue Site markers */}
             <RescueSiteLayer
               isVisible={showRescueSites}
-              sites={sites}
+              sites={mapSites}
               selectedSiteId={selectedSiteId}
               onSiteClick={handleSiteSelect}
             />
@@ -368,15 +417,15 @@ export const LiveMap: React.FC = () => {
           </ErrorBoundary>
 
           {/* Map top bar */}
-          <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded shadow-sm text-slate-800 text-[11px] pointer-events-none">
+          <div className="absolute top-4 left-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm text-slate-800 text-[11px] pointer-events-none">
             <div className="flex items-center gap-2">
               <MapIcon className="h-3.5 w-3.5 text-blue-600" />
-              <span className="font-bold tracking-wider uppercase">Active Tracking Region</span>
+              <span className="font-extrabold tracking-wider uppercase">Active Tracking Region</span>
             </div>
           </div>
 
           {/* Map bottom legend */}
-          <div className="absolute bottom-4 left-4 right-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded shadow-sm text-slate-800 text-[10px] flex items-center justify-between pointer-events-none">
+          <div className="absolute bottom-4 left-4 right-4 z-[400] bg-white/90 backdrop-blur-sm border border-slate-300 px-3 py-1.5 rounded-xl shadow-sm text-slate-800 text-[10px] flex items-center justify-between pointer-events-none">
             <div className="flex items-center gap-3 flex-wrap">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#ba1a1a]" />{t('common.critical', 'Critical')}</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[#c2410c]" />{t('common.high', 'High')}</span>
@@ -388,7 +437,7 @@ export const LiveMap: React.FC = () => {
         </div>
 
         {/* ── Right: Tabbed Detail Panel ──────────────────── */}
-        <div className="bg-white border border-[#c6c6cd] rounded shadow-sm flex flex-col gap-3 pb-3">
+        <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] flex flex-col gap-3 pb-3">
           <div className="flex-1 flex flex-col">
             {/* Tabs */}
           <div className="flex border-b border-[#f0edef]">
@@ -548,48 +597,79 @@ export const LiveMap: React.FC = () => {
                 {/* Header with trigger/retry */}
                 <div className="flex items-center justify-between border-b border-[#f0edef] pb-2">
                   <div>
-                    <h3 className="text-xs font-bold text-[#1b1b1d] uppercase tracking-wider">Rescue Site Ranking</h3>
-                    {selectedIncident && (
-                      <p className="text-[10px] text-[#76777d] mt-0.5 truncate">For: {selectedIncident.title || selectedIncident.id}</p>
+                    <h3 className="text-xs font-bold text-[#1b1b1d] uppercase tracking-wider">
+                      {rankingEnabled ? 'Rescue Site Ranking' : 'Rescue Sites Inventory'}
+                    </h3>
+                    <p className="text-[10px] text-[#76777d] mt-0.5 truncate">
+                      {rankingEnabled && selectedIncident
+                        ? `Ranked for: ${selectedIncident.title || selectedIncident.id}`
+                        : `${allRescueSites.length} Candidate Sites Active`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {allRescueSites.length > 0 && (
+                      <button
+                        onClick={focusRescueSiteInventory}
+                        className="text-[10px] text-emerald-700 hover:text-emerald-900 border border-emerald-300 rounded px-1.5 py-0.5"
+                      >
+                        Show on Map
+                      </button>
+                    )}
+                    {rankingEnabled ? (
+                      <button
+                        onClick={() => {
+                          setRankingEnabled(false);
+                          setSelectedSiteId(null);
+                        }}
+                        className="text-[10px] text-slate-600 hover:text-slate-900 border border-slate-300 rounded px-1.5 py-0.5"
+                      >
+                        All Sites
+                      </button>
+                    ) : (
+                      selectedIncident?.lat && selectedIncident?.lng && (
+                        <button
+                          onClick={() => setRankingEnabled(true)}
+                          className="text-[10px] bg-emerald-600 text-white rounded px-2 py-0.5 font-bold hover:bg-emerald-700"
+                        >
+                          Rank Nearby
+                        </button>
+                      )
+                    )}
+                    {rankingEnabled && (
+                      <button
+                        onClick={() => refetchSites()}
+                        className="text-[10px] text-[#2563eb] hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                      </button>
                     )}
                   </div>
-                  {rankingEnabled && (
-                    <button
-                      onClick={() => refetchSites()}
-                      className="text-[10px] text-[#2563eb] hover:underline flex items-center gap-1"
-                    >
-                      <RefreshCw className="h-3 w-3" /> Retry
-                    </button>
-                  )}
                 </div>
 
-                {/* Not yet triggered */}
-                {!rankingEnabled && (
-                  <div className="text-center py-8 text-[#76777d] text-xs space-y-3">
-                    <ShieldCheck className="h-8 w-8 mx-auto text-emerald-500" />
-                    <p className="font-semibold text-[#1b1b1d]">No site rankings yet</p>
-                    <p>Select an incident and click "Find Safe Rescue Sites"</p>
-                    {selectedIncident?.lat && (
-                      <Button
-                        variant="primary"
-                        className="bg-emerald-700 hover:bg-emerald-800 text-white py-2 font-bold text-xs uppercase tracking-wider mx-auto"
-                        onClick={() => setRankingEnabled(true)}
-                      >
-                        Find Rescue Sites
-                      </Button>
-                    )}
+                {/* Loading state for general inventory */}
+                {!rankingEnabled && isLoadingAllSites && (
+                  <div className="text-center py-8 text-[#76777d] text-xs space-y-2">
+                    <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                    <p>Loading rescue sites inventory...</p>
                   </div>
                 )}
 
-                {/* Loading */}
+                {/* Error state for general inventory */}
+                {!rankingEnabled && isErrorAllSites && !isLoadingAllSites && (
+                  <div className="text-center py-6 space-y-2">
+                    <p className="text-xs text-red-600 font-semibold">Unable to load rescue sites inventory.</p>
+                  </div>
+                )}
+
+                {/* Ranking loading */}
                 {rankingEnabled && isLoadingSites && (
                   <div className="text-center py-8 text-[#76777d] text-xs space-y-2">
                     <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                    <p>Finding suitable rescue sites...</p>
+                    <p>Finding and ranking suitable rescue sites...</p>
                   </div>
                 )}
 
-                {/* Error */}
+                {/* Ranking error */}
                 {rankingEnabled && isErrorSites && !isLoadingSites && (
                   <div className="text-center py-6 space-y-3">
                     <p className="text-xs text-red-600 font-semibold">Unable to load rescue-site recommendations.</p>
@@ -599,25 +679,39 @@ export const LiveMap: React.FC = () => {
                   </div>
                 )}
 
-                {/* Empty */}
-                {rankingEnabled && !isLoadingSites && !isErrorSites && sites.length === 0 && (
-                  <div className="text-center py-6 text-[#76777d] text-xs space-y-1">
+                {/* Ranking empty */}
+                {rankingEnabled && !isLoadingSites && !isErrorSites && displaySites.length === 0 && (
+                  <div className="text-center py-6 text-[#76777d] text-xs space-y-2">
                     <ShieldCheck className="h-6 w-6 mx-auto text-slate-400" />
-                    <p className="font-semibold text-[#1b1b1d]">No suitable rescue sites found for this incident.</p>
+                    <p className="font-semibold text-[#1b1b1d]">No suitable sites within 200 km.</p>
+                    <p className="text-[11px]">All available sites are outside the regional response radius.</p>
+                    <p className="text-[11px]">The full rescue-site inventory remains visible on the map.</p>
+                    <button
+                      onClick={() => {
+                        setRankingEnabled(false);
+                        focusRescueSiteInventory();
+                      }}
+                      className="text-xs text-blue-600 hover:underline pt-1 block mx-auto"
+                    >
+                      View All Pan-India Sites
+                    </button>
                   </div>
                 )}
 
-                {/* Results */}
-                {rankingEnabled && !isLoadingSites && !isErrorSites && sites.length > 0 && (
+                {/* Listing: Works for both unranked overview and ranked results */}
+                {(!rankingEnabled || (!isLoadingSites && !isErrorSites)) && displaySites.length > 0 && (
                   <div className="space-y-2">
-                    {sites.map((site, idx) => {
+                    {displaySites.map((site, idx) => {
                       const isSelected = selectedSiteId === site.id;
                       const aCfg = accessConfig[site.access_status] ?? accessConfig.accessible;
+                      const ranked = 'suitability_score' in site;
+                      const rankedSite = ranked ? (site as RankedRescueSite) : null;
+
                       return (
                         <div
                           key={site.id}
                           onClick={() => handleSiteSelect(site.id)}
-                          className={`p-3 rounded border cursor-pointer transition-all ${
+                          className={`p-2.5 rounded border cursor-pointer transition-all ${
                             isSelected
                               ? 'bg-emerald-50 border-emerald-400 ring-2 ring-emerald-300'
                               : 'bg-[#f6f3f5] border-[#c6c6cd] hover:border-emerald-300'
@@ -626,16 +720,26 @@ export const LiveMap: React.FC = () => {
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-start gap-2 min-w-0">
                               <span className={`flex-shrink-0 w-6 h-6 rounded-full text-[10px] font-black flex items-center justify-center ${
-                                idx === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+                                ranked && idx === 0 ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
                               }`}>
-                                {idx + 1}
+                                {ranked ? idx + 1 : <ShieldCheck className="h-3.5 w-3.5 text-emerald-700" />}
                               </span>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-[#1b1b1d] truncate">{site.name}</p>
                                 <p className="text-[10px] text-[#76777d] mt-0.5">
-                                  Score: <strong className="text-emerald-700">{site.suitability_score.toFixed(2)}</strong>
-                                  {' · '}
-                                  {site.distance_km.toFixed(1)} km
+                                  {rankedSite ? (
+                                    <>
+                                      Score: <strong className="text-emerald-700">{rankedSite.suitability_score.toFixed(1)}</strong>
+                                      {' · '}
+                                      {rankedSite.distance_km.toFixed(1)} km away
+                                    </>
+                                  ) : (
+                                    <>
+                                      Elev: <strong>{site.elevation_m}m</strong>
+                                      {' · '}
+                                      Cap: <strong>{site.capacity - site.current_occupancy}/{site.capacity}</strong> free
+                                    </>
+                                  )}
                                 </p>
                               </div>
                             </div>
@@ -648,11 +752,11 @@ export const LiveMap: React.FC = () => {
                             <div className="mt-2.5 pt-2 border-t border-emerald-200 grid grid-cols-2 gap-1.5 text-[10px]">
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Capacity</span>
-                                <strong className="text-[#0f172a]">{site.capacity}</strong>
+                                <strong className="text-[#0f172a]">{site.capacity} beds</strong>
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Available</span>
-                                <strong className="text-emerald-700">{site.available_capacity}</strong>
+                                <strong className="text-emerald-700">{site.capacity - site.current_occupancy} spots</strong>
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Elevation</span>
@@ -660,14 +764,17 @@ export const LiveMap: React.FC = () => {
                               </div>
                               <div className="bg-white rounded border border-[#c6c6cd] p-1.5">
                                 <span className="block text-[9px] uppercase text-[#76777d] font-bold">Flood Margin</span>
-                                <strong className="text-[#0f172a]">{site.predicted_flood_margin_m} m</strong>
+                                <strong className={site.predicted_flood_margin_m > 0 ? 'text-emerald-700' : 'text-red-700'}>
+                                  {site.predicted_flood_margin_m > 0 ? `+${site.predicted_flood_margin_m} m` : `${site.predicted_flood_margin_m} m`}
+                                </strong>
                               </div>
-                              {/* reason_breakdown from backend */}
-                              {Object.keys(site.reason_breakdown).length > 0 && (
+
+                              {/* Ranking factor breakdown when available */}
+                              {rankedSite && Object.keys(rankedSite.reason_breakdown).length > 0 && (
                                 <div className="col-span-2 bg-white rounded border border-[#c6c6cd] p-1.5">
                                   <span className="block text-[9px] uppercase text-[#76777d] font-bold mb-1">Ranking Factors</span>
                                   <div className="space-y-0.5">
-                                    {Object.entries(site.reason_breakdown).map(([key, value]) => (
+                                    {Object.entries(rankedSite.reason_breakdown).map(([key, value]) => (
                                       <div key={key} className="flex justify-between">
                                         <span className="capitalize text-[#45464d]">{key.replace(/_/g, ' ')}</span>
                                         <strong className="text-[#0f172a]">{value}</strong>

@@ -188,9 +188,16 @@ export const Home: React.FC = () => {
     }
   }, [criticalAlerts, language]);
 
-  // Sorted nearby shelters (open shelters first, then by available capacity)
+  // Sorted nearby shelters based on proximity if user location is available, otherwise by available capacity
   const nearbyShelters = [...shelters]
-    .sort((a, b) => (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy))
+    .sort((a, b) => {
+      if (lat !== null && lng !== null) {
+        const distA = (a.lat - lat) ** 2 + (a.lng - lng) ** 2;
+        const distB = (b.lat - lat) ** 2 + (b.lng - lng) ** 2;
+        return distA - distB;
+      }
+      return (b.capacity - b.current_occupancy) - (a.capacity - a.current_occupancy);
+    })
     .slice(0, 3);
 
   // Filter incidents created by the currently authenticated citizen.
@@ -290,8 +297,8 @@ export const Home: React.FC = () => {
                 handlePlayAlertVoice(titleText, msgText);
               }}
               className={`p-2.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-md border ${isSpeakingAudio
-                  ? 'bg-white text-red-700 border-white scale-105 animate-pulse'
-                  : 'bg-white/20 hover:bg-white/30 text-white border-white/30 hover:scale-105 active:scale-95'
+                ? 'bg-white text-red-700 border-white scale-105 animate-pulse'
+                : 'bg-white/20 hover:bg-white/30 text-white border-white/30 hover:scale-105 active:scale-95'
                 }`}
               title={isSpeakingAudio ? "Stop Voice Alert" : "Listen to Voice Alert"}
             >
@@ -378,7 +385,7 @@ export const Home: React.FC = () => {
 
 
       {/* ── Location Map Visual ─────────────────────────────────── */}
-      <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_18px_35px_-8px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-200">
+      <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-md overflow-hidden shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] hover:shadow-[0_18px_35px_-8px_rgba(0,0,0,0.16)] hover:-translate-y-1 transition-all duration-200">
         <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-gradient-to-r from-slate-100/90 to-slate-50">
           <div className="flex items-center gap-2">
             <div className="p-1.5 bg-slate-200/70 rounded-lg border border-slate-300 shadow-xs">
@@ -395,6 +402,7 @@ export const Home: React.FC = () => {
         <CitizenLocationMap
           incident={activeIncident}
           userLocation={lat !== null && lng !== null ? [lat, lng] : null}
+          shelters={shelters}
           height="h-48"
         />
       </div>
@@ -441,8 +449,8 @@ export const Home: React.FC = () => {
                 <div className="text-right flex-shrink-0">
                   <span
                     className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider shadow-xs ${shelter.status === 'open'
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                        : 'bg-red-100 text-red-900 border border-red-300'
+                      ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      : 'bg-red-100 text-red-900 border border-red-300'
                       }`}
                   >
                     {shelter.status === 'open'

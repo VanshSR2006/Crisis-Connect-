@@ -18,6 +18,19 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setLanguage = (lang: LanguageCode) => {
     setLanguageState(lang);
     i18n.changeLanguage(lang);
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('i18nextLng', lang);
+      try {
+        const raw = localStorage.getItem('user');
+        if (raw) {
+          const userObj = JSON.parse(raw);
+          userObj.language_pref = lang;
+          localStorage.setItem('user', JSON.stringify(userObj));
+        }
+      } catch {
+        // Ignore JSON error
+      }
+    }
   };
 
   useEffect(() => {

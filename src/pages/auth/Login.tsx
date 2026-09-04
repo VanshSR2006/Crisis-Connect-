@@ -140,6 +140,7 @@ export const Login: React.FC = () => {
   const { t } = useTranslation();
 
   const handleRoleSelect = (role: UserRole) => {
+    if (mode === 'signup' && role === 'officer') return;
     setSelectedRole(role);
     setErrorMsg(null);
   };
@@ -147,6 +148,9 @@ export const Login: React.FC = () => {
   const handleModeChange = (newMode: AuthMode) => {
     setMode(newMode);
     setErrorMsg(null);
+    if (newMode === 'signup' && selectedRole === 'officer') {
+      setSelectedRole('citizen');
+    }
   };
 
   const handleSubmit = async (
@@ -157,6 +161,12 @@ export const Login: React.FC = () => {
     setIsLoading(true);
     setErrorMsg(null);
 
+    if (mode === 'signup' && selectedRole === 'officer') {
+      setErrorMsg('Officer registration is disabled. Officers must log in using existing credentials.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const endpoint =
         mode === 'login'
@@ -166,6 +176,13 @@ export const Login: React.FC = () => {
       let bodyPayload: Record<string, any>;
 
       if (mode === 'login') {
+        if (selectedRole === 'citizen') {
+          bodyPayload = { phone, password, role: 'citizen' };
+        } else {
+          bodyPayload = { email, password, role: selectedRole };
+        }
+      } else {
+        // Signup (Citizen or Volunteer only)
         if (selectedRole === 'citizen') {
           bodyPayload = {
             phone: phone.trim(),
@@ -193,7 +210,10 @@ export const Login: React.FC = () => {
             name: name.trim(),
             email: email.trim(),
             password,
-            role: selectedRole,
+            role: 'volunteer',
+            language_pref: languagePref,
+          };
+        }
           };
         }
       }
@@ -546,11 +566,8 @@ export const Login: React.FC = () => {
                     Select Role
 
                   </label>
-
-                  <div className="grid grid-cols-3 gap-2">
-
-                    {/* CITIZEN */}
-
+          <div className={`grid ${mode === 'signup' ? 'grid-cols-2' : 'grid-cols-3'} gap-2`}>
+            {/* Citizen */}
                     <button
                       type="button"
                       onClick={() =>
@@ -589,45 +606,40 @@ export const Login: React.FC = () => {
 
                     </button>
 
-                    {/* OFFICER */}
+                    {/* Officer (Login Mode Only) */}
+                    {mode === 'login' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRoleSelect('officer')}
+                        className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
+                          selectedRole === 'officer'
+                            ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-sm ring-1 ring-red-600/30'
+                            : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div
+                            className={`p-1.5 rounded-lg ${
+                              selectedRole === 'officer'
+                                ? 'bg-red-600 text-white'
+                                : 'bg-white border border-slate-200 text-slate-500'
+                            }`}
+                          >
+                            <ShieldAlert className="h-3.5 w-3.5" />
+                          </div>
 
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleRoleSelect('officer')
-                      }
-                      className={`p-3 rounded-2xl border text-left flex flex-col justify-between transition-all relative ${
-                        selectedRole === 'officer'
-                          ? 'bg-red-50/90 border-red-600 text-slate-900 shadow-sm ring-1 ring-red-600/30'
-                          : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                      }`}
-                    >
-
-                      <div className="flex items-center justify-between mb-2">
-
-                        <div
-                          className={`p-1.5 rounded-lg ${
-                            selectedRole === 'officer'
-                              ? 'bg-red-600 text-white'
-                              : 'bg-white border border-slate-200 text-slate-500'
-                          }`}
-                        >
-                          <ShieldAlert className="h-3.5 w-3.5" />
+                          {selectedRole === 'officer' && (
+                            <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
+                          )}
                         </div>
 
-                        {selectedRole === 'officer' && (
-                          <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse" />
-                        )}
-
-                      </div>
-
-                      <div>
-                        <div className="font-bold text-xs text-slate-900">
-                          {t('auth.officerRole')}
+                        <div>
+                          <div className="font-bold text-xs text-slate-900">
+                            {t('auth.officerRole')}
+                          </div>
                         </div>
-                      </div>
-
-                    </button>
+                      </button>
+                    )}
 
                     {/* VOLUNTEER */}
 
@@ -766,12 +778,9 @@ export const Login: React.FC = () => {
                 )}
 
                 {/* LANGUAGE — CITIZEN SIGNUP ONLY */}
-
                 {mode === 'signup' &&
                   selectedRole === 'citizen' && (
-
                     <div className="space-y-1.5">
-
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
                         Language Preference
                       </label>
@@ -779,32 +788,18 @@ export const Login: React.FC = () => {
                       <select
                         value={languagePref}
                         onChange={(e) =>
-                          setLanguagePref(
-                            e.target.value
-                          )
+                          setLanguagePref(e.target.value)
                         }
                         className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 shadow-xs cursor-pointer"
                       >
-
-                        <option value="en">
-                          English
-                        </option>
-
-                        <option value="hi">
-                          Hindi (हिन्दी)
-                        </option>
-
-                        <option value="ka">
-                          Kannada (ಕನ್ನಡ)
-                        </option>
-
+                        <option value="en">English</option>
+                        <option value="hi">Hindi (हिन्दी)</option>
+                        <option value="ka">Kannada (ಕನ್ನಡ)</option>
                       </select>
-
                     </div>
-
                   )}
 
-                {/* PASSWORD */}
+                {/* PASSWORD */}n
 
                 <div className="space-y-1.5">
 

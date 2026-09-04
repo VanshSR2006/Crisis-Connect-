@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..database import get_db
 from ..models import (
-    Zone, Incident, RescueSite, Resource, User, RiskScore, 
+    Zone, Incident, RescueSite, Shelter, Resource, User, RiskScore,
     WeatherReading, Dispatch, Alert, PopulationProfile, DemandForecast
 )
 from ..services.priority_service import calculate_response_priority
@@ -29,6 +29,7 @@ def reset_demo_scenario(
     db.query(Incident).delete()
     db.query(Resource).delete()
     db.query(RescueSite).delete()
+    db.query(Shelter).delete()
     db.query(RiskScore).delete()
     db.query(WeatherReading).delete()
     db.query(PopulationProfile).delete()
@@ -97,7 +98,35 @@ def reset_demo_scenario(
     db.add_all([r1, r2, r3])
     db.commit()
 
-    # 6. Seed Candidate Rescue Sites
+    # 6. Seed Geographically Distributed Shelters (India Wide)
+    sh_silchar = Shelter(id="shelter-silchar-1", name="Silchar District Relief Camp", lat=24.8250, lng=92.7950, capacity=500, current_occupancy=150, zone_id=z1.id)
+    sh_guwahati = Shelter(id="shelter-guwahati-1", name="Guwahati Municipal Community Shelter", lat=26.1445, lng=91.7362, capacity=600, current_occupancy=120, zone_id=None)
+    sh_delhi = Shelter(id="shelter-delhi-1", name="Delhi NCR Disaster Evacuation Center", lat=28.6139, lng=77.2090, capacity=1200, current_occupancy=350, zone_id=None)
+    sh_chd = Shelter(id="shelter-chd-1", name="Chandigarh Sector 17 Relief Hall", lat=30.7333, lng=76.7794, capacity=450, current_occupancy=80, zone_id=None)
+    sh_jaipur = Shelter(id="shelter-jaipur-1", name="Jaipur Central Emergency Shelter", lat=26.9124, lng=75.7873, capacity=700, current_occupancy=210, zone_id=None)
+    sh_lucknow = Shelter(id="shelter-lucknow-1", name="Lucknow Gomti Relief Camp", lat=26.8467, lng=80.9462, capacity=800, current_occupancy=320, zone_id=None)
+    sh_dehradun = Shelter(id="shelter-dehradun-1", name="Dehradun Hill Evacuation Center", lat=30.3165, lng=78.0322, capacity=400, current_occupancy=90, zone_id=None)
+    sh_kolkata = Shelter(id="shelter-kolkata-1", name="Kolkata Stadium Cyclone Shelter", lat=22.5726, lng=88.3639, capacity=1500, current_occupancy=1480, zone_id=None)
+    sh_bhubaneswar = Shelter(id="shelter-bhubaneswar-1", name="Bhubaneswar State Disaster Shelter", lat=20.2961, lng=85.8245, capacity=900, current_occupancy=400, zone_id=None)
+    sh_patna = Shelter(id="shelter-patna-1", name="Patna Ganga Basin Relief Depot", lat=25.5941, lng=85.1376, capacity=850, current_occupancy=300, zone_id=None)
+    sh_mumbai = Shelter(id="shelter-mumbai-1", name="Mumbai Coastal Emergency Shelter", lat=19.0760, lng=72.8777, capacity=1600, current_occupancy=1600, zone_id=None) # Full shelter demo
+    sh_pune = Shelter(id="shelter-pune-1", name="Pune Highland Disaster Relief Base", lat=18.5204, lng=73.8567, capacity=650, current_occupancy=110, zone_id=None)
+    sh_ahmedabad = Shelter(id="shelter-ahmedabad-1", name="Ahmedabad Sabarmati Relief Center", lat=23.0225, lng=72.5714, capacity=950, current_occupancy=250, zone_id=None)
+    sh_bhopal = Shelter(id="shelter-bhopal-1", name="Bhopal Civic Emergency Center", lat=23.2599, lng=77.4126, capacity=550, current_occupancy=140, zone_id=None)
+    sh_bengaluru = Shelter(id="shelter-bengaluru-1", name="Bengaluru Central Relief Pavilion", lat=12.9716, lng=77.5946, capacity=1100, current_occupancy=180, zone_id=None)
+    sh_chennai = Shelter(id="shelter-chennai-1", name="Chennai Coastal Cyclone Shelter", lat=13.0827, lng=80.2707, capacity=1300, current_occupancy=620, zone_id=None)
+    sh_hyderabad = Shelter(id="shelter-hyderabad-1", name="Hyderabad Disaster Response Shelter", lat=17.3850, lng=78.4867, capacity=1000, current_occupancy=310, zone_id=None)
+    sh_kochi = Shelter(id="shelter-kochi-1", name="Kochi Port Emergency Evacuation Base", lat=9.9312, lng=76.2673, capacity=750, current_occupancy=290, zone_id=None)
+
+    all_shelters = [
+        sh_silchar, sh_guwahati, sh_delhi, sh_chd, sh_jaipur, sh_lucknow,
+        sh_dehradun, sh_kolkata, sh_bhubaneswar, sh_patna, sh_mumbai, sh_pune,
+        sh_ahmedabad, sh_bhopal, sh_bengaluru, sh_chennai, sh_hyderabad, sh_kochi
+    ]
+    db.add_all(all_shelters)
+    db.commit()
+
+    # 7. Seed Candidate Rescue Sites
     site1 = RescueSite(
         id="site-1",
         name="Government HS School Silchar",
@@ -120,17 +149,41 @@ def reset_demo_scenario(
         access_status="limited",
         zone_id=z2.id
     )
-    db.add_all([site1, site2])
+
+    # --- New Geographic Demo Sites (India Wide) ---
+    site_delhi = RescueSite(id="site-delhi-1", name="Delhi NCR Emergency Rescue Site", lat=28.6139, lng=77.2090, elevation_m=210.0, predicted_flood_margin_m=5.0, capacity=1000, current_occupancy=200, access_status="accessible", zone_id=None)
+    site_chd = RescueSite(id="site-chd-1", name="Chandigarh Regional Rescue Site", lat=30.7333, lng=76.7794, elevation_m=321.0, predicted_flood_margin_m=4.5, capacity=500, current_occupancy=50, access_status="accessible", zone_id=None)
+    site_jaipur = RescueSite(id="site-jaipur-1", name="Jaipur Emergency Shelter", lat=26.9124, lng=75.7873, elevation_m=431.0, predicted_flood_margin_m=10.0, capacity=600, current_occupancy=100, access_status="accessible", zone_id=None)
+    site_lucknow = RescueSite(id="site-lucknow-1", name="Lucknow Central Rescue Site", lat=26.8467, lng=80.9462, elevation_m=123.0, predicted_flood_margin_m=3.0, capacity=800, current_occupancy=300, access_status="accessible", zone_id=None)
+    site_kolkata = RescueSite(id="site-kolkata-1", name="Kolkata Coastal Relief Center", lat=22.5726, lng=88.3639, elevation_m=9.0, predicted_flood_margin_m=1.5, capacity=1200, current_occupancy=900, access_status="limited", zone_id=None)
+    site_guwahati = RescueSite(id="site-guwahati-1", name="Guwahati Secondary Rescue Site", lat=26.1445, lng=91.7362, elevation_m=55.0, predicted_flood_margin_m=2.0, capacity=400, current_occupancy=50, access_status="accessible", zone_id=None)
+    site_bhubaneswar = RescueSite(id="site-bhubaneswar-1", name="Bhubaneswar Cyclone Shelter", lat=20.2961, lng=85.8245, elevation_m=45.0, predicted_flood_margin_m=6.0, capacity=750, current_occupancy=250, access_status="accessible", zone_id=None)
+    site_mumbai = RescueSite(id="site-mumbai-1", name="Mumbai Regional Rescue Site", lat=19.0760, lng=72.8777, elevation_m=14.0, predicted_flood_margin_m=2.5, capacity=1500, current_occupancy=800, access_status="accessible", zone_id=None)
+    site_pune = RescueSite(id="site-pune-1", name="Pune Highland Shelter", lat=18.5204, lng=73.8567, elevation_m=560.0, predicted_flood_margin_m=15.0, capacity=600, current_occupancy=100, access_status="accessible", zone_id=None)
+    site_ahmedabad = RescueSite(id="site-ahmedabad-1", name="Ahmedabad Relief Camp", lat=23.0225, lng=72.5714, elevation_m=53.0, predicted_flood_margin_m=4.0, capacity=900, current_occupancy=400, access_status="accessible", zone_id=None)
+    site_bhopal = RescueSite(id="site-bhopal-1", name="Bhopal Emergency Rescue Site", lat=23.2599, lng=77.4126, elevation_m=527.0, predicted_flood_margin_m=8.0, capacity=550, current_occupancy=120, access_status="accessible", zone_id=None)
+    site_hyderabad = RescueSite(id="site-hyderabad-1", name="Hyderabad Central Shelter", lat=17.3850, lng=78.4867, elevation_m=542.0, predicted_flood_margin_m=12.0, capacity=1100, current_occupancy=450, access_status="accessible", zone_id=None)
+    site_bengaluru = RescueSite(id="site-bengaluru-1", name="Bengaluru Emergency Rescue Site", lat=12.9716, lng=77.5946, elevation_m=920.0, predicted_flood_margin_m=20.0, capacity=1000, current_occupancy=200, access_status="accessible", zone_id=None)
+    site_chennai = RescueSite(id="site-chennai-1", name="Chennai Coastal Rescue Camp", lat=13.0827, lng=80.2707, elevation_m=6.0, predicted_flood_margin_m=1.0, capacity=1300, current_occupancy=950, access_status="limited", zone_id=None)
+    site_kochi = RescueSite(id="site-kochi-1", name="Kochi Relief Base", lat=9.9312, lng=76.2673, elevation_m=5.0, predicted_flood_margin_m=0.8, capacity=700, current_occupancy=650, access_status="accessible", zone_id=None)
+
+    all_sites = [
+        site1, site2,
+        site_delhi, site_chd, site_jaipur, site_lucknow, site_kolkata,
+        site_guwahati, site_bhubaneswar, site_mumbai, site_pune, site_ahmedabad,
+        site_bhopal, site_hyderabad, site_bengaluru, site_chennai, site_kochi
+    ]
+    db.add_all(all_sites)
     db.commit()
 
-    # 7. Seed Resources
+    # 8. Seed Resources
     res1 = Resource(id="res-boat-1", name="NDRF Rescue Boat Alpha", type="boat", quantity_available=2, zone_id=z1.id, status="available")
     res2 = Resource(id="res-med-1", name="Emergency Medical Kit Pack", type="medical_kit", quantity_available=50, zone_id=z1.id, status="available")
     res3 = Resource(id="res-food-1", name="Dry Ration Food Packets", type="food_packet", quantity_available=300, zone_id=z1.id, status="available")
     db.add_all([res1, res2, res3])
     db.commit()
 
-    # 8. Seed Incidents
+    # 9. Seed Incidents
     p_score_1 = calculate_response_priority(0.88, "critical", 0.95, 0.85)
     inc1 = Incident(
         id="inc-101",
@@ -171,6 +224,7 @@ def reset_demo_scenario(
         "message": "Assam Cachar Flood scenario reset successfully",
         "zones_seeded": 3,
         "incidents_seeded": 2,
-        "rescue_sites_seeded": 2,
+        "rescue_sites_seeded": len(all_sites),
+        "shelters_seeded": len(all_shelters),
         "resources_seeded": 3
     }

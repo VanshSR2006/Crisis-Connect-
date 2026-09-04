@@ -9,7 +9,7 @@ import { LanguageToggle } from '@/components/shared/LanguageToggle';
 type ShelterFilter = 'all' | 'open' | 'full';
 
 export const Shelters: React.FC = () => {
-  const { shelters } = useCitizenContext();
+  const { shelters, isLoadingShelters, isErrorShelters } = useCitizenContext();
   const { language } = useLanguage();
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ShelterFilter>('all');
@@ -124,7 +124,16 @@ export const Shelters: React.FC = () => {
 
       {/* ── Shelters Cards List ───────────────────────────── */}
       <div className="space-y-4">
-        {filteredShelters.length === 0 ? (
+        {isLoadingShelters ? (
+          <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-10 text-center text-[#76777d] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-2">
+            <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-700">Loading evacuation shelters...</p>
+          </div>
+        ) : isErrorShelters ? (
+          <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-10 text-center text-red-600 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
+            <p className="text-xs font-bold">Unable to load shelters. Please check connection.</p>
+          </div>
+        ) : filteredShelters.length === 0 ? (
           <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-10 text-center text-[#76777d] shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)]">
             <p className="text-sm font-extrabold text-slate-800">{t('citizen.shelters.noShelters')}</p>
           </div>
