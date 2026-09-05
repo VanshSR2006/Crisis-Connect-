@@ -7,6 +7,10 @@ export interface RiskScoreResponse {
   risk_level: SeverityLevel;
   score: number;
   computed_at: string;
+  rainfall_mm?: number | null;
+  river_level_m?: number | null;
+  elevation_m?: number | null;
+  soil_saturation?: number | null;
 }
 
 /**
