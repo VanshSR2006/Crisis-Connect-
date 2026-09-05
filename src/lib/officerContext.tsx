@@ -25,10 +25,17 @@ export interface LiveRiskZone {
   computed_at: string;
   boundary_json: string | null;
   population_est: number;
+  rainfall_mm?: number | null;
+  river_level_m?: number | null;
+  elevation_m?: number | null;
+  soil_saturation?: number | null;
   factors?: {
     rainfall?: string;
     drainage?: string;
     population?: string;
+    river_level?: string;
+    elevation?: string;
+    soil_saturation?: string;
   };
 }
 
@@ -113,9 +120,9 @@ function buildPressureModels(
     const medicalAvailable = sumCat(['medical', 'medical_kit']);
     const waterAvailable = sumCat(['water']);
 
-    const foodDemand = demand?.food_packets ?? null;
-    const medicalDemand = demand?.medical_kits ?? null;
-    const waterDemand = demand?.drinking_water_liters ?? null;
+    const foodDemand = demand?.demand?.food_packets ?? null;
+    const medicalDemand = demand?.demand?.medical_kits ?? null;
+    const waterDemand = demand?.demand?.drinking_water_liters ?? null;
 
     const categories: CategoryPressure[] = [
       {
@@ -229,6 +236,16 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           computed_at: score.computed_at,
           boundary_json: zone?.boundary_json || null,
           population_est: zone?.population_est || 0,
+          rainfall_mm: score.rainfall_mm ?? null,
+          river_level_m: score.river_level_m ?? null,
+          elevation_m: score.elevation_m ?? 20.0,
+          soil_saturation: score.soil_saturation ?? 0.5,
+          factors: {
+            rainfall: score.rainfall_mm != null ? `${score.rainfall_mm} mm` : undefined,
+            river_level: score.river_level_m != null ? `${score.river_level_m} m` : undefined,
+            elevation: score.elevation_m != null ? `${score.elevation_m} m` : '20.0 m',
+            soil_saturation: score.soil_saturation != null ? `${Math.round(score.soil_saturation * 100)}%` : '50%',
+          },
         };
       });
       return merged;
