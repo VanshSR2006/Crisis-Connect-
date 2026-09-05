@@ -218,6 +218,8 @@ def reset_demo_scenario(
 
     db.add_all([inc1, inc2])
 
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
     # --- Burst of SOS incidents for Area Emergency Detection ---
     burst_incidents = []
     base_lat = 24.8300
@@ -237,7 +239,8 @@ def reset_demo_scenario(
                 lng=base_lng + (i * 0.0001),
                 credibility_score=0.90,
                 review_state="verified",
-                priority_score=0.95
+                priority_score=0.95,
+                created_at=now - timedelta(seconds=(240 - i * 24))
             )
         )
     db.add_all(burst_incidents)

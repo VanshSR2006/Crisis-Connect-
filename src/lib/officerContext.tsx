@@ -338,9 +338,7 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
       
       if (vicinity) {
         setActiveVicinity(prev => {
-          // If we already have one, don't keep overriding unless it's a completely new center
           if (prev) {
-            // Keep the previous ID but update counts
             return {
               ...prev,
               sos_count: vicinity.sos_count,
@@ -349,12 +347,11 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
               recommended_teams: vicinity.recommended_teams,
             };
           }
-          // Only automatically toggle crisis mode when newly detected
           setIsCrisisMode(true);
           return vicinity;
         });
       } else {
-        // Option to automatically dismiss when resolved, but we'll leave it to manual dismiss
+        setActiveVicinity(null);
       }
     }
   }, [incidents, riskZones]);

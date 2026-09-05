@@ -105,6 +105,22 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            {/* Simulate Area Emergency Button */}
+            <button
+              onClick={async () => {
+                try {
+                  await fetch((import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000') + '/demo/reset', { method: 'POST' });
+                  window.location.reload();
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
+              className="flex items-center gap-2 text-[11px] font-black uppercase tracking-wider cursor-pointer px-3.5 py-2.5 rounded-xl border border-blue-500 bg-blue-600/90 hover:bg-blue-600 text-white shadow-md shadow-blue-600/30 transition-all active:scale-95 hidden sm:flex"
+            >
+              <RadioTower className="h-4 w-4" />
+              <span>Simulate Emergency</span>
+            </button>
+
             {/* Crisis Mode Toggle Button */}
             <label
               className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-wider cursor-pointer px-3.5 py-2.5 rounded-xl border backdrop-blur-md transition-all duration-200 shadow-md ${
