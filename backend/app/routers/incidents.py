@@ -13,6 +13,8 @@ from ..core.security import get_current_user, get_optional_current_user, require
 from ..core.rate_limiter import RateLimiter
 from ..core.config import settings
 from ..services.priority_service import calculate_response_priority
+from ..services.credibility_service import calculate_incident_credibility
+from ..services.risk_service import get_zone_risk_snapshot
 from ..websocket.manager import manager
 
 router = APIRouter(prefix="/incidents", tags=["Incidents"])
@@ -90,12 +92,18 @@ async def create_incident(
     if existing:
         return existing
 
-    # Dynamic priority score calculation based on default factors
+    # Dynamic risk calculation based on zone intelligence
+    risk = get_zone_risk_snapshot(inc.zone_id or "z-silchar", db)
+
+    # Automatically evaluate SOS credibility before saving
+    credibility = calculate_incident_credibility(inc, db)
+
+    # Dynamic priority score calculation using zone risk and credibility
     priority = calculate_response_priority(
-        risk_score=0.8,
+        risk_score=risk["risk_score"],
         severity=inc.severity,
-        credibility_score=1.0,  # Starts fully credible until verified otherwise
-        vulnerability_index=0.7
+        credibility_score=credibility["credibility_score"],
+        vulnerability_index=risk["vulnerability_index"]
     )
     new_inc = Incident(
         title=inc.title,
@@ -107,8 +115,8 @@ async def create_incident(
         zone_id=inc.zone_id,
         reporter_id=reporter_id,
         status="reported",
-        review_state="unverified",
-        credibility_score=1.0,
+        review_state="flagged" if credibility.get("suspicious") else "unverified",
+        credibility_score=credibility["credibility_score"],
         priority_score=priority
     )
     db.add(new_inc)
@@ -155,12 +163,13 @@ async def verify_incident(
     incident.review_state = req.review_state
     incident.credibility_score = req.credibility_score
     
-    # Recalculate priority score with updated credibility
+    # Recalculate priority score with updated credibility and zone risk
+    risk = get_zone_risk_snapshot(incident.zone_id or "z-silchar", db)
     incident.priority_score = calculate_response_priority(
-        risk_score=0.8,  # Dynamic risk loading placeholder
+        risk_score=risk["risk_score"],
         severity=str(incident.severity),
-        credibility_score=req.credibility_score,
-        vulnerability_index=0.7
+        credibility_score=incident.credibility_score,
+        vulnerability_index=risk["vulnerability_index"]
     )
     
     db.commit()
