@@ -248,7 +248,17 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
           },
         };
       });
-      return merged;
+
+      // Deduplicate by zone_id — keep the entry with the highest score per zone
+      // (guards against multiple RiskScore rows for the same zone in the DB)
+      const deduped = new Map<string, LiveRiskZone>();
+      for (const entry of merged) {
+        const existing = deduped.get(entry.zone_id);
+        if (!existing || entry.score > existing.score) {
+          deduped.set(entry.zone_id, entry);
+        }
+      }
+      return Array.from(deduped.values());
     },
     refetchInterval: 30000,
   });
