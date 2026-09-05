@@ -1,60 +1,129 @@
 import React, { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { useOfficerContext } from '@/lib/officerContext';
 import { getVolunteers } from '@/lib/api/users';
 import { Button } from '@/components/ui/Button';
-import { Radio, CheckCircle, Loader2, Navigation, Package } from 'lucide-react';
+import {
+  Radio,
+  CheckCircle,
+  Loader2,
+  Navigation,
+  Package,
+  Users,
+} from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
 export const Dispatch: React.FC = () => {
-  const { t } = useTranslation();
-  const { incidents, dispatches, resources, createDispatch, selectedIncidentId } =
-    useOfficerContext();
+  const {
+    incidents,
+    dispatches,
+    resources,
+    createTeamDispatch,
+    selectedIncidentId,
+  } = useOfficerContext();
 
-  const activeIncidents = incidents.filter((i) => i.status !== 'resolved');
+  const activeIncidents = incidents.filter(
+    (i) => i.status !== 'resolved'
+  );
 
   const [targetIncidentId, setTargetIncidentId] = useState<string>(
     selectedIncidentId || activeIncidents[0]?.id || ''
   );
-  const [assignedUserId, setAssignedUserId] = useState<string>('');
-  const [selectedResourceId, setSelectedResourceId] = useState<string>(resources[0]?.id || '');
+
+  const [selectedVolunteerIds, setSelectedVolunteerIds] = useState<string[]>(
+    []
+  );
+
+  const [selectedResourceId, setSelectedResourceId] = useState<string>(
+    resources[0]?.id || ''
+  );
+
   const [dispatchNotes, setDispatchNotes] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isDispatching, setIsDispatching] = useState<boolean>(false);
 
-  const activeCount = dispatches.filter((d) => d.status !== 'completed').length;
-  const completedCount = dispatches.filter((d) => d.status === 'completed').length;
+  const activeCount = dispatches.filter(
+    (d) => d.status !== 'completed'
+  ).length;
 
-  const { data: volunteerUsers = [] } = useQuery({
-    queryKey: ['dispatch-volunteers'],
-    queryFn: getVolunteers,
-  });
+  const completedCount = dispatches.filter(
+    (d) => d.status === 'completed'
+  ).length;
+
+  const { data: volunteerUsers = [], isLoading: isLoadingVolunteers } =
+    useQuery({
+      queryKey: ['dispatch-volunteers'],
+      queryFn: getVolunteers,
+    });
+
+  const toggleVolunteer = (volunteerId: string) => {
+    setSelectedVolunteerIds((current) =>
+      current.includes(volunteerId)
+        ? current.filter((id) => id !== volunteerId)
+        : [...current, volunteerId]
+    );
+  };
 
   const handleDispatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetIncidentId || !assignedUserId) return;
 
-    const selectedResource = resources.find((r) => r.id === selectedResourceId);
-    const selectedUser = volunteerUsers.find((u) => u.id === assignedUserId);
+    if (
+      !targetIncidentId ||
+      selectedVolunteerIds.length === 0 ||
+      isDispatching
+    ) {
+      return;
+    }
 
-    const fullNotes = dispatchNotes
-      ? dispatchNotes
-      : `Deployed ${selectedResource?.name || 'Emergency Team'} under leadership of ${
-          selectedUser?.name || assignedUserId
-        }.`;
+    setIsDispatching(true);
+    setSuccessMessage(null);
 
-    const dispatch = await createDispatch({
-      incidentId: targetIncidentId,
-      assignedUserId,
-      resourceId: selectedResourceId || undefined,
-      notes: fullNotes,
-    });
+    try {
+      const selectedResource = resources.find(
+        (r) => r.id === selectedResourceId
+      );
 
-    if (!dispatch) return;
+      const selectedUsers = volunteerUsers.filter((u) =>
+        selectedVolunteerIds.includes(u.id)
+      );
 
-    setSuccessMessage(`Dispatch order #${dispatch.id} created successfully!`);
-    setDispatchNotes('');
-    setTimeout(() => setSuccessMessage(null), 4000);
+      const selectedNames = selectedUsers
+        .map((u) => u.name)
+        .filter(Boolean)
+        .join(', ');
+
+      const fullNotes = dispatchNotes
+        ? dispatchNotes
+        : `Deployed ${
+            selectedResource?.name || 'Emergency Team'
+          } with ${selectedVolunteerIds.length} volunteer${
+            selectedVolunteerIds.length === 1 ? '' : 's'
+          }${selectedNames ? `: ${selectedNames}` : ''}.`;
+
+      const createdDispatches = await createTeamDispatch({
+        incidentId: targetIncidentId,
+        volunteerIds: selectedVolunteerIds,
+        resourceId: selectedResourceId || undefined,
+        notes: fullNotes,
+      });
+
+      if (createdDispatches.length === 0) {
+        return;
+      }
+
+      setSuccessMessage(
+        `${createdDispatches.length} volunteer${
+          createdDispatches.length === 1 ? '' : 's'
+        } dispatched successfully!`
+      );
+
+      setSelectedVolunteerIds([]);
+      setDispatchNotes('');
+
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } finally {
+      setIsDispatching(false);
+    }
   };
 
   return (
@@ -66,6 +135,7 @@ export const Dispatch: React.FC = () => {
           alt="Resource & Unit Dispatch Center"
           className="absolute inset-0 w-full h-full object-cover filter brightness-[0.85] contrast-[1.05] scale-105 pointer-events-none group-hover:scale-110 transition-transform duration-700"
         />
+
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-950/60 to-slate-950/75 pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-5 text-white">
@@ -74,9 +144,11 @@ export const Dispatch: React.FC = () => {
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
               <span>FIELD DISPATCH COMMAND</span>
             </div>
+
             <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-white drop-shadow-md">
               Resource & Unit Dispatch Center
             </h1>
+
             <p className="text-xs font-medium text-slate-300 drop-shadow-xs">
               {activeCount} active deployments · {completedCount} completed rescue missions
             </p>
@@ -87,6 +159,7 @@ export const Dispatch: React.FC = () => {
               <span className="block text-2xl font-black text-emerald-400 font-mono drop-shadow-sm">
                 {activeCount}
               </span>
+
               <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-mono">
                 Active Deployments
               </span>
@@ -105,10 +178,11 @@ export const Dispatch: React.FC = () => {
 
       {/* ── Top 2-Column Section ────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column (2/3 width) - Issue Dispatch Form */}
+        {/* Left Column */}
         <div className="lg:col-span-2 bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-5">
           <div className="flex items-center gap-2.5 pb-4 border-b border-slate-200">
             <Navigation className="h-4 w-4 text-rose-600 transform rotate-45" />
+
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
               ISSUE EMERGENCY DISPATCH COMMAND
             </h2>
@@ -120,56 +194,132 @@ export const Dispatch: React.FC = () => {
               <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
                 Target Incident <span className="text-rose-600">*</span>
               </label>
+
               <select
                 value={targetIncidentId}
                 onChange={(e) => setTargetIncidentId(e.target.value)}
                 className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
               >
-                <option value="">Select target emergency incident...</option>
+                <option value="">
+                  Select target emergency incident...
+                </option>
+
                 {activeIncidents.map((i) => (
                   <option key={i.id} value={i.id}>
-                    [{i.id}] {i.title} ({i.severity.toUpperCase()} · {i.status.toUpperCase()})
+                    [{i.id}] {i.title} (
+                    {i.severity.toUpperCase()} ·{' '}
+                    {i.status.toUpperCase()})
                   </option>
                 ))}
               </select>
             </div>
 
-            {/* Inline 2-Column Row for Resource & Leader */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
-                  Assign Resource Stock
-                </label>
-                <select
-                  value={selectedResourceId}
-                  onChange={(e) => setSelectedResourceId(e.target.value)}
-                  className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
-                >
-                  {resources.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.available_quantity ?? r.quantity} units - {r.available_quantity === 0 ? 'DISPATCHED' : 'AVAILABLE'})
+            {/* Resource */}
+            <div>
+              <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
+                Assign Resource Stock
+              </label>
+
+              <select
+                value={selectedResourceId}
+                onChange={(e) => setSelectedResourceId(e.target.value)}
+                className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
+              >
+                <option value="">No resource assigned</option>
+
+                {resources.map((r) => {
+                  const quantity = r.available_quantity ?? r.quantity;
+
+                  return (
+                    <option
+                      key={r.id}
+                      value={r.id}
+                      disabled={quantity === 0}
+                    >
+                      {r.name} ({quantity} units -{' '}
+                      {quantity === 0 ? 'DISPATCHED' : 'AVAILABLE'})
                     </option>
-                  ))}
-                </select>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Multiple Volunteers */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-800">
+                  <Users className="h-3.5 w-3.5 text-blue-600" />
+                  Select Rescue Volunteers{' '}
+                  <span className="text-rose-600">*</span>
+                </label>
+
+                <span className="text-[10px] font-black font-mono text-blue-700">
+                  {selectedVolunteerIds.length} SELECTED
+                </span>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
-                  Assigned Team Leader / Unit
-                </label>
-                <select
-                  value={assignedUserId}
-                  onChange={(e) => setAssignedUserId(e.target.value)}
-                  className="w-full text-xs font-semibold p-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:bg-white transition-all shadow-inner"
-                >
-                  <option value="">Select volunteer</option>
-                  {volunteerUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role ? u.role.toUpperCase() : 'VOLUNTEER'})
-                    </option>
-                  ))}
-                </select>
+              <div className="border border-slate-300 rounded-xl bg-slate-50 overflow-hidden shadow-inner">
+                {isLoadingVolunteers ? (
+                  <div className="p-4 flex items-center justify-center gap-2 text-xs font-semibold text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading volunteers...
+                  </div>
+                ) : volunteerUsers.length === 0 ? (
+                  <div className="p-4 text-xs font-semibold text-slate-500 text-center">
+                    No volunteers available.
+                  </div>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto divide-y divide-slate-200">
+                    {volunteerUsers.map((u) => {
+                      const isSelected = selectedVolunteerIds.includes(
+                        u.id
+                      );
+
+                      return (
+                        <label
+                          key={u.id}
+                          className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-blue-50'
+                              : 'bg-slate-50 hover:bg-white'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleVolunteer(u.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          />
+
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-black text-slate-900">
+                              {u.name}
+                            </div>
+
+                            <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
+                              {u.role
+                                ? u.role.toUpperCase()
+                                : 'VOLUNTEER'}
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <CheckCircle className="h-4 w-4 text-blue-600 shrink-0" />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
+              {selectedVolunteerIds.length > 0 && (
+                <div className="mt-2 text-[10px] font-semibold text-slate-500">
+                  {selectedVolunteerIds.length} volunteer
+                  {selectedVolunteerIds.length === 1 ? '' : 's'} will
+                  receive an individual assignment.
+                </div>
+              )}
             </div>
 
             {/* Tactical Directives */}
@@ -177,6 +327,7 @@ export const Dispatch: React.FC = () => {
               <label className="block text-[11px] font-black uppercase tracking-wider text-slate-800 mb-1.5">
                 Dispatch Directives & Tactical Notes
               </label>
+
               <textarea
                 rows={3}
                 value={dispatchNotes}
@@ -186,22 +337,37 @@ export const Dispatch: React.FC = () => {
               />
             </div>
 
-            {/* Coral / Emergency Action Button */}
+            {/* Emergency Action Button */}
             <Button
               type="submit"
-              disabled={!targetIncidentId || !assignedUserId}
+              disabled={
+                !targetIncidentId ||
+                selectedVolunteerIds.length === 0 ||
+                isDispatching
+              }
               className="w-full bg-gradient-to-r from-rose-500 via-rose-600 to-rose-700 hover:from-rose-600 hover:to-rose-800 active:from-rose-700 text-white font-black text-xs uppercase tracking-wider py-3.5 rounded-xl shadow-[0_6px_16px_rgba(244,63,94,0.35)] transition-all border border-rose-400/30 disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <Radio className="h-4 w-4 animate-pulse" />
-              CONFIRM & DISPATCH RESCUE TEAM NOW
+              {isDispatching ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  DISPATCHING TEAM...
+                </>
+              ) : (
+                <>
+                  <Radio className="h-4 w-4 animate-pulse" />
+                  DISPATCH {selectedVolunteerIds.length || ''} VOLUNTEER
+                  {selectedVolunteerIds.length === 1 ? '' : 'S'}
+                </>
+              )}
             </Button>
           </form>
         </div>
 
-        {/* Right Column (1/3 width) - Available Stock & Personnel */}
+        {/* Right Column */}
         <div className="bg-white border-t-2 border-t-white border-b-2 border-b-slate-300 border-x border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1)] space-y-4">
           <div className="flex items-center gap-2 pb-3 border-b border-slate-200">
             <Package className="h-4 w-4 text-blue-600" />
+
             <h2 className="text-xs font-black uppercase tracking-wider text-slate-900">
               AVAILABLE STOCK & PERSONNEL
             </h2>
@@ -217,10 +383,12 @@ export const Dispatch: React.FC = () => {
                   <span className="text-xs font-black text-slate-900 leading-tight">
                     {r.name}
                   </span>
+
                   <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black font-mono bg-emerald-100 text-emerald-800 border border-emerald-300 flex-shrink-0">
                     {r.available_quantity ?? r.quantity} units
                   </span>
                 </div>
+
                 <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
                   {r.category || 'RESOURCE'}
                 </p>
@@ -235,10 +403,12 @@ export const Dispatch: React.FC = () => {
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80">
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4 text-rose-600 animate-pulse" />
+
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-900">
               LIVE DISPATCH QUEUE ({dispatches.length})
             </h3>
           </div>
+
           <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-500 font-mono">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
             Real-time Sync
@@ -253,16 +423,22 @@ export const Dispatch: React.FC = () => {
           ) : (
             dispatches.map((d, idx) => {
               const isCompleted = d.status === 'completed';
+
               return (
                 <div
                   key={d.id}
                   className={`p-4 space-y-2.5 transition-colors ${
-                    idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white'
+                    idx % 2 === 1
+                      ? 'bg-slate-50/50'
+                      : 'bg-white'
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="font-black text-slate-900">Dispatch Order #{d.id}</span>
+                      <span className="font-black text-slate-900">
+                        Dispatch Order #{d.id}
+                      </span>
+
                       <span className="text-[11px] font-mono text-slate-500">
                         Target: Incident{' '}
                         <span className="text-slate-700 font-mono font-bold">
@@ -270,6 +446,7 @@ export const Dispatch: React.FC = () => {
                         </span>
                       </span>
                     </div>
+
                     <span
                       className={`self-start sm:self-auto px-3 py-1 rounded-xl text-[10px] uppercase font-black font-mono shadow-xs flex items-center gap-1.5 border ${
                         isCompleted
@@ -282,6 +459,7 @@ export const Dispatch: React.FC = () => {
                       ) : (
                         <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />
                       )}
+
                       {isCompleted ? 'COMPLETED' : 'EN ROUTE'}
                     </span>
                   </div>
@@ -292,12 +470,15 @@ export const Dispatch: React.FC = () => {
 
                   <div className="flex flex-wrap items-center justify-between text-[11px] font-semibold text-slate-500 pt-1">
                     <span>
-                      Assigned Lead:{' '}
+                      Assigned Volunteer:{' '}
                       <strong className="text-slate-800 font-mono font-bold">
                         {d.assigned_user_id}
                       </strong>
                     </span>
-                    <span className="font-mono">Dispatched: {formatDate(d.dispatched_at)}</span>
+
+                    <span className="font-mono">
+                      Dispatched: {formatDate(d.dispatched_at)}
+                    </span>
                   </div>
                 </div>
               );
