@@ -120,9 +120,9 @@ function buildPressureModels(
     const medicalAvailable = sumCat(['medical', 'medical_kit']);
     const waterAvailable = sumCat(['water']);
 
-    const foodDemand = demand?.food_packets ?? null;
-    const medicalDemand = demand?.medical_kits ?? null;
-    const waterDemand = demand?.drinking_water_liters ?? null;
+    const foodDemand = demand?.demand?.food_packets ?? null;
+    const medicalDemand = demand?.demand?.medical_kits ?? null;
+    const waterDemand = demand?.demand?.drinking_water_liters ?? null;
 
     const categories: CategoryPressure[] = [
       {

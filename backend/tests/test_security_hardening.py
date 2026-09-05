@@ -19,6 +19,8 @@ TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_eng
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     from app.database.base import Base
+    from app import models  # noqa: F401
+
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
