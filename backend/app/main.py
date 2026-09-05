@@ -39,6 +39,15 @@ app = FastAPI(
 )
 
 # CORS configuration
+# Production Vercel origins are always allowed explicitly so that
+# Starlette's CORSMiddleware can echo them back with credentials
+# (regex-only matches can fail with allow_credentials=True in some
+# Starlette versions, returning HTTP 400 on OPTIONS preflight).
+# Preview deployments are covered by allow_origin_regex below.
+VERCEL_PRODUCTION_ORIGINS = [
+    "https://crisisconnect-blue.vercel.app",
+]
+
 allow_origins_list = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -48,7 +57,7 @@ allow_origins_list = [
     "http://127.0.0.1:5173",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-]
+] + VERCEL_PRODUCTION_ORIGINS
 if settings.FRONTEND_ORIGINS:
     allow_origins_list.extend([origin.strip() for origin in settings.FRONTEND_ORIGINS.split(",") if origin.strip()])
 if settings.FRONTEND_ORIGIN and settings.FRONTEND_ORIGIN != "*":
@@ -59,9 +68,12 @@ allow_origins_list = list(set(allow_origins_list))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allow_origins_list,
+
+    # Covers all *.vercel.app preview deployment URLs (e.g. crisisconnect-<hash>-<team>.vercel.app)
+    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.vercel\.app",
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Request-ID"],
 )
 
 # Include routers
