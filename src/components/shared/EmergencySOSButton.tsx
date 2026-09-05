@@ -234,21 +234,26 @@ export const EmergencySOSButton: React.FC = () => {
 
   return (
     <div className="w-full space-y-2">
-      <label className="block text-left text-[11px] font-semibold text-slate-600" htmlFor="sos-vulnerability-context">
-        Is anyone especially vulnerable? <span className="font-normal">Optional — SOS sends immediately either way.</span>
-      </label>
-      <select
-        id="sos-vulnerability-context"
-        aria-label="Optional vulnerability context"
-        value={vulnerabilityContext}
-        onChange={(event) => setVulnerabilityContext(event.target.value as VulnerabilityContext | '')}
-        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
-      >
-        <option value="">No additional context</option>
-        {VULNERABILITY_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
+      <div className="rounded-2xl border-2 border-red-200/90 bg-white/95 p-2.5 shadow-[0_4px_14px_rgba(127,29,29,0.14)] backdrop-blur-sm">
+        <label className="mb-2 flex items-center gap-2 text-left text-[11px] font-semibold text-slate-800" htmlFor="sos-vulnerability-context">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-red-100 text-red-700">
+            <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+          <span>Is anyone especially vulnerable? <span className="font-normal text-slate-600">Optional — SOS sends immediately either way.</span></span>
+        </label>
+        <select
+          id="sos-vulnerability-context"
+          aria-label="Optional vulnerability context"
+          value={vulnerabilityContext}
+          onChange={(event) => setVulnerabilityContext(event.target.value as VulnerabilityContext | '')}
+          className="min-h-10 w-full rounded-xl border-2 border-slate-400 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-900 shadow-inner transition-colors hover:border-red-400 hover:bg-white focus:border-red-600 focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
+        >
+          <option value="">No additional context</option>
+          {VULNERABILITY_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      </div>
       <button
         onClick={triggerSOS}
         className="w-full py-4 px-6 bg-gradient-to-r from-red-600 via-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-[0.99] hover:-translate-y-0.5 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_8px_25px_rgba(220,38,38,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] border border-red-500/80 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer"
