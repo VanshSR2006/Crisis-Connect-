@@ -8,7 +8,7 @@
  * auto-retrying submission once the network is restored.
  */
 
-import { IncidentCategory, SeverityLevel } from '../types';
+import { IncidentCategory, SeverityLevel, VulnerabilityContext } from '../types';
 import { getStoredUser } from './auth';
 
 export interface QueuedSosReport {
@@ -24,6 +24,7 @@ export interface QueuedSosReport {
   photo_base64?: string;
   title?: string;
   client_id?: string;
+  vulnerability_context?: VulnerabilityContext;
 }
 
 const QUEUE_STORAGE_KEY = 'crisis_connect_offline_sos_queue';

@@ -239,6 +239,11 @@ export const Incidents: React.FC = () => {
                       <span className="bg-blue-50 text-blue-900 border border-blue-300 px-2 py-0.5 rounded-md font-mono font-extrabold shadow-xs">
                         PRIORITY: {priorityVal.toFixed(1)}
                       </span>
+                      {incident.vulnerability_context && incident.vulnerability_context !== 'none' && (
+                        <span className="bg-rose-50 text-rose-900 border border-rose-300 px-2 py-0.5 rounded-md font-mono font-extrabold uppercase shadow-xs">
+                          {incident.vulnerability_context.replace(/_/g, ' ')}
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded-md font-mono font-extrabold uppercase shadow-xs border ${
                         verifiedStatus === 'VERIFIED'
                           ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
@@ -344,6 +349,12 @@ export const Incidents: React.FC = () => {
                   <span className="text-slate-500">Category:</span>
                   <strong className="text-slate-900 uppercase font-mono">{selectedIncident.category}</strong>
                 </div>
+                {selectedIncident.vulnerability_context && selectedIncident.vulnerability_context !== 'none' && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500">Vulnerability:</span>
+                    <strong className="text-rose-900 uppercase font-mono text-right">{selectedIncident.vulnerability_context.replace(/_/g, ' ')}</strong>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-slate-500">GPS Lat/Lng:</span>
                   <strong className="text-slate-900 font-mono">{selectedIncident.lat?.toFixed(4)}, {selectedIncident.lng?.toFixed(4)}</strong>

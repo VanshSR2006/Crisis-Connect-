@@ -91,6 +91,8 @@ class Incident(Base):
     credibility_score: Mapped[float] = mapped_column(Float, default=1.0)
     review_state: Mapped[str] = mapped_column(String, default="unverified") # unverified | flagged | verified
     priority_score: Mapped[float] = mapped_column(Float, default=50.0)
+    # Optional reporter-provided context used to help responders triage an SOS.
+    vulnerability_context: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Shelter(Base):

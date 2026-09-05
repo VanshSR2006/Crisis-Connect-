@@ -26,6 +26,16 @@ export type IncidentStatus = 'reported' | 'acknowledged' | 'dispatched' | 'arriv
 
 export type ReviewState = 'unverified' | 'flagged' | 'verified';
 
+export type VulnerabilityContext =
+  | 'medical_emergency'
+  | 'pregnant'
+  | 'elderly'
+  | 'child_infant'
+  | 'disability_mobility_difficulty'
+  | 'multiple_people'
+  | 'none'
+  | 'other';
+
 export type ShelterStatus = 'open' | 'full' | 'closed';
 
 export type ResourceCategory =
@@ -75,6 +85,7 @@ export interface Incident {
   credibility_score?: number;
   review_state?: ReviewState;
   priority_score?: number;
+  vulnerability_context?: VulnerabilityContext | null;
   lat: number;
   lng: number;
   reported_by_user_id?: string | null;

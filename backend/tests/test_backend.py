@@ -696,6 +696,50 @@ class TestIncidents:
         assert r.status_code == 200
         assert r.json()["reporter_id"] == "usr-citizen-1"
 
+    @pytest.mark.parametrize("vulnerability_context", [
+        "medical_emergency",
+        "pregnant",
+        "elderly",
+        "child_infant",
+        "disability_mobility_difficulty",
+        "multiple_people",
+        "none",
+        "other",
+    ])
+    def test_guest_sos_persists_each_optional_vulnerability_context(self, client, seeded_db, vulnerability_context):
+        """Guest SOS reports accept every supported context without authentication."""
+        response = client.post("/incidents", json={
+            "category": "rescue",
+            "severity": "critical",
+            "description": f"Guest SOS vulnerability {vulnerability_context}",
+            "lat": 24.82,
+            "lng": 92.79,
+            "reporter_id": "usr-guest",
+            "vulnerability_context": vulnerability_context,
+        })
+        assert response.status_code == 200
+        assert response.json()["reporter_id"] is None
+        assert response.json()["vulnerability_context"] == vulnerability_context
+
+    def test_vulnerability_context_increases_existing_priority_score(self):
+        """SOS context feeds the established priority service; medical is most urgent."""
+        from app.services.priority_service import calculate_response_priority
+
+        baseline = calculate_response_priority(0.4, "high", 1.0, 0.2)
+        pregnancy = calculate_response_priority(0.4, "high", 1.0, 0.2, "pregnant")
+        medical = calculate_response_priority(0.4, "high", 1.0, 0.2, "medical_emergency")
+
+        assert pregnancy > baseline
+        assert medical > pregnancy
+
+    def test_normal_incident_priority_is_unchanged_without_vulnerability_context(self):
+        """No optional context preserves the exact legacy scoring behavior."""
+        from app.services.priority_service import calculate_response_priority
+
+        legacy_score = calculate_response_priority(0.4, "high", 0.9, 0.7)
+        assert calculate_response_priority(0.4, "high", 0.9, 0.7, None) == legacy_score
+        assert calculate_response_priority(0.4, "high", 0.9, 0.7, "none") == legacy_score
+
 
 
 # ===========================================================================

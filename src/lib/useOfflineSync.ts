@@ -54,6 +54,7 @@ export function useOfflineSync() {
           reporter_id: report.reporter_id || userId,
           photo_base64: report.photo_base64,
           client_id: report.client_id || report.id,
+          vulnerability_context: report.vulnerability_context,
         });
 
         const res = await createIncident(payload, {

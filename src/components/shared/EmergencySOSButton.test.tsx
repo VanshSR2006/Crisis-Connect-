@@ -64,6 +64,26 @@ describe('EmergencySOSButton', () => {
     expect(await screen.findByText(/Emergency distress signal sent/i)).toBeDefined();
   });
 
+  it('includes an optional vulnerability context without blocking a guest SOS', async () => {
+    const createIncidentSpy = vi.spyOn(incidentsApi, 'createIncident').mockResolvedValue({ id: 'inc-vulnerable-guest' } as any);
+
+    render(<EmergencySOSButton />);
+    fireEvent.change(screen.getByLabelText(/optional vulnerability context/i), {
+      target: { value: 'medical_emergency' },
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(() => {
+      expect(createIncidentSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          vulnerability_context: 'medical_emergency',
+          reporter_id: 'usr-guest',
+        }),
+        expect.objectContaining({ idempotencyKey: expect.any(String) })
+      );
+    });
+  });
+
   it('queues an SOS report offline when navigator is offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const enqueueSpy = vi.spyOn(offlineQueue, 'enqueueSosReport');

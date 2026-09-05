@@ -1,5 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
-import { Incident, IncidentStatus, IncidentCategory } from '@/types';
+import { Incident, IncidentStatus, IncidentCategory, VulnerabilityContext } from '@/types';
 
 /**
  * GET /incidents – returns a list of incidents.
@@ -27,6 +27,7 @@ export interface IncidentPayloadOptions {
   reporter_id?: string;
   photo_base64?: string;
   client_id?: string;
+  vulnerability_context?: VulnerabilityContext;
 }
 
 export function buildIncidentPayload(options: IncidentPayloadOptions): Record<string, any> {
@@ -58,6 +59,7 @@ export function buildIncidentPayload(options: IncidentPayloadOptions): Record<st
     reporter_id: reporterId,
     photo_base64: options.photo_base64,
     client_id: options.client_id,
+    vulnerability_context: options.vulnerability_context,
   };
 }
 

@@ -28,6 +28,16 @@ class IncidentCreate(BaseModel):
     title: Optional[str] = "Emergency SOS Report"
     zone_id: Optional[str] = "z-silchar"
     reporter_id: Optional[str] = None
+    vulnerability_context: Optional[Literal[
+        "medical_emergency",
+        "pregnant",
+        "elderly",
+        "child_infant",
+        "disability_mobility_difficulty",
+        "multiple_people",
+        "none",
+        "other",
+    ]] = None
 
 class IncidentVerifyRequest(BaseModel):
     review_state: str  # verified | flagged
@@ -46,6 +56,7 @@ class IncidentResponse(BaseModel):
     lng: float
     zone_id: Optional[str]
     reporter_id: Optional[str]
+    vulnerability_context: Optional[str]
     status: str
     priority_score: float
     credibility_score: float
@@ -103,7 +114,8 @@ async def create_incident(
         risk_score=risk["risk_score"],
         severity=inc.severity,
         credibility_score=credibility["credibility_score"],
-        vulnerability_index=risk["vulnerability_index"]
+        vulnerability_index=risk["vulnerability_index"],
+        vulnerability_context=inc.vulnerability_context,
     )
     new_inc = Incident(
         title=inc.title,
@@ -117,7 +129,8 @@ async def create_incident(
         status="reported",
         review_state="flagged" if credibility.get("suspicious") else "unverified",
         credibility_score=credibility["credibility_score"],
-        priority_score=priority
+        priority_score=priority,
+        vulnerability_context=inc.vulnerability_context,
     )
     db.add(new_inc)
     db.commit()
@@ -139,6 +152,7 @@ async def create_incident(
         "reporter_id": new_inc.reporter_id,
         "review_state": new_inc.review_state,
         "credibility_score": new_inc.credibility_score,
+        "vulnerability_context": new_inc.vulnerability_context,
         "created_at": created_at_str
     })
     return new_inc
@@ -169,7 +183,8 @@ async def verify_incident(
         risk_score=risk["risk_score"],
         severity=str(incident.severity),
         credibility_score=incident.credibility_score,
-        vulnerability_index=risk["vulnerability_index"]
+        vulnerability_index=risk["vulnerability_index"],
+        vulnerability_context=incident.vulnerability_context,
     )
     
     db.commit()

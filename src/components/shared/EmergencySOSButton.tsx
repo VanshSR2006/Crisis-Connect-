@@ -6,6 +6,18 @@ import { enqueueSosReport } from '@/lib/offlineQueue';
 import { useOfflineSync } from '@/lib/useOfflineSync';
 import { generateReferenceId } from '@/lib/generateReferenceId';
 import { getStoredUser } from '@/lib/auth';
+import { VulnerabilityContext } from '@/types';
+
+const VULNERABILITY_OPTIONS: { value: VulnerabilityContext; label: string }[] = [
+  { value: 'medical_emergency', label: 'Medical emergency' },
+  { value: 'pregnant', label: 'Pregnant' },
+  { value: 'elderly', label: 'Elderly person' },
+  { value: 'child_infant', label: 'Child / infant' },
+  { value: 'disability_mobility_difficulty', label: 'Disability / mobility difficulty' },
+  { value: 'multiple_people', label: 'Multiple people' },
+  { value: 'none', label: 'None' },
+  { value: 'other', label: 'Other' },
+];
 
 export const EmergencySOSButton: React.FC = () => {
   const { t } = useTranslation();
@@ -13,6 +25,7 @@ export const EmergencySOSButton: React.FC = () => {
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'queued'>('idle');
   const [refId, setRefId] = useState<string>('');
+  const [vulnerabilityContext, setVulnerabilityContext] = useState<VulnerabilityContext | ''>('');
 
   useEffect(() => {
     const handleReportSynced = (e: Event) => {
@@ -66,6 +79,7 @@ export const EmergencySOSButton: React.FC = () => {
         zone_id: (user as any)?.zone_id || 'z-silchar',
         reporter_id: realReporterId,
         client_id: clientId,
+        ...(vulnerabilityContext ? { vulnerability_context: vulnerabilityContext } : {}),
       });
 
       const maxAttempts = 3;
@@ -119,6 +133,7 @@ export const EmergencySOSButton: React.FC = () => {
           lng,
           zone_id: payload.zone_id,
           reporter_id: realReporterId,
+          vulnerability_context: vulnerabilityContext || undefined,
         },
         realReporterId
       );
@@ -218,12 +233,29 @@ export const EmergencySOSButton: React.FC = () => {
   }
 
   return (
-    <button
-      onClick={triggerSOS}
-      className="w-full py-4 px-6 bg-gradient-to-r from-red-600 via-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-[0.99] hover:-translate-y-0.5 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_8px_25px_rgba(220,38,38,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] border border-red-500/80 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer"
-    >
-      <ShieldAlert className="h-4.5 w-4.5 text-white drop-shadow-xs" />
-      <span className="drop-shadow-xs">{t('guestSos.buttonLabel', 'Emergency SOS (Distress Panic Alert)')}</span>
-    </button>
+    <div className="w-full space-y-2">
+      <label className="block text-left text-[11px] font-semibold text-slate-600" htmlFor="sos-vulnerability-context">
+        Is anyone especially vulnerable? <span className="font-normal">Optional — SOS sends immediately either way.</span>
+      </label>
+      <select
+        id="sos-vulnerability-context"
+        aria-label="Optional vulnerability context"
+        value={vulnerabilityContext}
+        onChange={(event) => setVulnerabilityContext(event.target.value as VulnerabilityContext | '')}
+        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-500"
+      >
+        <option value="">No additional context</option>
+        {VULNERABILITY_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+      <button
+        onClick={triggerSOS}
+        className="w-full py-4 px-6 bg-gradient-to-r from-red-600 via-red-600 to-red-700 hover:from-red-700 hover:to-red-800 active:scale-[0.99] hover:-translate-y-0.5 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-[0_8px_25px_rgba(220,38,38,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] border border-red-500/80 flex items-center justify-center gap-2.5 transition-all duration-200 cursor-pointer"
+      >
+        <ShieldAlert className="h-4.5 w-4.5 text-white drop-shadow-xs" />
+        <span className="drop-shadow-xs">{t('guestSos.buttonLabel', 'Emergency SOS (Distress Panic Alert)')}</span>
+      </button>
+    </div>
   );
 };
