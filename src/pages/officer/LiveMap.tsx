@@ -9,7 +9,7 @@ import { RescueSiteLayer } from '@/components/gis/RescueSiteLayer';
 import { ShelterLayer } from '@/components/gis/ShelterLayer';
 import { SeverityBadge } from '@/components/shared/SeverityBadge';
 import { Button } from '@/components/ui/Button';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { renderToString } from 'react-dom/server';
 import 'leaflet/dist/leaflet.css';
@@ -72,6 +72,7 @@ export const LiveMap: React.FC = () => {
     isLoadingPressure,
     isErrorPressure,
     isCrisisMode,
+    activeVicinity,
   } = useOfficerContext();
 
   // ── Layer toggles ──────────────────────────────────────────────────────────
@@ -413,6 +414,40 @@ export const LiveMap: React.FC = () => {
                 />
               );
             })}
+
+            {/* Area Emergency Vicinity Overlay */}
+            {activeVicinity && (
+              <Circle
+                center={[activeVicinity.lat, activeVicinity.lng]}
+                radius={activeVicinity.radius_m}
+                pathOptions={{
+                  color: '#dc2626',
+                  fillColor: '#ef4444',
+                  fillOpacity: 0.3,
+                  weight: 3,
+                  dashArray: '10, 10',
+                  className: 'animate-pulse'
+                }}
+              >
+                <Popup className="vicinity-popup">
+                  <div className="font-sans">
+                    <div className="flex items-center gap-1 text-red-600 font-black tracking-wider uppercase text-xs mb-2">
+                      <span className="w-2 h-2 rounded-full bg-red-600 animate-ping mr-1" />
+                      Area Emergency Detected
+                    </div>
+                    <div className="text-xs text-slate-700 font-semibold mb-1">
+                      {activeVicinity.sos_count} SOS reports in 5 minutes
+                    </div>
+                    <div className="text-[11px] text-slate-500 mb-2">
+                      Vicinity radius: {activeVicinity.radius_m}m
+                    </div>
+                    <div className="text-xs font-bold bg-red-50 text-red-800 border border-red-200 px-2 py-1 rounded">
+                      Recommend {activeVicinity.recommended_teams} Rescue Team{activeVicinity.recommended_teams > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                </Popup>
+              </Circle>
+            )}
           </MapContainer>
           </ErrorBoundary>
 

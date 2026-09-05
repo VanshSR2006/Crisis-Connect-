@@ -13,6 +13,7 @@ import { getZoneDemand, ZoneDemandResponse } from '@/lib/api/demand';
 import { getDispatches, createDispatch as persistDispatch } from '@/lib/api/dispatches';
 import { realtimeClient } from '@/lib/api/websocket';
 import { normalizeRiskScore } from '@/lib/utils/risk';
+import { detectEmergencyCluster, EmergencyVicinity } from '@/lib/officer/emergencyDetection';
 
 // ── Exported Types ─────────────────────────────────────────────────────────────
 
@@ -204,6 +205,9 @@ interface OfficerContextType {
 
   isCrisisMode: boolean;
   setIsCrisisMode: (isCrisis: boolean) => void;
+
+  activeVicinity: EmergencyVicinity | null;
+  dismissVicinity: () => void;
 }
 
 const OfficerContext = createContext<OfficerContextType | undefined>(undefined);
@@ -324,6 +328,38 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [isCrisisMode, setIsCrisisMode] = useState<boolean>(false);
+  const [activeVicinity, setActiveVicinity] = useState<EmergencyVicinity | null>(null);
+
+  // ── Area Emergency Detection ──────────────────────────────────────────────────
+  useEffect(() => {
+    // Re-evaluate clusters whenever incidents or riskZones update
+    if (incidents.length > 0 && riskZones.length > 0) {
+      const vicinity = detectEmergencyCluster(incidents, riskZones);
+      
+      if (vicinity) {
+        setActiveVicinity(prev => {
+          // If we already have one, don't keep overriding unless it's a completely new center
+          if (prev) {
+            // Keep the previous ID but update counts
+            return {
+              ...prev,
+              sos_count: vicinity.sos_count,
+              highest_severity: vicinity.highest_severity,
+              estimated_population: vicinity.estimated_population,
+              recommended_teams: vicinity.recommended_teams,
+            };
+          }
+          // Only automatically toggle crisis mode when newly detected
+          setIsCrisisMode(true);
+          return vicinity;
+        });
+      } else {
+        // Option to automatically dismiss when resolved, but we'll leave it to manual dismiss
+      }
+    }
+  }, [incidents, riskZones]);
+
+  const dismissVicinity = () => setActiveVicinity(null);
 
   // Set initial selected incident once data loads
   useEffect(() => {
@@ -434,6 +470,8 @@ export const OfficerProvider: React.FC<{ children: React.ReactNode }> = ({ child
         createDispatch,
         isCrisisMode,
         setIsCrisisMode,
+        activeVicinity,
+        dismissVicinity,
       }}
     >
       {children}

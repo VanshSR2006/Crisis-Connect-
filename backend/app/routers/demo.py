@@ -217,13 +217,37 @@ def reset_demo_scenario(
     )
 
     db.add_all([inc1, inc2])
+
+    # --- Burst of SOS incidents for Area Emergency Detection ---
+    burst_incidents = []
+    base_lat = 24.8300
+    base_lng = 92.7800
+    for i in range(11):
+        burst_incidents.append(
+            Incident(
+                id=f"inc-burst-{i}",
+                reporter_id="usr-citizen-1",
+                zone_id=z1.id,
+                title="SOS Panic Report",
+                description="Rapidly rising water, need immediate evacuation.",
+                category="rescue",
+                severity="critical",
+                status="reported",
+                lat=base_lat + (i * 0.0001), # tightly clustered within ~100m
+                lng=base_lng + (i * 0.0001),
+                credibility_score=0.90,
+                review_state="verified",
+                priority_score=0.95
+            )
+        )
+    db.add_all(burst_incidents)
     db.commit()
 
     return {
         "status": "success",
         "message": "Assam Cachar Flood scenario reset successfully",
         "zones_seeded": 3,
-        "incidents_seeded": 2,
+        "incidents_seeded": 2 + len(burst_incidents),
         "rescue_sites_seeded": len(all_sites),
         "shelters_seeded": len(all_shelters),
         "resources_seeded": 3
