@@ -137,18 +137,30 @@ export const RiskHeatmap: React.FC = () => {
             </h3>
             <SeverityBadge severity={activeZone.risk_level} showIcon={false} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-semibold">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-semibold">
             <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[10px] uppercase font-black">Precipitation Index</span>
-              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.rainfall || '48 mm/h'}</strong>
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Precipitation (24h)</span>
+              <strong className="text-slate-900 text-sm font-mono">
+                {activeZone.rainfall_mm != null ? `${activeZone.rainfall_mm} mm` : (activeZone.factors?.rainfall || 'N/A')}
+              </strong>
             </div>
             <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[10px] uppercase font-black">Drainage Clearance</span>
-              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.drainage || '22% Capacity'}</strong>
+              <span className="text-slate-500 block text-[10px] uppercase font-black">River Water Level</span>
+              <strong className="text-slate-900 text-sm font-mono">
+                {activeZone.river_level_m != null ? `${activeZone.river_level_m} m` : (activeZone.factors?.river_level || 'N/A')}
+              </strong>
             </div>
             <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[10px] uppercase font-black">Population Density</span>
-              <strong className="text-slate-900 text-sm font-mono">{activeZone.factors?.population || 'High Density'}</strong>
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Terrain Elevation</span>
+              <strong className="text-slate-900 text-sm font-mono">
+                {activeZone.elevation_m != null ? `${activeZone.elevation_m} m` : (activeZone.factors?.elevation || '20.0 m')}
+              </strong>
+            </div>
+            <div className="bg-slate-100 p-3 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[10px] uppercase font-black">Soil Saturation</span>
+              <strong className="text-slate-900 text-sm font-mono">
+                {activeZone.soil_saturation != null ? `${Math.round(activeZone.soil_saturation * 100)}%` : (activeZone.factors?.soil_saturation || '50%')}
+              </strong>
             </div>
           </div>
         </div>

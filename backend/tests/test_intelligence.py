@@ -184,3 +184,37 @@ class TestZoneRiskSnapshot:
         assert isinstance(result["vulnerability_index"], float)
         assert isinstance(result["source"], str)
         assert isinstance(result["reason"], str)
+
+
+class TestRiskEndpoints:
+    def test_get_risk_zones_returns_environmental_inputs(self, db):
+        from fastapi.testclient import TestClient
+        from app.main import app
+        from app.database import get_db
+        from app.models import Zone, WeatherReading, RiskScore
+
+        zone = Zone(id="z-env-1", name="Env Zone 1", district="Test", population_est=4000)
+        reading = WeatherReading(zone_id="z-env-1", rainfall_mm=140.0, river_level_m=4.8)
+        score = RiskScore(id="rs-env-1", zone_id="z-env-1", risk_level="critical", score=0.88)
+        db.add_all([zone, reading, score])
+        db.commit()
+
+        def override_get_db():
+            try:
+                yield db
+            finally:
+                pass
+
+        app.dependency_overrides[get_db] = override_get_db
+        with TestClient(app, raise_server_exceptions=False) as client:
+            resp = client.get("/risk/zones")
+            assert resp.status_code == 200
+            data = resp.json()
+            matching = next((item for item in data if item["zone_id"] == "z-env-1"), None)
+            assert matching is not None
+            assert matching["score"] == 0.88
+            assert matching["rainfall_mm"] == 140.0
+            assert matching["river_level_m"] == 4.8
+            assert matching["elevation_m"] == 20.0
+            assert matching["soil_saturation"] == 0.5
+        app.dependency_overrides.clear()
